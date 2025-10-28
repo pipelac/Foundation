@@ -18,6 +18,7 @@ use JsonException;
  * - Генерация изображений (text2image)
  * - Распознавание изображений (image2text)
  * - Распознавание речи (audio2text)
+ * - Синтез речи (text2audio)
  * - Извлечение текста из PDF (pdf2text)
  * - Потоковая передача текста (textStream)
  */
@@ -252,6 +253,63 @@ class OpenRouter
         }
 
         throw new OpenRouterException('Модель не вернула текстовую транскрипцию.');
+    }
+
+    /**
+     * Преобразует текст в речь (text2audio)
+     *
+     * @param string $model Модель синтеза речи (например, "openai/tts-1" или "openai/tts-1-hd")
+     * @param string $text Текст для преобразования в речь
+     * @param string $voice Голос для синтеза (например, "alloy", "echo", "fable", "onyx", "nova", "shimmer")
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - speed (float): Скорость речи (0.25 - 4.0)
+     *                                      - response_format (string): Формат аудио (mp3, opus, aac, flac)
+     * @return string Бинарное содержимое аудиофайла
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если не удалось получить аудиоданные
+     */
+    public function text2audio(string $model, string $text, string $voice, array $options = []): string
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($text, 'text');
+        $this->validateNotEmpty($voice, 'voice');
+
+        $payload = array_merge([
+            'model' => $model,
+            'input' => $text,
+            'voice' => $voice,
+        ], $options);
+
+        $headers = $this->buildHeaders();
+        $headers['Content-Type'] = 'application/json';
+
+        $response = $this->http->request('POST', '/audio/speech', [
+            'json' => $payload,
+            'headers' => $headers,
+        ]);
+
+        $statusCode = $response->getStatusCode();
+        $body = (string)$response->getBody();
+
+        if ($statusCode >= 400) {
+            $this->logError('Сервер OpenRouter вернул ошибку при синтезе речи', [
+                'status_code' => $statusCode,
+                'response' => $body,
+            ]);
+
+            throw new OpenRouterApiException(
+                'Сервер вернул код ошибки при синтезе речи',
+                $statusCode,
+                $body
+            );
+        }
+
+        if ($body === '') {
+            throw new OpenRouterException('Модель не вернула аудиоданные.');
+        }
+
+        return $body;
     }
 
     /**
