@@ -30,7 +30,7 @@ class OpenRouter
     public function __construct(array $config, ?Logger $logger = null)
     {
         $this->apiKey = (string)($config['api_key'] ?? '');
-        $this->appName = (string)($config['app_name'] ?? 'RSSApp');
+        $this->appName = (string)($config['app_name'] ?? 'BasicUtilitiesApp');
         $this->timeout = max(1, (int)($config['timeout'] ?? self::DEFAULT_TIMEOUT));
         $this->logger = $logger;
 
@@ -123,6 +123,81 @@ class OpenRouter
                 'content' => [
                     ['type' => 'text', 'text' => $question],
                     ['type' => 'image_url', 'image_url' => ['url' => $imageUrl]],
+                ],
+            ],
+        ];
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new RuntimeException('Модель не вернула текстовый ответ.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Преобразует аудио в текст (audio2text)
+     *
+     * @param string $model Модель распознавания речи (например, openai/whisper-1)
+     * @param string $audioUrl URL аудиофайла или путь к локальному файлу
+     * @param array<string, mixed> $options Дополнительные параметры
+     * @return string Распознанный текст
+     * @throws Exception Если запрос завершился с ошибкой
+     */
+    public function audio2text(string $model, string $audioUrl, array $options = []): string
+    {
+        $audioResource = $this->normalizeMediaReference($audioUrl, 'audio/mpeg');
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'text', 'text' => 'Пожалуйста, транскрибируй это аудио в текст.'],
+                    ['type' => 'audio_url', 'audio_url' => ['url' => $audioResource]],
+                ],
+            ],
+        ];
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new RuntimeException('Модель не вернула текстовый ответ.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Извлекает текст из PDF документа (pdf2text)
+     *
+     * @param string $model Модель анализа документов (например, openai/gpt-4-vision или claude-3)
+     * @param string $pdfUrl URL PDF файла или путь к локальному файлу
+     * @param string $instruction Инструкция для обработки (по умолчанию - извлечение текста)
+     * @param array<string, mixed> $options Дополнительные параметры
+     * @return string Извлеченный текст
+     * @throws Exception Если запрос завершился с ошибкой
+     */
+    public function pdf2text(string $model, string $pdfUrl, string $instruction = 'Извлеки весь текст из этого PDF документа', array $options = []): string
+    {
+        $pdfResource = $this->normalizeMediaReference($pdfUrl, 'application/pdf');
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'text', 'text' => $instruction],
+                    ['type' => 'document_url', 'document_url' => ['url' => $pdfResource]],
                 ],
             ],
         ];
@@ -242,6 +317,41 @@ class OpenRouter
                 'HTTP-Referer' => $this->appName,
             ],
         ]);
+    }
+
+    /**
+     * Нормализует ссылку на медиафайл (URL или локальный путь в data URI)
+     *
+     * @param string $reference URL или путь к файлу
+     * @param string $defaultMimeType MIME тип по умолчанию, если не удалось определить автоматически
+     * @return string URL или data URI
+     * @throws RuntimeException Если файл не найден или не удалось прочитать содержимое
+     */
+    private function normalizeMediaReference(string $reference, string $defaultMimeType): string
+    {
+        if (filter_var($reference, FILTER_VALIDATE_URL)) {
+            return $reference;
+        }
+
+        if (!is_file($reference) || !is_readable($reference)) {
+            throw new RuntimeException('Файл не найден или недоступен: ' . $reference);
+        }
+
+        $content = file_get_contents($reference);
+
+        if ($content === false) {
+            throw new RuntimeException('Не удалось прочитать файл: ' . $reference);
+        }
+
+        $mimeType = mime_content_type($reference);
+
+        if ($mimeType === false) {
+            $mimeType = $defaultMimeType;
+        }
+
+        $encoded = base64_encode($content);
+
+        return 'data:' . $mimeType . ';base64,' . $encoded;
     }
 
     /**

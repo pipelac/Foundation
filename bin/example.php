@@ -58,7 +58,7 @@ try {
 
     // Пример работы с Telegram
     echo "=== Пример работы с Telegram ===\n";
-    // $telegram->sendText(null, 'Тестовое сообщение из RSS приложения');
+    // $telegram->sendText(null, 'Тестовое сообщение из набора утилит');
     // echo "Сообщение отправлено\n\n";
 
     $logger->info('Приложение завершено');
