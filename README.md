@@ -8,7 +8,7 @@
 
 - **Rss** — парсинг RSS/Atom лент
 - **MySQL** — работа с БД через PDO
-- **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, pdf2text, streaming)
+- **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, text2audio, pdf2text, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов
@@ -132,6 +132,10 @@ $description = $openRouter->image2text('openai/gpt-4-vision', 'https://example.c
 
 // Audio to Text
 $transcript = $openRouter->audio2text('openai/whisper-1', 'https://example.com/audio.mp3');
+
+// Text to Audio
+$audioData = $openRouter->text2audio('openai/tts-1', 'Привет! Это синтез речи.', 'alloy');
+file_put_contents('output.mp3', $audioData);
 
 // PDF to Text
 $pdfText = $openRouter->pdf2text('anthropic/claude-3-haiku', 'https://example.com/document.pdf');
