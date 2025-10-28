@@ -1,0 +1,52 @@
+feat: Добавлен OpenRouterClient для мониторинга баланса, токенов и статистики
+
+Создан новый класс OpenRouterClient для работы с внутренней информацией OpenRouter API.
+
+Основной функционал:
+- Проверка валидности API ключа (validateApiKey)
+- Получение информации об аккаунте (getKeyInfo)
+- Получение текущего баланса (getBalance)
+- Детальная статистика использования (getUsageStats)
+- Информация о лимитах запросов (getRateLimits)
+- Получение списка доступных моделей (getModels)
+- Информация о конкретной модели (getModelInfo)
+- Расчёт стоимости запросов (calculateCost)
+- Информация о генерации по ID (getGenerationInfo)
+
+Технические детали:
+- Строгая типизация PHP 8.1+
+- PHPDoc документация на русском языке
+- Использование существующих исключений OpenRouter*Exception
+- Интеграция с классом Http для запросов
+- Опциональное логирование через Logger
+- Все методы валидируют входные параметры
+- Endpoints: GET /api/v1/auth/key, GET /api/v1/models, GET /api/v1/generation
+
+Добавлены файлы:
++ src/OpenRouterClient.class.php - Основной класс
++ examples/openrouter_client_example.php - Рабочий пример использования
++ bin/test_openrouter_client.php - Тест загрузки класса
++ OPENROUTER_CLIENT_README.md - Подробная документация
++ OPENROUTER_CLIENT_CHANGELOG.md - Changelog изменений
++ docs/openrouter_integration.md - Руководство по интеграции
+* README.md - Добавлен раздел об OpenRouterClient
+
+Отличие от класса OpenRouter:
+- OpenRouter: работа с AI моделями (генерация текста, изображений и т.д.)
+- OpenRouterClient: мониторинг баланса, токенов и статистики аккаунта
+
+Примеры использования:
+```php
+$client = new OpenRouterClient($config, $logger);
+
+// Проверка баланса
+$balance = $client->getBalance();
+
+// Статистика использования
+$stats = $client->getUsageStats();
+
+// Расчёт стоимости
+$cost = $client->calculateCost('openai/gpt-3.5-turbo', 1000, 500);
+```
+
+Issue: feature/add-openrouter-client-token-usage-balance

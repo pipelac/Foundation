@@ -9,6 +9,7 @@
 - **Rss** — парсинг RSS/Atom лент
 - **MySQL** — работа с БД через PDO
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, pdf2text, streaming)
+- **OpenRouterClient** — получение информации о балансе, токенах, лимитах и статистике OpenRouter API
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов
@@ -142,6 +143,53 @@ $openRouter->textStream('openai/gpt-3.5-turbo', 'Расскажи историю
 });
 ```
 
+### OpenRouterClient
+
+```php
+use App\Component\OpenRouterClient;
+
+$config = ConfigLoader::load(__DIR__ . '/config/openrouter.json');
+$client = new OpenRouterClient($config, $logger);
+
+// Проверка валидности API ключа
+$isValid = $client->validateApiKey();
+
+// Получение информации об аккаунте
+$keyInfo = $client->getKeyInfo();
+echo "Использовано: $" . $keyInfo['usage'];
+echo "Лимит: $" . ($keyInfo['limit'] ?? 'Безлимитный');
+
+// Получение баланса
+$balance = $client->getBalance();
+echo "Баланс: $" . number_format($balance, 2);
+
+// Статистика использования
+$stats = $client->getUsageStats();
+echo "Использовано: " . $stats['usage_percentage'] . "%";
+
+// Информация о лимитах запросов
+$rateLimits = $client->getRateLimits();
+print_r($rateLimits);
+
+// Список доступных моделей
+$models = $client->getModels();
+foreach ($models as $model) {
+    echo $model['id'] . " - " . $model['name'];
+}
+
+// Информация о конкретной модели
+$modelInfo = $client->getModelInfo('openai/gpt-3.5-turbo');
+print_r($modelInfo);
+
+// Расчёт стоимости запроса
+$cost = $client->calculateCost('openai/gpt-3.5-turbo', 1000, 500);
+echo "Стоимость: $" . $cost['total_cost_usd'];
+
+// Информация о генерации (требуется ID генерации)
+$generationInfo = $client->getGenerationInfo('gen_abc123xyz');
+print_r($generationInfo);
+```
+
 ### Telegram
 
 ```php
@@ -237,11 +285,13 @@ php bin/test_autoload.php
 ├── src/                    # Исходный код
 │   ├── Config/
 │   │   └── ConfigLoader.php
+│   ├── Exception/          # Исключения
 │   ├── Email.class.php
 │   ├── Http.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
 │   ├── OpenRouter.class.php
+│   ├── OpenRouterClient.class.php
 │   ├── Rss.class.php
 │   └── Telegram.class.php
 ├── .gitignore
