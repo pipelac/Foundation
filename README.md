@@ -9,6 +9,7 @@
 - **Rss** — парсинг RSS/Atom лент
 - **MySQL** — работа с БД через PDO
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, text2audio, pdf2text, streaming)
+- **OpenRouterMetrics** — мониторинг метрик OpenRouter (баланс, токены, стоимость, модели)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов + email уведомления администратору (v2.1)
@@ -171,6 +172,44 @@ $openRouter->textStream('openai/gpt-3.5-turbo', 'Расскажи историю
 });
 ```
 
+### OpenRouterMetrics
+
+```php
+use App\Component\OpenRouterMetrics;
+
+$config = ConfigLoader::load(__DIR__ . '/config/openrouter.json');
+$metrics = new OpenRouterMetrics($config, $logger);
+
+// Информация о ключе и балансе
+$keyInfo = $metrics->getKeyInfo();
+$balance = $metrics->getBalance();
+echo "Баланс: \${$balance}\n";
+
+// Статистика использования
+$stats = $metrics->getUsageStats();
+echo "Использовано: {$stats['usage_percent']}%\n";
+
+// Список доступных моделей
+$models = $metrics->getModels();
+foreach ($models as $model) {
+    echo "{$model['name']} - \${$model['pricing']['prompt']} за 1M токенов\n";
+}
+
+// Оценка стоимости запроса
+$estimate = $metrics->estimateCost('openai/gpt-3.5-turbo', 1000, 500);
+echo "Стоимость: \${$estimate['total_cost']}\n";
+
+// Проверка баланса перед запросом
+if ($metrics->hasEnoughBalance($estimate['total_cost'])) {
+    // Выполнить запрос
+}
+
+// Полная информация об аккаунте
+$status = $metrics->getAccountStatus();
+```
+
+📖 **Подробная документация:** `docs/OPENROUTER_METRICS.md`
+
 ### Telegram
 
 ```php
@@ -271,6 +310,7 @@ php bin/test_autoload.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
 │   ├── OpenRouter.class.php
+│   ├── OpenRouterMetrics.class.php
 │   ├── Rss.class.php
 │   └── Telegram.class.php
 ├── .gitignore
