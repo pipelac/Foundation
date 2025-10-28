@@ -11,6 +11,8 @@ use DateTimeImmutable;
 /**
  * Класс структурированного логирования с поддержкой ротации файлов,
  * кеширования настроек в памяти и оптимизированной работы с файловой системой
+ * 
+ * Поддерживает отправку email уведомлений администратору при критических ошибках
  */
 class Logger
 {
@@ -50,6 +52,29 @@ class Logger
     private int $currentBufferSize = 0;
     private bool $enabled = true;
     private string $cacheKey;
+    
+    /**
+     * Email адрес(а) администратора для уведомлений
+     * @var array<int, string>
+     */
+    private array $adminEmails = [];
+    
+    /**
+     * Конфигурация для Email класса
+     * @var array<string, mixed>|null
+     */
+    private ?array $emailConfig = null;
+    
+    /**
+     * Уровни логирования, при которых отправлять email уведомления
+     * @var array<int, string>
+     */
+    private array $emailOnLevels = ['CRITICAL'];
+    
+    /**
+     * Инстанс Email класса для отправки уведомлений
+     */
+    private ?Email $emailInstance = null;
 
     /**
      * Конструктор с поддержкой кеширования конфигурации в памяти
@@ -81,6 +106,9 @@ class Logger
             'date_format' => $this->dateFormat,
             'log_buffer_size_bytes' => $this->logBufferSizeBytes,
             'enabled' => $this->enabled,
+            'admin_emails' => $this->adminEmails,
+            'email_config' => $this->emailConfig,
+            'email_on_levels' => $this->emailOnLevels,
         ];
     }
     
@@ -106,6 +134,8 @@ class Logger
         
         $this->enabled = (bool)($config['enabled'] ?? true);
         
+        $this->initializeEmailConfiguration($config);
+        
         $this->validateConfiguration();
         $this->validateDirectoryAccess();
     }
@@ -124,6 +154,9 @@ class Logger
         $this->dateFormat = $cachedConfig['date_format'];
         $this->logBufferSizeBytes = $cachedConfig['log_buffer_size_bytes'];
         $this->enabled = $cachedConfig['enabled'];
+        $this->adminEmails = $cachedConfig['admin_emails'] ?? [];
+        $this->emailConfig = $cachedConfig['email_config'] ?? null;
+        $this->emailOnLevels = $cachedConfig['email_on_levels'] ?? ['CRITICAL'];
     }
     
     /**
@@ -166,6 +199,83 @@ class Logger
         if (!is_writable($this->directory)) {
             throw new LoggerValidationException('Недостаточно прав на запись в директорию: ' . $this->directory);
         }
+    }
+    
+    /**
+     * Инициализирует конфигурацию email уведомлений
+     * 
+     * @param array<string, mixed> $config Параметры конфигурации
+     * @throws Exception Если конфигурация некорректна
+     */
+    private function initializeEmailConfiguration(array $config): void
+    {
+        if (!isset($config['admin_email']) && !isset($config['email_config'])) {
+            return;
+        }
+        
+        if (isset($config['admin_email'])) {
+            $adminEmail = $config['admin_email'];
+            
+            if (is_string($adminEmail)) {
+                $this->adminEmails = $this->validateAndNormalizeEmails([$adminEmail]);
+            } elseif (is_array($adminEmail)) {
+                $this->adminEmails = $this->validateAndNormalizeEmails($adminEmail);
+            } else {
+                throw new Exception('Параметр admin_email должен быть строкой или массивом email адресов.');
+            }
+        }
+        
+        if (isset($config['email_config'])) {
+            if (!is_array($config['email_config'])) {
+                throw new Exception('Параметр email_config должен быть массивом.');
+            }
+            $this->emailConfig = $config['email_config'];
+        }
+        
+        if (isset($config['email_on_levels'])) {
+            if (!is_array($config['email_on_levels'])) {
+                throw new Exception('Параметр email_on_levels должен быть массивом.');
+            }
+            
+            $normalizedLevels = [];
+            foreach ($config['email_on_levels'] as $level) {
+                $normalizedLevel = strtoupper(trim((string)$level));
+                if (!in_array($normalizedLevel, self::ALLOWED_LEVELS, true)) {
+                    throw new Exception("Недопустимый уровень логирования в email_on_levels: {$level}");
+                }
+                $normalizedLevels[] = $normalizedLevel;
+            }
+            
+            $this->emailOnLevels = array_values(array_unique($normalizedLevels));
+        }
+    }
+    
+    /**
+     * Валидирует и нормализует email адреса
+     * 
+     * @param array<int|string, mixed> $emails Массив email адресов
+     * @return array<int, string> Массив валидных email адресов
+     * @throws Exception Если найден невалидный email адрес
+     */
+    private function validateAndNormalizeEmails(array $emails): array
+    {
+        $validEmails = [];
+        
+        foreach ($emails as $email) {
+            $emailStr = trim((string)$email);
+            
+            if ($emailStr === '') {
+                continue;
+            }
+            
+            if (!filter_var($emailStr, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("Некорректный email адрес администратора: {$emailStr}");
+            }
+            
+            $validEmails[] = $emailStr;
+        }
+        
+        return array_values(array_unique($validEmails));
     }
 
     /**
@@ -289,6 +399,10 @@ class Logger
         
         $record = $this->formatRecord($normalizedLevel, $message, $context) . PHP_EOL;
         $this->writeLog($record);
+        
+        if ($this->shouldSendEmailNotification($normalizedLevel)) {
+            $this->sendEmailNotification($normalizedLevel, $message, $context);
+        }
     }
     
     /**
@@ -546,5 +660,151 @@ class Logger
         }
         
         clearstatcache();
+    }
+    
+    /**
+     * Проверяет, нужно ли отправлять email уведомление для данного уровня логирования
+     * 
+     * @param string $level Нормализованный уровень логирования
+     * @return bool Возвращает true если нужно отправить уведомление
+     */
+    private function shouldSendEmailNotification(string $level): bool
+    {
+        if ($this->adminEmails === [] || $this->emailConfig === null) {
+            return false;
+        }
+        
+        return in_array($level, $this->emailOnLevels, true);
+    }
+    
+    /**
+     * Отправляет email уведомление администратору о событии логирования
+     * 
+     * @param string $level Уровень логирования
+     * @param string $message Текст сообщения
+     * @param array<string, mixed> $context Дополнительные данные
+     */
+    private function sendEmailNotification(string $level, string $message, array $context): void
+    {
+        try {
+            if ($this->emailInstance === null) {
+                $this->emailInstance = new Email($this->emailConfig);
+            }
+            
+            $timestamp = (new DateTimeImmutable())->format($this->dateFormat);
+            $subject = "[{$level}] Уведомление от системы логирования";
+            
+            $body = $this->buildEmailBody($level, $message, $context, $timestamp);
+            
+            $this->emailInstance->send(
+                $this->adminEmails,
+                $subject,
+                $body,
+                ['is_html' => true]
+            );
+            
+        } catch (Exception $e) {
+            error_log(
+                'Не удалось отправить email уведомление администратору: ' . 
+                $e->getMessage() . 
+                ' (исходное сообщение: ' . $message . ')'
+            );
+        }
+    }
+    
+    /**
+     * Формирует тело email уведомления в HTML формате
+     * 
+     * @param string $level Уровень логирования
+     * @param string $message Текст сообщения
+     * @param array<string, mixed> $context Дополнительные данные
+     * @param string $timestamp Временная метка
+     * @return string HTML содержимое письма
+     */
+    private function buildEmailBody(string $level, string $message, array $context, string $timestamp): string
+    {
+        $levelColors = [
+            'DEBUG' => '#6c757d',
+            'INFO' => '#0dcaf0',
+            'WARNING' => '#ffc107',
+            'ERROR' => '#dc3545',
+            'CRITICAL' => '#8b0000',
+        ];
+        
+        $color = $levelColors[$level] ?? '#333333';
+        
+        $contextHtml = '';
+        if ($context !== []) {
+            try {
+                $contextJson = json_encode(
+                    $context,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR
+                );
+            } catch (Exception $e) {
+                $contextJson = json_encode(['error' => 'Невозможно сериализовать контекст']);
+            }
+            
+            $contextHtml = '
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold; width: 150px;">Контекст:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;"><pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 12px;">' . htmlspecialchars((string)$contextJson, ENT_QUOTES, 'UTF-8') . '</pre></td>
+                </tr>';
+        }
+        
+        $hostname = gethostname() ?: 'unknown';
+        
+        return '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Уведомление от системы логирования</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4;">
+    <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="background-color: ' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '; color: #ffffff; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">⚠️ Уведомление от системы логирования</h1>
+            <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: bold;">' . htmlspecialchars($level, ENT_QUOTES, 'UTF-8') . '</p>
+        </div>
+        
+        <div style="padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold; width: 150px;">Время события:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">' . htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8') . '</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold;">Уровень:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;"><span style="background-color: ' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">' . htmlspecialchars($level, ENT_QUOTES, 'UTF-8') . '</span></td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold;">Сообщение:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; word-wrap: break-word;">' . nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8')) . '</td>
+                </tr>' . $contextHtml . '
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold;">Сервер:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">' . htmlspecialchars($hostname, ENT_QUOTES, 'UTF-8') . '</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #dee2e6; background-color: #f8f9fa; font-weight: bold;">Директория логов:</td>
+                    <td style="padding: 12px; border: 1px solid #dee2e6;">' . htmlspecialchars($this->directory, ENT_QUOTES, 'UTF-8') . '</td>
+                </tr>
+            </table>
+            
+            <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid ' . htmlspecialchars($color, ENT_QUOTES, 'UTF-8') . '; margin-top: 20px;">
+                <p style="margin: 0; font-size: 14px; color: #666;">
+                    <strong>Примечание:</strong> Это автоматическое уведомление от системы логирования. 
+                    Подробности события записаны в лог-файл: <code>' . htmlspecialchars($this->fileName, ENT_QUOTES, 'UTF-8') . '</code>
+                </p>
+            </div>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #dee2e6;">
+            <p style="margin: 0;">Система логирования | ' . htmlspecialchars($hostname, ENT_QUOTES, 'UTF-8') . '</p>
+        </div>
+    </div>
+</body>
+</html>';
     }
 }
