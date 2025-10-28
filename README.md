@@ -6,8 +6,9 @@
 
 Монолитная слоистая архитектура с независимыми компонентами:
 
-- **Rss** — парсинг RSS/Atom лент
+- **Rss** — парсинг RSS/Atom лент (SimplePie)
 - **MySQL** — работа с БД через PDO
+- **MySQLConnectionFactory** — фабрика соединений MySQL с кешированием
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Logger** — структурированное логирование с ротацией файлов
@@ -33,7 +34,7 @@ composer install
 
 - `config/logger.json` — настройки логирования
 - `config/mysql.json` — параметры подключения к MySQL
-- `config/rss.json` — настройки RSS парсера
+- `config/rss.json` — настройки RSS парсера (SimplePie, кеш)
 - `config/openrouter.json` — API ключ OpenRouter
 - `config/telegram.json` — токен Telegram бота
 
@@ -57,10 +58,10 @@ $logger->debug('Отладочная информация');
 ### MySQL
 
 ```php
-use App\Component\MySQL;
+use App\Component\MySQLConnectionFactory;
 
 $config = ConfigLoader::load(__DIR__ . '/config/mysql.json');
-$mysql = new MySQL($config, $logger);
+$mysql = MySQLConnectionFactory::get($config, $logger);
 
 // SELECT запросы
 $users = $mysql->query('SELECT * FROM users WHERE status = ?', ['active']);
@@ -85,6 +86,8 @@ try {
 }
 ```
 
+> При необходимости можно создавать экземпляры `MySQL` вручную, однако фабрика автоматически переиспользует соединения с одинаковой конфигурацией.
+
 ### RSS
 
 ```php
@@ -105,6 +108,8 @@ foreach ($feed['items'] as $item) {
     echo $item['published_at']->format('Y-m-d H:i:s');
 }
 ```
+
+> Используется библиотека SimplePie для парсинга RSS/Atom лент. Поддерживает кеширование лент при указании `cache_dir` в конфигурации.
 
 ### OpenRouter
 
@@ -204,6 +209,7 @@ php bin/test_autoload.php
 │   ├── Http.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
+│   ├── MySQLConnectionFactory.class.php
 │   ├── OpenRouter.class.php
 │   ├── Rss.class.php
 │   └── Telegram.class.php

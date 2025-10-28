@@ -13,6 +13,7 @@ $classes = [
     'App\Config\ConfigLoader',
     'App\Component\Logger',
     'App\Component\MySQL',
+    'App\Component\MySQLConnectionFactory',
     'App\Component\Rss',
     'App\Component\OpenRouter',
     'App\Component\Telegram',

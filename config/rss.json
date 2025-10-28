@@ -1,4 +1,6 @@
 {
     "user_agent": "RSSClient/1.0 (+https://example.com)",
-    "timeout": 10
+    "timeout": 10,
+    "cache_dir": null,
+    "cache_duration": 3600
 }
