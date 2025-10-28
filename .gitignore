@@ -31,6 +31,11 @@
 /examples/cache/
 /tests/cache/
 
+# Директория кеша SimplePie для RSS
+# Создается при включенном кешировании RSS лент
+/simplepie_cache/
+/cache/
+
 # Директория логов в examples
 # Создается при работе с примерами использования
 /examples/logs/

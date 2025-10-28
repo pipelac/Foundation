@@ -9,7 +9,9 @@
         "ext-curl": "*",
         "ext-pdo": "*",
         "ext-pdo_mysql": "*",
-        "guzzlehttp/guzzle": "^7.8"
+        "ext-simplexml": "*",
+        "guzzlehttp/guzzle": "^7.8",
+        "simplepie/simplepie": "^1.8"
     },
     "autoload": {
         "classmap": [

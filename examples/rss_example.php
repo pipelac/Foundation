@@ -15,6 +15,7 @@ $rss = new Rss([
     'user_agent' => 'MyRSSReader/1.0',
     'timeout' => 15,
     'max_content_size' => 5242880, // 5 MB
+    'cache_enabled' => false,
 ]);
 echo "RSS загрузчик создан\n\n";
 
@@ -32,8 +33,11 @@ $logger = new Logger([
 $rssWithLogger = new Rss([
     'user_agent' => 'MyRSSReader/2.0',
     'timeout' => 10,
+    'cache_enabled' => true,
+    'cache_directory' => __DIR__ . '/cache',
+    'cache_duration' => 1800, // 30 минут
 ], $logger);
-echo "RSS загрузчик с логгером создан\n\n";
+echo "RSS загрузчик с логгером и кешированием создан\n\n";
 
 // Пример 3: Загрузка RSS ленты (пример с публичным RSS)
 echo "3. Загрузка и парсинг RSS ленты:\n";
@@ -142,5 +146,26 @@ $fastRss = new Rss([
     'max_content_size' => 1048576, // 1 MB - маленький лимит для быстрой загрузки
 ]);
 echo "Быстрый RSS загрузчик создан с таймаутом 5 сек и лимитом 1 MB\n\n";
+
+// Пример 8: Использование кеша
+echo "8. Работа с кешированием:\n";
+$cachedRss = new Rss([
+    'cache_enabled' => true,
+    'cache_directory' => __DIR__ . '/cache',
+    'cache_duration' => 3600,
+]);
+
+$cacheInfo = $cachedRss->getCacheInfo();
+echo "Кеширование включено: " . ($cacheInfo['enabled'] ? 'Да' : 'Нет') . "\n";
+echo "Директория кеша: {$cacheInfo['directory']}\n";
+echo "Длительность кеша: {$cacheInfo['duration']} секунд\n";
+
+// Очистка кеша
+if ($cacheInfo['enabled']) {
+    $cleared = $cachedRss->clearCache();
+    echo "Кеш очищен: " . ($cleared ? 'Успешно' : 'Не удалось') . "\n";
+}
+
+echo "\n";
 
 echo "=== Examples completed ===\n";
