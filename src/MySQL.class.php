@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\ConnectionException;
-use App\Component\Exception\DatabaseException;
-use App\Component\Exception\TransactionException;
+use App\Component\Exception\MySQLConnectionException;
+use App\Component\Exception\MySQLException;
+use App\Component\Exception\MySQLTransactionException;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -68,8 +68,8 @@ class MySQL
      * } $config Конфигурация подключения к БД
      * @param Logger|null $logger Логгер для записи ошибок и отладочной информации
      * 
-     * @throws ConnectionException Если не удалось подключиться к БД
-     * @throws DatabaseException Если конфигурация некорректна
+     * @throws MySQLConnectionException Если не удалось подключиться к БД
+     * @throws MySQLException Если конфигурация некорректна
      */
     public function __construct(array $config, ?Logger $logger = null)
     {
@@ -112,7 +112,7 @@ class MySQL
                 'database' => $database,
                 'error' => $e->getMessage(),
             ]);
-            throw new ConnectionException(
+            throw new MySQLConnectionException(
                 sprintf('Не удалось подключиться к базе данных "%s" на хосте "%s": %s', $database, $host, $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -125,20 +125,20 @@ class MySQL
      * 
      * @param array<string, mixed> $config Конфигурация для проверки
      * 
-     * @throws DatabaseException Если конфигурация некорректна
+     * @throws MySQLException Если конфигурация некорректна
      */
     private function validateConfig(array $config): void
     {
         if (!isset($config['database']) || trim((string)$config['database']) === '') {
-            throw new DatabaseException('Не указано имя базы данных в конфигурации');
+            throw new MySQLException('Не указано имя базы данных в конфигурации');
         }
 
         if (!isset($config['username'])) {
-            throw new DatabaseException('Не указано имя пользователя БД в конфигурации');
+            throw new MySQLException('Не указано имя пользователя БД в конфигурации');
         }
 
         if (!isset($config['password'])) {
-            throw new DatabaseException('Не указан пароль для подключения к БД в конфигурации');
+            throw new MySQLException('Не указан пароль для подключения к БД в конфигурации');
         }
     }
 
@@ -163,7 +163,7 @@ class MySQL
      * 
      * @return array<int, array<string, mixed>> Массив строк результата
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function query(string $query, array $params = []): array
     {
@@ -182,7 +182,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения SELECT запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -198,7 +198,7 @@ class MySQL
      * 
      * @return array<string, mixed>|null Первая строка результата или null, если результат пуст
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function queryOne(string $query, array $params = []): ?array
     {
@@ -217,7 +217,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения SELECT запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -235,7 +235,7 @@ class MySQL
      * 
      * @return mixed Скалярное значение первого столбца первой строки или null
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function queryScalar(string $query, array $params = []): mixed
     {
@@ -254,7 +254,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения SELECT запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -270,7 +270,7 @@ class MySQL
      * 
      * @return int ID вставленной записи (0 для таблиц без AUTO_INCREMENT)
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function insert(string $query, array $params = []): int
     {
@@ -289,7 +289,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения INSERT запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -308,8 +308,8 @@ class MySQL
      * 
      * @return int Количество вставленных строк
      * 
-     * @throws DatabaseException Если операция завершилась с ошибкой
-     * @throws TransactionException Если возникла ошибка транзакции
+     * @throws MySQLException Если операция завершилась с ошибкой
+     * @throws MySQLTransactionException Если возникла ошибка транзакции
      */
     public function insertBatch(string $table, array $rows): int
     {
@@ -354,7 +354,7 @@ class MySQL
                 'table' => $table,
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка массовой вставки в таблицу "%s": %s', $table, $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -370,7 +370,7 @@ class MySQL
      * 
      * @return int Количество обновленных строк
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function update(string $query, array $params = []): int
     {
@@ -389,7 +389,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения UPDATE запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -405,7 +405,7 @@ class MySQL
      * 
      * @return int Количество удаленных строк
      * 
-     * @throws DatabaseException Если запрос завершился с ошибкой
+     * @throws MySQLException Если запрос завершился с ошибкой
      */
     public function delete(string $query, array $params = []): int
     {
@@ -424,7 +424,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения DELETE запроса: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -441,7 +441,7 @@ class MySQL
      * 
      * @return int Количество затронутых строк (0 для большинства DDL команд)
      * 
-     * @throws DatabaseException Если команда завершилась с ошибкой
+     * @throws MySQLException Если команда завершилась с ошибкой
      */
     public function execute(string $query): int
     {
@@ -459,7 +459,7 @@ class MySQL
                 'query' => $this->sanitizeQueryForLog($query),
                 'error' => $e->getMessage(),
             ]);
-            throw new DatabaseException(
+            throw new MySQLException(
                 sprintf('Ошибка выполнения SQL команды: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -470,20 +470,20 @@ class MySQL
     /**
      * Начинает новую транзакцию
      * 
-     * @throws TransactionException Если транзакция уже активна или не удалось начать
+     * @throws MySQLTransactionException Если транзакция уже активна или не удалось начать
      */
     public function beginTransaction(): void
     {
         try {
             if ($this->connection->inTransaction()) {
-                throw new TransactionException('Транзакция уже активна. Вложенные транзакции не поддерживаются.');
+                throw new MySQLTransactionException('Транзакция уже активна. Вложенные транзакции не поддерживаются.');
             }
 
             $this->connection->beginTransaction();
             $this->logDebug('Транзакция начата');
         } catch (PDOException $e) {
             $this->logError('Ошибка начала транзакции', ['error' => $e->getMessage()]);
-            throw new TransactionException(
+            throw new MySQLTransactionException(
                 sprintf('Не удалось начать транзакцию: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -494,20 +494,20 @@ class MySQL
     /**
      * Подтверждает активную транзакцию
      * 
-     * @throws TransactionException Если транзакция не активна или не удалось подтвердить
+     * @throws MySQLTransactionException Если транзакция не активна или не удалось подтвердить
      */
     public function commit(): void
     {
         try {
             if (!$this->connection->inTransaction()) {
-                throw new TransactionException('Нет активной транзакции для подтверждения');
+                throw new MySQLTransactionException('Нет активной транзакции для подтверждения');
             }
 
             $this->connection->commit();
             $this->logDebug('Транзакция подтверждена');
         } catch (PDOException $e) {
             $this->logError('Ошибка подтверждения транзакции', ['error' => $e->getMessage()]);
-            throw new TransactionException(
+            throw new MySQLTransactionException(
                 sprintf('Не удалось подтвердить транзакцию: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -518,20 +518,20 @@ class MySQL
     /**
      * Откатывает активную транзакцию
      * 
-     * @throws TransactionException Если транзакция не активна или не удалось откатить
+     * @throws MySQLTransactionException Если транзакция не активна или не удалось откатить
      */
     public function rollback(): void
     {
         try {
             if (!$this->connection->inTransaction()) {
-                throw new TransactionException('Нет активной транзакции для отката');
+                throw new MySQLTransactionException('Нет активной транзакции для отката');
             }
 
             $this->connection->rollBack();
             $this->logDebug('Транзакция откачена');
         } catch (PDOException $e) {
             $this->logError('Ошибка отката транзакции', ['error' => $e->getMessage()]);
-            throw new TransactionException(
+            throw new MySQLTransactionException(
                 sprintf('Не удалось откатить транзакцию: %s', $e->getMessage()),
                 (int)$e->getCode(),
                 $e
@@ -560,8 +560,8 @@ class MySQL
      * 
      * @return T Результат выполнения callback
      * 
-     * @throws TransactionException Если возникла ошибка управления транзакцией
-     * @throws DatabaseException Если возникла ошибка выполнения запросов
+     * @throws MySQLTransactionException Если возникла ошибка управления транзакцией
+     * @throws MySQLException Если возникла ошибка выполнения запросов
      */
     public function transaction(callable $callback): mixed
     {

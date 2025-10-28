@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Component;
 
+use App\Component\Exception\HttpException;
+use App\Component\Exception\HttpValidationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
-use InvalidArgumentException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use RuntimeException;
 
 /**
  * Класс-обёртка для выполнения HTTP-запросов на базе Guzzle с поддержкой
@@ -131,8 +131,8 @@ class Http
      *   - body: Тело запроса
      *   - timeout: Таймаут для конкретного запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function request(string $method, string $uri, array $options = []): ResponseInterface
     {
@@ -149,7 +149,7 @@ class Http
                 'code' => $exception->getCode(),
             ]);
 
-            throw new RuntimeException(
+            throw new HttpException(
                 sprintf('Ошибка HTTP запроса [%s %s]: %s', strtoupper($method), $uri, $exception->getMessage()),
                 (int)$exception->getCode(),
                 $exception
@@ -163,8 +163,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function get(string $uri, array $options = []): ResponseInterface
     {
@@ -177,8 +177,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function post(string $uri, array $options = []): ResponseInterface
     {
@@ -191,8 +191,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function put(string $uri, array $options = []): ResponseInterface
     {
@@ -205,8 +205,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function patch(string $uri, array $options = []): ResponseInterface
     {
@@ -219,8 +219,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function delete(string $uri, array $options = []): ResponseInterface
     {
@@ -233,8 +233,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return ResponseInterface Ответ сервера
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function head(string $uri, array $options = []): ResponseInterface
     {
@@ -256,18 +256,18 @@ class Http
      *
      * @param string $method HTTP метод
      * @param string $uri Адрес или endpoint
-     * @throws InvalidArgumentException Если параметры некорректны
+     * @throws HttpValidationException Если параметры некорректны
      */
     private function validateRequest(string $method, string $uri): void
     {
         $method = trim($method);
         if ($method === '') {
-            throw new InvalidArgumentException('HTTP метод не может быть пустым');
+            throw new HttpValidationException('HTTP метод не может быть пустым');
         }
 
         $uri = trim($uri);
         if ($uri === '') {
-            throw new InvalidArgumentException('URI не может быть пустым');
+            throw new HttpValidationException('URI не может быть пустым');
         }
     }
 
@@ -299,8 +299,8 @@ class Http
      * @param string $uri Адрес или endpoint
      * @param callable $callback Функция для обработки чанков данных: function(string $chunk): void
      * @param array<string, mixed> $options Дополнительные параметры запроса
-     * @throws InvalidArgumentException Если параметры запроса некорректны
-     * @throws RuntimeException Если запрос завершился с ошибкой
+     * @throws HttpValidationException Если параметры запроса некорректны
+     * @throws HttpException Если запрос завершился с ошибкой
      */
     public function requestStream(string $method, string $uri, callable $callback, array $options = []): void
     {
@@ -326,7 +326,7 @@ class Http
                     'response_preview' => $errorPreview,
                 ]);
 
-                throw new RuntimeException(
+                throw new HttpException(
                     sprintf(
                         'HTTP потоковый запрос завершился ошибкой [%s %s]: код %d',
                         strtoupper($method),
@@ -355,7 +355,7 @@ class Http
                 'code' => $exception->getCode(),
             ]);
 
-            throw new RuntimeException(
+            throw new HttpException(
                 sprintf('Ошибка потокового HTTP запроса [%s %s]: %s', strtoupper($method), $uri, $exception->getMessage()),
                 (int)$exception->getCode(),
                 $exception

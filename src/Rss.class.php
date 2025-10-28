@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Component;
 
+use App\Component\Exception\RssException;
+use App\Component\Exception\RssValidationException;
 use DateTimeImmutable;
 use Exception;
 use SimpleXMLElement;
-use RuntimeException;
 
 /**
  * Класс для безопасной загрузки и парсинга RSS/Atom лент с защитой от XML-атак
@@ -113,7 +114,7 @@ class Rss
      *                              - link: ссылка на источник
      *                              - language: язык контента
      *                              - items: массив элементов ленты
-     * @throws RuntimeException Если не удалось загрузить или распарсить ленту
+     * @throws RssException Если не удалось загрузить или распарсить ленту
      * @throws Exception Если произошла критическая ошибка
      */
     public function fetch(string $url): array
@@ -140,7 +141,7 @@ class Rss
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
             ]);
-            throw new RuntimeException('Критическая ошибка при обработке ленты: ' . $e->getMessage(), 0, $e);
+            throw new RssException('Критическая ошибка при обработке ленты: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -154,27 +155,27 @@ class Rss
      * 
      * @param string $url URL для валидации
      * @return void
-     * @throws RuntimeException Если URL невалиден
+     * @throws RssValidationException Если URL невалиден
      */
     private function validateUrl(string $url): void
     {
         if (trim($url) === '') {
-            throw new RuntimeException('URL не может быть пустым');
+            throw new RssValidationException('URL не может быть пустым');
         }
         
         $parsedUrl = parse_url($url);
         
         if ($parsedUrl === false) {
-            throw new RuntimeException('Некорректный формат URL');
+            throw new RssValidationException('Некорректный формат URL');
         }
         
         $scheme = $parsedUrl['scheme'] ?? '';
         if (!in_array(strtolower($scheme), ['http', 'https'], true)) {
-            throw new RuntimeException('URL должен использовать протокол HTTP или HTTPS');
+            throw new RssValidationException('URL должен использовать протокол HTTP или HTTPS');
         }
         
         if (!isset($parsedUrl['host']) || trim($parsedUrl['host']) === '') {
-            throw new RuntimeException('URL должен содержать имя хоста');
+            throw new RssValidationException('URL должен содержать имя хоста');
         }
     }
 
@@ -185,7 +186,7 @@ class Rss
      *
      * @param string $url Адрес ленты
      * @return string Содержимое XML ленты
-     * @throws RuntimeException Если запрос завершился с ошибкой или сервер вернул код ошибки
+     * @throws RssException Если запрос завершился с ошибкой или сервер вернул код ошибки
      */
     private function download(string $url): string
     {
@@ -198,13 +199,13 @@ class Rss
                 'url' => $url, 
                 'status_code' => $statusCode,
             ]);
-            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode);
+            throw new RssException('Сервер вернул код ошибки: ' . $statusCode);
         }
 
         $body = (string)$response->getBody();
         
         if ($body === '') {
-            throw new RuntimeException('Сервер вернул пустой ответ');
+            throw new RssException('Сервер вернул пустой ответ');
         }
 
         return $body;
@@ -218,14 +219,14 @@ class Rss
      * 
      * @param string $content Контент для проверки
      * @return void
-     * @throws RuntimeException Если размер контента превышает лимит
+     * @throws RssException Если размер контента превышает лимит
      */
     private function validateContentSize(string $content): void
     {
         $contentSize = strlen($content);
         
         if ($contentSize > $this->maxContentSize) {
-            throw new RuntimeException(sprintf(
+            throw new RssException(sprintf(
                 'Размер контента (%d байт) превышает максимально допустимый (%d байт)',
                 $contentSize,
                 $this->maxContentSize
@@ -243,7 +244,7 @@ class Rss
      *
      * @param string $xml XML строка для парсинга
      * @return SimpleXMLElement Объект распарсенного XML документа
-     * @throws RuntimeException Если XML невалиден или содержит ошибки
+     * @throws RssException Если XML невалиден или содержит ошибки
      */
     private function loadXml(string $xml): SimpleXMLElement
     {
@@ -258,7 +259,7 @@ class Rss
 
             if ($document === false) {
                 $errors = $this->formatLibxmlErrors();
-                throw new RuntimeException('Ошибка парсинга XML: ' . $errors);
+                throw new RssException('Ошибка парсинга XML: ' . $errors);
             }
 
             return $document;
@@ -297,7 +298,7 @@ class Rss
      *
      * @param SimpleXMLElement $document Распарсенный XML документ
      * @return array<string, mixed> Нормализованные данные ленты
-     * @throws RuntimeException Если формат ленты не распознан
+     * @throws RssException Если формат ленты не распознан
      */
     private function normalizeFeed(SimpleXMLElement $document): array
     {
@@ -311,7 +312,7 @@ class Rss
             return $this->parseAtom($document);
         }
 
-        throw new RuntimeException('Неизвестный формат ленты. Поддерживаются только RSS 2.0 и Atom 1.0');
+        throw new RssException('Неизвестный формат ленты. Поддерживаются только RSS 2.0 и Atom 1.0');
     }
 
     /**
@@ -327,7 +328,7 @@ class Rss
         $channel = $document->channel;
         
         if ($channel === null) {
-            throw new RuntimeException('RSS документ не содержит элемент channel');
+            throw new RssException('RSS документ не содержит элемент channel');
         }
 
         return [

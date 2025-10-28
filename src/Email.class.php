@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Component;
 
+use App\Component\Exception\EmailException;
+use App\Component\Exception\EmailValidationException;
 use DateTimeImmutable;
 use Exception;
-use InvalidArgumentException;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -54,7 +54,7 @@ class Email
      *
      * @param array<string, mixed> $config Параметры почтового компонента
      * @param Logger|null $logger Инстанс логгера для записи ошибок
-     * @throws InvalidArgumentException При некорректных параметрах конфигурации
+     * @throws EmailValidationException При некорректных параметрах конфигурации
      */
     public function __construct(array $config = [], ?Logger $logger = null)
     {
@@ -81,8 +81,8 @@ class Email
      *     attachments?: array<int, array{path: string, name?: string, mime?: string}>,
      *     headers?: array<string, string>
      * } $options Дополнительные параметры отправки
-     * @throws InvalidArgumentException При некорректных параметрах
-     * @throws RuntimeException При ошибке отправки
+     * @throws EmailValidationException При некорректных параметрах
+     * @throws EmailException При ошибке отправки
      */
     public function send(string|array $recipients, string $subject, string $body, array $options = []): void
     {
@@ -100,7 +100,7 @@ class Email
 
         $subject = $this->sanitizeHeaderValue($subject);
         if ($subject === '') {
-            throw new InvalidArgumentException('Тема письма не может быть пустой.');
+            throw new EmailValidationException('Тема письма не может быть пустой.');
         }
 
         $lastException = null;
@@ -167,7 +167,7 @@ class Email
             }
         }
         
-        throw new RuntimeException(
+        throw new EmailException(
             'Не удалось отправить письмо после ' . $this->retryAttempts . ' попыток. Последняя ошибка: ' . 
             ($lastException ? $lastException->getMessage() : 'Неизвестная ошибка'),
             0,
@@ -179,13 +179,13 @@ class Email
      * Валидирует и устанавливает базовую конфигурацию
      *
      * @param array<string, mixed> $config
-     * @throws InvalidArgumentException
+     * @throws EmailValidationException
      */
     private function validateAndSetBasicConfig(array $config): void
     {
         $fromEmail = (string)($config['from_email'] ?? '');
         if ($fromEmail === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('Не указан корректный адрес отправителя.');
+            throw new EmailValidationException('Не указан корректный адрес отправителя.');
         }
         $this->fromEmail = $this->sanitizeEmail($fromEmail);
 
@@ -195,7 +195,7 @@ class Email
         $replyTo = isset($config['reply_to']) ? (string)$config['reply_to'] : null;
         if ($replyTo !== null && $replyTo !== '') {
             if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
-                throw new InvalidArgumentException('Некорректный адрес reply-to.');
+                throw new EmailValidationException('Некорректный адрес reply-to.');
             }
             $this->replyTo = $this->sanitizeEmail($replyTo);
         } else {
@@ -208,7 +208,7 @@ class Email
         $returnPath = isset($config['return_path']) ? (string)$config['return_path'] : $this->fromEmail;
         if ($returnPath !== '') {
             if (!filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
-                throw new InvalidArgumentException('Некорректный адрес return-path.');
+                throw new EmailValidationException('Некорректный адрес return-path.');
             }
             $this->returnPath = $this->sanitizeEmail($returnPath);
         } else {
@@ -223,7 +223,7 @@ class Email
      * Валидирует и устанавливает SMTP конфигурацию
      *
      * @param array<string, mixed> $config
-     * @throws InvalidArgumentException
+     * @throws EmailValidationException
      */
     private function validateAndSetSmtpConfig(array $config): void
     {
@@ -251,17 +251,17 @@ class Email
 
         $port = $smtpConfig['port'] ?? self::DEFAULT_SMTP_PORT;
         if (!is_int($port) && !is_string($port)) {
-            throw new InvalidArgumentException('SMTP порт должен быть числом.');
+            throw new EmailValidationException('SMTP порт должен быть числом.');
         }
         $portInt = (int)$port;
         if ($portInt < 1 || $portInt > 65535) {
-            throw new InvalidArgumentException('SMTP порт должен быть в диапазоне 1-65535.');
+            throw new EmailValidationException('SMTP порт должен быть в диапазоне 1-65535.');
         }
         $this->smtpPort = $portInt;
 
         $encryption = isset($smtpConfig['encryption']) ? strtolower(trim((string)$smtpConfig['encryption'])) : null;
         if ($encryption !== null && $encryption !== '' && !in_array($encryption, ['tls', 'ssl', 'starttls'], true)) {
-            throw new InvalidArgumentException('SMTP encryption должен быть: tls, ssl или starttls.');
+            throw new EmailValidationException('SMTP encryption должен быть: tls, ssl или starttls.');
         }
         $this->smtpEncryption = $encryption !== '' ? $encryption : null;
 
@@ -276,7 +276,7 @@ class Email
      * Валидирует и устанавливает конфигурацию доставки
      *
      * @param array<string, mixed> $config
-     * @throws InvalidArgumentException
+     * @throws EmailValidationException
      */
     private function validateAndSetDeliveryConfig(array $config): void
     {
@@ -288,31 +288,31 @@ class Email
 
         $retryAttempts = $deliveryConfig['retry_attempts'] ?? self::DEFAULT_RETRY_ATTEMPTS;
         if (!is_int($retryAttempts) && !is_string($retryAttempts)) {
-            throw new InvalidArgumentException('Параметр retry_attempts должен быть числом.');
+            throw new EmailValidationException('Параметр retry_attempts должен быть числом.');
         }
         $retryAttempts = (int)$retryAttempts;
         if ($retryAttempts < 1) {
-            throw new InvalidArgumentException('Параметр retry_attempts должен быть больше 0.');
+            throw new EmailValidationException('Параметр retry_attempts должен быть больше 0.');
         }
         $this->retryAttempts = $retryAttempts;
 
         $retryDelay = $deliveryConfig['retry_delay'] ?? self::DEFAULT_RETRY_DELAY;
         if (!is_int($retryDelay) && !is_string($retryDelay)) {
-            throw new InvalidArgumentException('Параметр retry_delay должен быть числом.');
+            throw new EmailValidationException('Параметр retry_delay должен быть числом.');
         }
         $retryDelay = (int)$retryDelay;
         if ($retryDelay < 0) {
-            throw new InvalidArgumentException('Параметр retry_delay не может быть отрицательным.');
+            throw new EmailValidationException('Параметр retry_delay не может быть отрицательным.');
         }
         $this->retryDelay = $retryDelay;
 
         $timeout = $deliveryConfig['timeout'] ?? self::DEFAULT_TIMEOUT;
         if (!is_int($timeout) && !is_string($timeout)) {
-            throw new InvalidArgumentException('Параметр timeout должен быть числом.');
+            throw new EmailValidationException('Параметр timeout должен быть числом.');
         }
         $timeout = (int)$timeout;
         if ($timeout < 1) {
-            throw new InvalidArgumentException('Параметр timeout должен быть больше 0.');
+            throw new EmailValidationException('Параметр timeout должен быть больше 0.');
         }
         $this->timeout = $timeout;
     }
@@ -333,7 +333,7 @@ class Email
      * @param array<int, string> $bccRecipients
      * @param array<int, array{name: string, mime: string, content: string}> $attachments
      * @param array<string, string> $extraHeaders
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function sendViaSmtp(
         array $toRecipients,
@@ -360,7 +360,7 @@ class Email
                 $this->smtpCommand($socket, 'STARTTLS', '220');
                 
                 if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-                    throw new RuntimeException('Не удалось включить TLS шифрование.');
+                    throw new EmailException('Не удалось включить TLS шифрование.');
                 }
                 
                 $this->smtpCommand($socket, "EHLO {$hostname}", '250');
@@ -406,7 +406,7 @@ class Email
      * Устанавливает соединение с SMTP сервером
      *
      * @return resource
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function connectToSmtp()
     {
@@ -423,7 +423,7 @@ class Email
         $socket = @fsockopen($host, $port, $errno, $errstr, $this->timeout);
         
         if ($socket === false) {
-            throw new RuntimeException(
+            throw new EmailException(
                 "Не удалось подключиться к SMTP серверу {$this->smtpHost}:{$this->smtpPort}. " .
                 "Ошибка [{$errno}]: {$errstr}"
             );
@@ -438,7 +438,7 @@ class Email
      * Выполняет аутентификацию на SMTP сервере
      *
      * @param resource $socket
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function smtpAuthenticate($socket): void
     {
@@ -451,7 +451,7 @@ class Email
      * Отправляет команду SMTP и проверяет ответ
      *
      * @param resource $socket
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function smtpCommand($socket, ?string $command, string $expectedCode): void
     {
@@ -466,7 +466,7 @@ class Email
      * Читает и проверяет ответ SMTP сервера
      *
      * @param resource $socket
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function readSmtpResponse($socket, string $expectedCode): string
     {
@@ -482,16 +482,16 @@ class Email
         
         $info = stream_get_meta_data($socket);
         if ($info['timed_out']) {
-            throw new RuntimeException('Таймаут при ожидании ответа от SMTP сервера.');
+            throw new EmailException('Таймаут при ожидании ответа от SMTP сервера.');
         }
         
         if ($response === '') {
-            throw new RuntimeException('Пустой ответ от SMTP сервера.');
+            throw new EmailException('Пустой ответ от SMTP сервера.');
         }
         
         $code = substr($response, 0, 3);
         if ($code !== $expectedCode) {
-            throw new RuntimeException(
+            throw new EmailException(
                 "SMTP ошибка. Ожидался код {$expectedCode}, получен: {$response}"
             );
         }
@@ -589,7 +589,7 @@ class Email
      * @param array<int, string> $bccRecipients
      * @param array<int, array{name: string, mime: string, content: string}> $attachments
      * @param array<string, string> $extraHeaders
-     * @throws RuntimeException
+     * @throws EmailException
      */
     private function sendViaMailFunction(
         array $toRecipients,
@@ -630,7 +630,7 @@ class Email
             }
         } catch (Throwable $exception) {
             restore_error_handler();
-            throw new RuntimeException('Исключение при отправке письма: ' . $exception->getMessage(), 0, $exception);
+            throw new EmailException('Исключение при отправке письма: ' . $exception->getMessage(), 0, $exception);
         }
 
         restore_error_handler();
@@ -640,7 +640,7 @@ class Email
             if ($lastError !== null) {
                 $message .= ' ' . $lastError;
             }
-            throw new RuntimeException($message);
+            throw new EmailException($message);
         }
     }
 
@@ -649,7 +649,7 @@ class Email
      *
      * @param string|array<int, string> $recipients
      * @return array<int, string>
-     * @throws InvalidArgumentException
+     * @throws EmailValidationException
      */
     private function normalizeRecipients(string|array $recipients): array
     {
@@ -663,14 +663,14 @@ class Email
             }
 
             if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                throw new InvalidArgumentException('Некорректный адрес получателя: ' . $recipient);
+                throw new EmailValidationException('Некорректный адрес получателя: ' . $recipient);
             }
 
             $normalized[] = $this->sanitizeEmail($value);
         }
 
         if ($normalized === []) {
-            throw new InvalidArgumentException('Список получателей пуст.');
+            throw new EmailValidationException('Список получателей пуст.');
         }
 
         return $normalized;
@@ -681,7 +681,7 @@ class Email
      *
      * @param string|array<int, string> $recipients
      * @return array<int, string>
-     * @throws InvalidArgumentException
+     * @throws EmailValidationException
      */
     private function normalizeOptionalRecipients(string|array $recipients): array
     {
@@ -718,7 +718,7 @@ class Email
         }
 
         if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('Некорректный адрес reply-to.');
+            throw new EmailValidationException('Некорректный адрес reply-to.');
         }
 
         return $this->sanitizeEmail($replyTo);
@@ -747,7 +747,7 @@ class Email
         }
 
         if (!filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('Некорректный адрес return-path.');
+            throw new EmailValidationException('Некорректный адрес return-path.');
         }
 
         return $this->sanitizeEmail($returnPath);
@@ -758,7 +758,7 @@ class Email
      *
      * @param array<int, array{path: string, name?: string, mime?: string}> $attachments
      * @return array<int, array{name: string, mime: string, content: string}>
-     * @throws InvalidArgumentException|RuntimeException
+     * @throws EmailValidationException|RuntimeException
      */
     private function normalizeAttachments(array $attachments): array
     {
@@ -766,21 +766,21 @@ class Email
 
         foreach ($attachments as $index => $attachment) {
             if (!is_array($attachment)) {
-                throw new InvalidArgumentException('Вложение #' . $index . ' имеет некорректный формат.');
+                throw new EmailValidationException('Вложение #' . $index . ' имеет некорректный формат.');
             }
 
             if (!isset($attachment['path'])) {
-                throw new InvalidArgumentException('Для вложения #' . $index . ' не указан путь к файлу.');
+                throw new EmailValidationException('Для вложения #' . $index . ' не указан путь к файлу.');
             }
 
             $path = (string)$attachment['path'];
             if ($path === '' || !is_file($path) || !is_readable($path)) {
-                throw new InvalidArgumentException('Файл вложения #' . $index . ' недоступен: ' . $path);
+                throw new EmailValidationException('Файл вложения #' . $index . ' недоступен: ' . $path);
             }
 
             $content = file_get_contents($path);
             if ($content === false) {
-                throw new RuntimeException('Не удалось прочитать файл вложения: ' . $path);
+                throw new EmailException('Не удалось прочитать файл вложения: ' . $path);
             }
 
             $name = isset($attachment['name']) && $attachment['name'] !== ''
