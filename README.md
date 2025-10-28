@@ -6,7 +6,7 @@
 
 Монолитная слоистая архитектура с независимыми компонентами:
 
-- **Rss** — парсинг RSS/Atom лент
+- **Rss** — парсинг RSS/Atom лент на базе SimplePie (v3.0) с кешированием и санитизацией
 - **MySQL** — работа с БД через PDO
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, text2audio, pdf2text, streaming)
 - **OpenRouterMetrics** — мониторинг метрик OpenRouter (баланс, токены, стоимость, модели)
@@ -19,7 +19,7 @@
 
 - PHP 8.1 или выше
 - Расширения: `json`, `libxml`, `curl`, `pdo`, `pdo_mysql`
-- Composer (для установки Guzzle)
+- Composer (для установки зависимостей: Guzzle, SimplePie)
 
 ## Установка
 
@@ -116,7 +116,9 @@ try {
 }
 ```
 
-### RSS
+### RSS (SimplePie)
+
+**Версия 3.0** с использованием SimplePie для улучшенной производительности и надежности.
 
 ```php
 use App\Component\Rss;
@@ -128,14 +130,37 @@ $feed = $rss->fetch('https://example.com/feed.xml');
 
 echo $feed['title'];
 echo $feed['description'];
+echo $feed['image']; // Новое: URL логотипа ленты
 
 foreach ($feed['items'] as $item) {
     echo $item['title'];
     echo $item['link'];
-    echo $item['description'];
-    echo $item['published_at']->format('Y-m-d H:i:s');
+    
+    // Используем полный контент, если доступен
+    $text = !empty($item['content']) ? $item['content'] : $item['description'];
+    echo $text;
+    
+    // Дата публикации
+    if ($item['published_at'] !== null) {
+        echo $item['published_at']->format('Y-m-d H:i:s');
+    }
+    
+    // Медиа вложения (подкасты, видео)
+    foreach ($item['enclosures'] as $media) {
+        echo $media['url']; // URL медиа файла
+        echo $media['type']; // audio/mpeg, video/mp4, и т.д.
+    }
 }
 ```
+
+**Новые возможности:**
+- Встроенное кеширование для повышения производительности
+- Санитизация HTML контента
+- Поддержка RSS 0.9-2.0, Atom 0.3-1.0, RDF
+- Медиа вложения (enclosures)
+- Расширенная информация (image, copyright, generator, content)
+
+📖 **Подробная документация:** `RSS_README.md` и `MIGRATION_GUIDE_RSS.md`
 
 ### OpenRouter
 

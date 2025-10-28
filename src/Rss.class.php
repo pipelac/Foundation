@@ -8,22 +8,28 @@ use App\Component\Exception\RssException;
 use App\Component\Exception\RssValidationException;
 use DateTimeImmutable;
 use Exception;
-use SimpleXMLElement;
+use SimplePie\SimplePie;
+use SimplePie\File;
 
 /**
- * Класс для безопасной загрузки и парсинга RSS/Atom лент с защитой от XML-атак
+ * Класс для безопасной загрузки и парсинга RSS/Atom лент на базе SimplePie
  * 
  * Поддерживаемые форматы:
- * - RSS 2.0
- * - Atom 1.0
+ * - RSS 0.90, 0.91, 0.92, 1.0, 2.0
+ * - Atom 0.3, 1.0
+ * - RDF
  * 
  * Особенности:
+ * - Использование производительной библиотеки SimplePie
  * - Строгая типизация всех параметров и возвращаемых значений
- * - Защита от XXE (XML External Entity) атак
+ * - Встроенное кеширование для повышения производительности
+ * - Автоматическая санитизация HTML контента
  * - Валидация URL перед загрузкой
  * - Ограничение размера загружаемого контента
  * - Логирование всех критических операций
  * - Обработка исключений на каждом уровне
+ * - Поддержка различных кодировок
+ * - Обработка битых и некорректных фидов
  */
 class Rss
 {
@@ -32,18 +38,16 @@ class Rss
      */
     private const FEED_TYPE_RSS = 'rss';
     private const FEED_TYPE_ATOM = 'atom';
+    private const FEED_TYPE_RDF = 'rdf';
+    private const FEED_TYPE_UNKNOWN = 'unknown';
     
     /**
      * Константы для конфигурации
      */
     private const DEFAULT_TIMEOUT = 10;
     private const DEFAULT_MAX_SIZE = 10485760; // 10 MB в байтах
-    private const DEFAULT_USER_AGENT = 'RSSClient/1.0 (+https://example.com)';
-    
-    /**
-     * Константы для XML парсинга (защита от XXE атак)
-     */
-    private const LIBXML_OPTIONS = LIBXML_NOCDATA | LIBXML_NOENT | LIBXML_NONET;
+    private const DEFAULT_USER_AGENT = 'RSSClient/2.0 (+https://example.com) SimplePie';
+    private const DEFAULT_CACHE_DURATION = 3600; // 1 час в секундах
     
     /**
      * Пользовательский агент для HTTP запросов
@@ -59,6 +63,26 @@ class Rss
      * Максимальный размер загружаемого контента в байтах
      */
     private int $maxContentSize;
+    
+    /**
+     * Директория для кеширования
+     */
+    private ?string $cacheDirectory;
+    
+    /**
+     * Длительность кеширования в секундах
+     */
+    private int $cacheDuration;
+    
+    /**
+     * Включить/выключить кеширование
+     */
+    private bool $enableCache;
+    
+    /**
+     * Включить/выключить санитизацию HTML
+     */
+    private bool $enableSanitization;
     
     /**
      * Экземпляр логгера для записи событий и ошибок
@@ -77,15 +101,33 @@ class Rss
      *                                     - user_agent: строка User-Agent для HTTP запросов
      *                                     - timeout: таймаут соединения в секундах (мин. 1)
      *                                     - max_content_size: максимальный размер контента в байтах
+     *                                     - cache_directory: директория для кеширования (null - отключить)
+     *                                     - cache_duration: длительность кеша в секундах (по умолчанию 3600)
+     *                                     - enable_cache: включить кеширование (по умолчанию true)
+     *                                     - enable_sanitization: включить санитизацию HTML (по умолчанию true)
      * @param Logger|null $logger Инстанс логгера для записи событий
+     * @throws RssException Если директория кеша не существует или недоступна для записи
      */
     public function __construct(array $config = [], ?Logger $logger = null)
     {
         $this->userAgent = (string)($config['user_agent'] ?? self::DEFAULT_USER_AGENT);
         $this->timeout = max(1, (int)($config['timeout'] ?? self::DEFAULT_TIMEOUT));
         $this->maxContentSize = max(1024, (int)($config['max_content_size'] ?? self::DEFAULT_MAX_SIZE));
+        $this->cacheDuration = max(0, (int)($config['cache_duration'] ?? self::DEFAULT_CACHE_DURATION));
+        $this->enableCache = (bool)($config['enable_cache'] ?? true);
+        $this->enableSanitization = (bool)($config['enable_sanitization'] ?? true);
         $this->logger = $logger;
 
+        // Настройка кеширования
+        $this->cacheDirectory = isset($config['cache_directory']) 
+            ? (string)$config['cache_directory'] 
+            : null;
+
+        if ($this->enableCache && $this->cacheDirectory !== null) {
+            $this->validateCacheDirectory($this->cacheDirectory);
+        }
+
+        // Инициализация HTTP клиента
         $this->http = new Http([
             'timeout' => $this->timeout,
             'connect_timeout' => $this->timeout,
@@ -94,6 +136,12 @@ class Rss
                 'User-Agent' => $this->userAgent,
             ],
         ], $logger);
+
+        $this->logInfo('RSS клиент инициализирован', [
+            'timeout' => $this->timeout,
+            'max_size' => $this->maxContentSize,
+            'cache_enabled' => $this->enableCache,
+        ]);
     }
 
     /**
@@ -101,34 +149,62 @@ class Rss
      * 
      * Выполняет полный цикл:
      * 1. Валидация URL
-     * 2. Загрузка контента через HTTP
-     * 3. Проверка размера контента
-     * 4. Парсинг XML с защитой от атак
-     * 5. Нормализация данных в единый формат
+     * 2. Создание и настройка SimplePie экземпляра
+     * 3. Загрузка и парсинг через SimplePie
+     * 4. Нормализация данных в единый формат
+     * 5. Кеширование результатов (если включено)
      *
      * @param string $url Адрес RSS/Atom ленты (должен быть валидным HTTP/HTTPS URL)
      * @return array<string, mixed> Структурированные данные ленты:
-     *                              - type: тип ленты ('rss' или 'atom')
+     *                              - type: тип ленты ('rss', 'atom', 'rdf' или 'unknown')
      *                              - title: заголовок ленты
      *                              - description: описание ленты
      *                              - link: ссылка на источник
      *                              - language: язык контента
+     *                              - image: изображение ленты (URL)
+     *                              - copyright: информация о копирайте
+     *                              - generator: генератор ленты
      *                              - items: массив элементов ленты
+     * @throws RssValidationException Если URL невалиден
      * @throws RssException Если не удалось загрузить или распарсить ленту
-     * @throws Exception Если произошла критическая ошибка
      */
     public function fetch(string $url): array
     {
         try {
             $this->validateUrl($url);
             
+            $this->logInfo('Начало загрузки RSS ленты', ['url' => $url]);
+            
+            $feed = $this->createSimplePieInstance();
+            $this->configureSimplePie($feed);
+            
+            // Загружаем контент через наш HTTP клиент для контроля
             $xmlContent = $this->download($url);
             $this->validateContentSize($xmlContent);
             
-            $document = $this->loadXml($xmlContent);
+            // Парсим контент через SimplePie
+            $feed->set_raw_data($xmlContent);
+            
+            if (!$feed->init()) {
+                $error = $feed->error();
+                $this->logError('SimplePie не смог инициализировать ленту', [
+                    'url' => $url,
+                    'error' => $error,
+                ]);
+                throw new RssException('Ошибка парсинга RSS ленты: ' . ($error ?: 'Неизвестная ошибка'));
+            }
 
-            return $this->normalizeFeed($document);
-        } catch (RuntimeException $e) {
+            $normalizedData = $this->normalizeFeed($feed);
+            
+            $this->logInfo('RSS лента успешно загружена', [
+                'url' => $url,
+                'type' => $normalizedData['type'],
+                'items_count' => count($normalizedData['items']),
+            ]);
+
+            return $normalizedData;
+            
+        } catch (RssValidationException | RssException $e) {
             $this->logError('Ошибка загрузки ленты', [
                 'url' => $url, 
                 'error' => $e->getMessage(),
@@ -140,9 +216,63 @@ class Rss
                 'url' => $url, 
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
-            throw new RssException('Критическая ошибка при обработке ленты: ' . $e->getMessage(), 0, $e);
+            throw new RssException(
+                'Критическая ошибка при обработке ленты: ' . $e->getMessage(), 
+                0, 
+                $e
+            );
         }
+    }
+
+    /**
+     * Создает экземпляр SimplePie
+     * 
+     * @return SimplePie Новый экземпляр SimplePie
+     */
+    private function createSimplePieInstance(): SimplePie
+    {
+        return new SimplePie();
+    }
+
+    /**
+     * Настраивает экземпляр SimplePie согласно конфигурации
+     * 
+     * @param SimplePie $feed Экземпляр SimplePie для настройки
+     * @return void
+     */
+    private function configureSimplePie(SimplePie $feed): void
+    {
+        // Отключаем встроенную загрузку - используем свой HTTP клиент
+        $feed->set_file_class(File::class);
+        
+        // Настройка кеширования
+        if ($this->enableCache && $this->cacheDirectory !== null) {
+            $feed->set_cache_location($this->cacheDirectory);
+            $feed->set_cache_duration($this->cacheDuration);
+            $feed->enable_cache(true);
+        } else {
+            $feed->enable_cache(false);
+        }
+
+        // Настройка санитизации
+        $feed->enable_sanitizer($this->enableSanitization);
+        
+        // Настройка обработки порядка элементов
+        $feed->enable_order_by_date(true);
+        
+        // Отключаем автоматическое определение кодировки (будем доверять SimplePie)
+        $feed->set_autodiscovery_level(SIMPLEPIE_LOCATOR_ALL);
+        
+        // Таймаут (SimplePie использует внутренний File class)
+        $feed->set_timeout($this->timeout);
+        
+        // User Agent
+        $feed->set_useragent($this->userAgent);
+        
+        // Максимальная глубина проверки ссылок
+        $feed->set_autodiscovery_level(SIMPLEPIE_LOCATOR_AUTODISCOVERY | SIMPLEPIE_LOCATOR_LOCAL_EXTENSION);
     }
 
     /**
@@ -180,6 +310,31 @@ class Rss
     }
 
     /**
+     * Валидирует директорию кеша
+     * 
+     * Проверяет существование и доступность директории для записи
+     * 
+     * @param string $directory Путь к директории кеша
+     * @return void
+     * @throws RssException Если директория не существует или недоступна для записи
+     */
+    private function validateCacheDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            // Пытаемся создать директорию
+            if (!@mkdir($directory, 0755, true) && !is_dir($directory)) {
+                throw new RssException(
+                    "Директория кеша не существует и не может быть создана: {$directory}"
+                );
+            }
+        }
+        
+        if (!is_writable($directory)) {
+            throw new RssException("Директория кеша недоступна для записи: {$directory}");
+        }
+    }
+
+    /**
      * Выполняет HTTP-запрос для получения содержимого RSS/Atom ленты
      * 
      * Обрабатывает HTTP ошибки и возвращает тело ответа
@@ -190,25 +345,32 @@ class Rss
      */
     private function download(string $url): string
     {
-        $response = $this->http->request('GET', $url);
+        try {
+            $response = $this->http->request('GET', $url);
+            $statusCode = $response->getStatusCode();
+            
+            if ($statusCode < 200 || $statusCode >= 400) {
+                $this->logError('HTTP ошибка при загрузке ленты', [
+                    'url' => $url, 
+                    'status_code' => $statusCode,
+                ]);
+                throw new RssException("Сервер вернул код ошибки: {$statusCode}");
+            }
 
-        $statusCode = $response->getStatusCode();
-        
-        if ($statusCode < 200 || $statusCode >= 400) {
-            $this->logError('HTTP ошибка при загрузке ленты', [
-                'url' => $url, 
-                'status_code' => $statusCode,
-            ]);
-            throw new RssException('Сервер вернул код ошибки: ' . $statusCode);
+            $body = (string)$response->getBody();
+            
+            if ($body === '') {
+                throw new RssException('Сервер вернул пустой ответ');
+            }
+
+            return $body;
+            
+        } catch (Exception $e) {
+            if ($e instanceof RssException) {
+                throw $e;
+            }
+            throw new RssException('Ошибка загрузки контента: ' . $e->getMessage(), 0, $e);
         }
-
-        $body = (string)$response->getBody();
-        
-        if ($body === '') {
-            throw new RssException('Сервер вернул пустой ответ');
-        }
-
-        return $body;
     }
 
     /**
@@ -235,322 +397,245 @@ class Rss
     }
 
     /**
-     * Загружает и парсит XML-документ из строки с защитой от XXE атак
+     * Приводит SimplePie ленту к единому нормализованному формату
      * 
-     * Использует безопасные настройки libxml:
-     * - LIBXML_NOCDATA: конвертирует CDATA в текстовые узлы
-     * - LIBXML_NOENT: запрещает подстановку сущностей
-     * - LIBXML_NONET: запрещает сетевой доступ при загрузке документа
+     * Извлекает все необходимые данные из SimplePie объекта
      *
-     * @param string $xml XML строка для парсинга
-     * @return SimpleXMLElement Объект распарсенного XML документа
-     * @throws RssException Если XML невалиден или содержит ошибки
-     */
-    private function loadXml(string $xml): SimpleXMLElement
-    {
-        // Включаем внутреннюю обработку ошибок libxml
-        $useInternalErrors = libxml_use_internal_errors(true);
-        
-        // Очищаем предыдущие ошибки
-        libxml_clear_errors();
-        
-        try {
-            $document = simplexml_load_string($xml, SimpleXMLElement::class, self::LIBXML_OPTIONS);
-
-            if ($document === false) {
-                $errors = $this->formatLibxmlErrors();
-                throw new RssException('Ошибка парсинга XML: ' . $errors);
-            }
-
-            return $document;
-        } finally {
-            // Очищаем ошибки и восстанавливаем предыдущее состояние
-            libxml_clear_errors();
-            libxml_use_internal_errors($useInternalErrors);
-        }
-    }
-
-    /**
-     * Форматирует ошибки libxml в читаемую строку
-     * 
-     * @return string Отформатированные ошибки через точку с запятой
-     */
-    private function formatLibxmlErrors(): string
-    {
-        $errors = libxml_get_errors();
-        
-        if ($errors === []) {
-            return 'Неизвестная ошибка парсинга XML';
-        }
-        
-        $errorMessages = array_map(
-            static fn($error): string => trim($error->message),
-            $errors
-        );
-        
-        return implode('; ', $errorMessages);
-    }
-
-    /**
-     * Приводит RSS или Atom документ к единому нормализованному формату
-     * 
-     * Автоматически определяет тип ленты и вызывает соответствующий парсер
-     *
-     * @param SimpleXMLElement $document Распарсенный XML документ
+     * @param SimplePie $feed Экземпляр SimplePie с загруженными данными
      * @return array<string, mixed> Нормализованные данные ленты
-     * @throws RssException Если формат ленты не распознан
      */
-    private function normalizeFeed(SimpleXMLElement $document): array
+    private function normalizeFeed(SimplePie $feed): array
     {
-        // Проверяем формат RSS 2.0
-        if (isset($document->channel)) {
-            return $this->parseRss($document);
-        }
-
-        // Проверяем формат Atom
-        if ($document->getName() === 'feed') {
-            return $this->parseAtom($document);
-        }
-
-        throw new RssException('Неизвестный формат ленты. Поддерживаются только RSS 2.0 и Atom 1.0');
-    }
-
-    /**
-     * Парсит RSS 2.0 документ в нормализованный формат
-     * 
-     * Извлекает метаданные канала и все элементы (items)
-     *
-     * @param SimpleXMLElement $document XML документ RSS 2.0
-     * @return array<string, mixed> Данные ленты в нормализованном формате
-     */
-    private function parseRss(SimpleXMLElement $document): array
-    {
-        $channel = $document->channel;
-        
-        if ($channel === null) {
-            throw new RssException('RSS документ не содержит элемент channel');
-        }
-
         return [
-            'type' => self::FEED_TYPE_RSS,
-            'title' => $this->extractText($channel->title),
-            'description' => $this->extractText($channel->description),
-            'link' => $this->extractText($channel->link),
-            'language' => $this->extractText($channel->language),
-            'items' => $this->parseRssItems($channel),
+            'type' => $this->determineFeedType($feed),
+            'title' => $this->safeGetString($feed->get_title()),
+            'description' => $this->safeGetString($feed->get_description()),
+            'link' => $this->safeGetString($feed->get_link()),
+            'language' => $this->safeGetString($feed->get_language()),
+            'image' => $this->extractImageUrl($feed),
+            'copyright' => $this->safeGetString($feed->get_copyright()),
+            'generator' => $this->safeGetString($feed->get_generator()),
+            'items' => $this->extractItems($feed),
         ];
     }
 
     /**
-     * Парсит элементы (items) RSS ленты
+     * Определяет тип ленты
      * 
-     * @param SimpleXMLElement $channel Элемент channel RSS документа
+     * @param SimplePie $feed Экземпляр SimplePie
+     * @return string Тип ленты
+     */
+    private function determineFeedType(SimplePie $feed): string
+    {
+        $type = $feed->get_type();
+        
+        if ($type === null) {
+            return self::FEED_TYPE_UNKNOWN;
+        }
+        
+        // SimplePie возвращает битовую маску типов
+        if ($type & SIMPLEPIE_TYPE_RSS_ALL) {
+            return self::FEED_TYPE_RSS;
+        }
+        
+        if ($type & SIMPLEPIE_TYPE_ATOM_ALL) {
+            return self::FEED_TYPE_ATOM;
+        }
+        
+        return self::FEED_TYPE_UNKNOWN;
+    }
+
+    /**
+     * Извлекает URL изображения ленты
+     * 
+     * @param SimplePie $feed Экземпляр SimplePie
+     * @return string URL изображения или пустая строка
+     */
+    private function extractImageUrl(SimplePie $feed): string
+    {
+        $image = $feed->get_image_url();
+        return $this->safeGetString($image);
+    }
+
+    /**
+     * Извлекает все элементы из ленты
+     * 
+     * @param SimplePie $feed Экземпляр SimplePie
      * @return array<int, array<string, mixed>> Массив элементов ленты
      */
-    private function parseRssItems(SimpleXMLElement $channel): array
+    private function extractItems(SimplePie $feed): array
     {
         $items = [];
+        $feedItems = $feed->get_items();
+        
+        if ($feedItems === null || $feedItems === []) {
+            return [];
+        }
 
-        foreach ($channel->item as $item) {
-            $items[] = [
-                'title' => $this->extractText($item->title),
-                'link' => $this->extractText($item->link),
-                'description' => $this->extractText($item->description),
-                'published_at' => $this->parseDate($this->extractText($item->pubDate)),
-                'author' => $this->extractText($item->author),
-                'categories' => $this->extractCategories($item),
-            ];
+        foreach ($feedItems as $item) {
+            try {
+                $items[] = $this->normalizeItem($item);
+            } catch (Exception $e) {
+                $this->logWarning('Ошибка обработки элемента ленты', [
+                    'error' => $e->getMessage(),
+                    'item_title' => $item->get_title(),
+                ]);
+                // Пропускаем проблемный элемент, продолжаем обработку остальных
+                continue;
+            }
         }
 
         return $items;
     }
 
     /**
-     * Парсит Atom 1.0 документ в нормализованный формат
+     * Нормализует отдельный элемент ленты
      * 
-     * Извлекает метаданные feed и все записи (entries)
-     *
-     * @param SimpleXMLElement $document XML документ Atom 1.0
-     * @return array<string, mixed> Данные ленты в нормализованном формате
+     * @param \SimplePie\Item $item Элемент SimplePie
+     * @return array<string, mixed> Нормализованные данные элемента
      */
-    private function parseAtom(SimpleXMLElement $document): array
+    private function normalizeItem(\SimplePie\Item $item): array
     {
         return [
-            'type' => self::FEED_TYPE_ATOM,
-            'title' => $this->extractText($document->title),
-            'description' => $this->extractText($document->subtitle),
-            'link' => $this->extractAtomLink($document),
-            'language' => $this->extractText($document->{'xml:lang'}),
-            'items' => $this->parseAtomEntries($document),
+            'title' => $this->safeGetString($item->get_title()),
+            'link' => $this->safeGetString($item->get_link()),
+            'description' => $this->safeGetString($item->get_description()),
+            'content' => $this->safeGetString($item->get_content()),
+            'published_at' => $this->extractDate($item),
+            'author' => $this->extractAuthor($item),
+            'categories' => $this->extractCategories($item),
+            'enclosures' => $this->extractEnclosures($item),
+            'id' => $this->safeGetString($item->get_id()),
         ];
     }
 
     /**
-     * Парсит записи (entries) Atom ленты
+     * Извлекает дату публикации элемента
      * 
-     * @param SimpleXMLElement $document Atom документ
-     * @return array<int, array<string, mixed>> Массив записей ленты
-     */
-    private function parseAtomEntries(SimpleXMLElement $document): array
-    {
-        $items = [];
-
-        foreach ($document->entry as $entry) {
-            $items[] = [
-                'title' => $this->extractText($entry->title),
-                'link' => $this->extractAtomLink($entry),
-                'description' => $this->extractAtomContent($entry),
-                'published_at' => $this->parseAtomDate($entry),
-                'author' => $this->extractText($entry->author->name),
-                'categories' => $this->extractCategories($entry),
-            ];
-        }
-
-        return $items;
-    }
-
-    /**
-     * Извлекает ссылку из Atom элемента
-     * 
-     * Atom использует элемент <link> с атрибутом href.
-     * Если есть несколько ссылок, возвращает первую с rel="alternate" или просто первую
-     *
-     * @param SimpleXMLElement $element Atom элемент (feed или entry)
-     * @return string URL ссылки или пустая строка, если ссылка не найдена
-     */
-    private function extractAtomLink(SimpleXMLElement $element): string
-    {
-        if (!isset($element->link)) {
-            return '';
-        }
-        
-        // Если только один элемент link
-        if (count($element->link) === 1) {
-            $href = (string)($element->link['href'] ?? '');
-            return $href !== '' ? $href : (string)$element->link;
-        }
-        
-        // Если несколько элементов link, ищем rel="alternate"
-        foreach ($element->link as $link) {
-            $rel = (string)($link['rel'] ?? '');
-            if ($rel === '' || $rel === 'alternate') {
-                return (string)($link['href'] ?? '');
-            }
-        }
-        
-        // Возвращаем первый найденный href
-        return (string)($element->link[0]['href'] ?? '');
-    }
-
-    /**
-     * Извлекает контент из Atom элемента
-     * 
-     * Atom может содержать как summary (краткое описание), так и content (полный контент)
-     * 
-     * @param SimpleXMLElement $entry Atom entry элемент
-     * @return string Текст контента или пустая строка
-     */
-    private function extractAtomContent(SimpleXMLElement $entry): string
-    {
-        if (isset($entry->content)) {
-            return $this->extractText($entry->content);
-        }
-        
-        if (isset($entry->summary)) {
-            return $this->extractText($entry->summary);
-        }
-        
-        return '';
-    }
-
-    /**
-     * Извлекает дату публикации из Atom элемента
-     * 
-     * Atom использует элементы updated или published для дат
-     * 
-     * @param SimpleXMLElement $entry Atom entry элемент
+     * @param \SimplePie\Item $item Элемент SimplePie
      * @return DateTimeImmutable|null Дата публикации или null
      */
-    private function parseAtomDate(SimpleXMLElement $entry): ?DateTimeImmutable
+    private function extractDate(\SimplePie\Item $item): ?DateTimeImmutable
     {
-        if (isset($entry->published)) {
-            return $this->parseDate($this->extractText($entry->published));
-        }
+        $timestamp = $item->get_date('U');
         
-        if (isset($entry->updated)) {
-            return $this->parseDate($this->extractText($entry->updated));
-        }
-        
-        return null;
-    }
-
-    /**
-     * Извлекает категории/теги из элемента RSS/Atom
-     * 
-     * Поддерживает как RSS категории, так и Atom теги
-     *
-     * @param SimpleXMLElement $element Элемент XML (item или entry)
-     * @return array<int, string> Массив категорий (без пустых значений)
-     */
-    private function extractCategories(SimpleXMLElement $element): array
-    {
-        if (!isset($element->category)) {
-            return [];
-        }
-        
-        $categories = [];
-
-        foreach ($element->category as $category) {
-            $categoryText = $this->extractText($category);
-            
-            if ($categoryText !== '') {
-                $categories[] = $categoryText;
-            }
-        }
-
-        return $categories;
-    }
-
-    /**
-     * Извлекает текстовое содержимое из XML элемента
-     * 
-     * Безопасно обрабатывает null значения и приводит к строке
-     * 
-     * @param SimpleXMLElement|null $element XML элемент
-     * @return string Текстовое содержимое или пустая строка
-     */
-    private function extractText(?SimpleXMLElement $element): string
-    {
-        if ($element === null) {
-            return '';
-        }
-        
-        return trim((string)$element);
-    }
-
-    /**
-     * Парсит строку даты и создает объект DateTimeImmutable
-     * 
-     * Поддерживает различные форматы дат (RFC 2822, ISO 8601 и др.)
-     * При ошибке парсинга логирует предупреждение и возвращает null
-     *
-     * @param string $dateString Строка с датой
-     * @return DateTimeImmutable|null Объект даты или null при ошибке
-     */
-    private function parseDate(string $dateString): ?DateTimeImmutable
-    {
-        if ($dateString === '') {
+        if ($timestamp === null || $timestamp === '') {
             return null;
         }
 
         try {
+            $dateString = $item->get_date('c'); // ISO 8601 формат
+            if ($dateString === null) {
+                return null;
+            }
             return new DateTimeImmutable($dateString);
         } catch (Exception $e) {
-            $this->logWarning('Не удалось распарсить дату', [
-                'date_string' => $dateString,
+            $this->logWarning('Не удалось распарсить дату элемента', [
+                'timestamp' => $timestamp,
                 'error' => $e->getMessage(),
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Извлекает информацию об авторе элемента
+     * 
+     * @param \SimplePie\Item $item Элемент SimplePie
+     * @return string Имя автора или пустая строка
+     */
+    private function extractAuthor(\SimplePie\Item $item): string
+    {
+        $author = $item->get_author();
+        
+        if ($author === null) {
+            return '';
+        }
+        
+        $name = $author->get_name();
+        return $this->safeGetString($name);
+    }
+
+    /**
+     * Извлекает категории/теги элемента
+     * 
+     * @param \SimplePie\Item $item Элемент SimplePie
+     * @return array<int, string> Массив категорий
+     */
+    private function extractCategories(\SimplePie\Item $item): array
+    {
+        $categories = [];
+        $itemCategories = $item->get_categories();
+        
+        if ($itemCategories === null || $itemCategories === []) {
+            return [];
+        }
+
+        foreach ($itemCategories as $category) {
+            $term = $category->get_term();
+            if ($term !== null && trim($term) !== '') {
+                $categories[] = trim($term);
+            }
+        }
+
+        return array_unique($categories);
+    }
+
+    /**
+     * Извлекает вложения (медиа файлы) элемента
+     * 
+     * @param \SimplePie\Item $item Элемент SimplePie
+     * @return array<int, array<string, mixed>> Массив вложений
+     */
+    private function extractEnclosures(\SimplePie\Item $item): array
+    {
+        $enclosures = [];
+        $itemEnclosures = $item->get_enclosures();
+        
+        if ($itemEnclosures === null || $itemEnclosures === []) {
+            return [];
+        }
+
+        foreach ($itemEnclosures as $enclosure) {
+            $enclosures[] = [
+                'url' => $this->safeGetString($enclosure->get_link()),
+                'type' => $this->safeGetString($enclosure->get_type()),
+                'length' => $this->safeGetString($enclosure->get_length()),
+                'title' => $this->safeGetString($enclosure->get_title()),
+            ];
+        }
+
+        return $enclosures;
+    }
+
+    /**
+     * Безопасно преобразует значение в строку
+     * 
+     * Обрабатывает null значения и приводит к строке
+     * 
+     * @param mixed $value Значение для преобразования
+     * @return string Строковое представление или пустая строка
+     */
+    private function safeGetString(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        
+        return trim((string)$value);
+    }
+
+    /**
+     * Записывает информационное сообщение в лог при наличии логгера
+     * 
+     * @param string $message Сообщение для лога
+     * @param array<string, mixed> $context Контекст (дополнительные данные)
+     * @return void
+     */
+    private function logInfo(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->info($message, $context);
         }
     }
 
