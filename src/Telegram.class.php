@@ -40,11 +40,17 @@ class Telegram
             throw new Exception('Токен Telegram бота не указан.');
         }
 
-        $this->http = new Http([
+        $httpConfig = [
             'base_uri' => self::BASE_URL . $this->token . '/',
             'timeout' => $this->timeout,
             'connect_timeout' => $this->timeout,
-        ], $logger);
+        ];
+
+        if (array_key_exists('retries', $config)) {
+            $httpConfig['retries'] = (int)$config['retries'];
+        }
+
+        $this->http = new Http($httpConfig, $logger);
     }
 
     /**
