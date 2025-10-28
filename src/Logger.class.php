@@ -21,6 +21,9 @@ class Logger
     private int $maxFileSize;
     private string $pattern;
     private string $dateFormat;
+    private int $logBufferSizeBytes;
+    private string $logBuffer = '';
+    private int $currentBufferSize = 0;
 
     /**
      * @param array<string, mixed> $config Параметры логгера
@@ -31,9 +34,12 @@ class Logger
         $this->directory = rtrim((string)($config['directory'] ?? ''), DIRECTORY_SEPARATOR);
         $this->fileName = (string)($config['file_name'] ?? 'app.log');
         $this->maxFiles = max(1, (int)($config['max_files'] ?? 5));
-        $this->maxFileSize = max(1024, (int)($config['max_file_size'] ?? 1048576));
+        $maxFileSizeMb = (int)($config['max_file_size'] ?? 1);
+        $this->maxFileSize = max(1, $maxFileSizeMb) * 1024 * 1024;
         $this->pattern = (string)($config['pattern'] ?? self::DEFAULT_PATTERN);
         $this->dateFormat = (string)($config['date_format'] ?? self::DEFAULT_DATE_FORMAT);
+        $logBufferSizeKb = max(0, (int)($config['log_buffer_size'] ?? 0));
+        $this->logBufferSizeBytes = $logBufferSizeKb * 1024;
 
         if ($this->directory === '') {
             throw new Exception('Не указана директория для логов.');
@@ -46,6 +52,14 @@ class Logger
         if (!is_writable($this->directory)) {
             throw new Exception('Недостаточно прав на запись в директорию: ' . $this->directory);
         }
+    }
+
+    /**
+     * Деструктор для автоматического сброса буфера при завершении работы
+     */
+    public function __destruct()
+    {
+        $this->flushBuffer();
     }
 
     /**
@@ -151,9 +165,19 @@ class Logger
      */
     private function writeLog(string $record): void
     {
-        $this->rotateIfNeeded(strlen($record));
+        if ($this->logBufferSizeBytes <= 0) {
+            $this->rotateIfNeeded(strlen($record));
+            file_put_contents($this->getLogFilePath(), $record, FILE_APPEND | LOCK_EX);
 
-        file_put_contents($this->getLogFilePath(), $record, FILE_APPEND | LOCK_EX);
+            return;
+        }
+
+        $this->logBuffer .= $record;
+        $this->currentBufferSize += strlen($record);
+
+        if ($this->currentBufferSize >= $this->logBufferSizeBytes) {
+            $this->flushBuffer();
+        }
     }
 
     /**
@@ -206,5 +230,21 @@ class Logger
             $target = $this->getLogFilePath($index + 1);
             rename($source, $target);
         }
+    }
+
+    /**
+     * Сбрасывает содержимое буфера в лог-файл
+     */
+    private function flushBuffer(): void
+    {
+        if ($this->logBuffer === '') {
+            return;
+        }
+
+        $this->rotateIfNeeded($this->currentBufferSize);
+        file_put_contents($this->getLogFilePath(), $this->logBuffer, FILE_APPEND | LOCK_EX);
+
+        $this->logBuffer = '';
+        $this->currentBufferSize = 0;
     }
 }
