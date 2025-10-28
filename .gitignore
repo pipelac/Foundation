@@ -1,0 +1,6 @@
+/vendor/
+/logs/*.log
+/logs/*.log.*
+/composer.lock
+/.idea/
+.phpunit.result.cache
