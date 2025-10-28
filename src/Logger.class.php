@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Component;
 
+use App\Component\Exception\LoggerException;
+use App\Component\Exception\LoggerValidationException;
 use DateTimeImmutable;
-use Exception;
-use RuntimeException;
 
 /**
  * Класс структурированного логирования с поддержкой ротации файлов,
@@ -55,7 +55,7 @@ class Logger
      * Конструктор с поддержкой кеширования конфигурации в памяти
      * 
      * @param array<string, mixed> $config Параметры логгера
-     * @throws Exception Если конфигурация некорректна
+     * @throws LoggerValidationException Если конфигурация некорректна
      */
     public function __construct(array $config)
     {
@@ -88,7 +88,7 @@ class Logger
      * Инициализирует конфигурацию логгера с валидацией
      * 
      * @param array<string, mixed> $config Параметры конфигурации
-     * @throws Exception Если конфигурация некорректна
+     * @throws LoggerValidationException Если конфигурация некорректна
      */
     private function initializeConfiguration(array $config): void
     {
@@ -129,42 +129,42 @@ class Logger
     /**
      * Валидирует конфигурацию логгера
      * 
-     * @throws Exception Если конфигурация некорректна
+     * @throws LoggerValidationException Если конфигурация некорректна
      */
     private function validateConfiguration(): void
     {
         if ($this->directory === '') {
-            throw new Exception('Не указана директория для логов.');
+            throw new LoggerValidationException('Не указана директория для логов.');
         }
         
         if ($this->fileName === '') {
-            throw new Exception('Не указано имя файла лога.');
+            throw new LoggerValidationException('Не указано имя файла лога.');
         }
         
         if ($this->maxFiles < 1) {
-            throw new Exception('Количество файлов должно быть не меньше 1.');
+            throw new LoggerValidationException('Количество файлов должно быть не меньше 1.');
         }
         
         if ($this->maxFileSize < 1024) {
-            throw new Exception('Размер файла должен быть не меньше 1 КБ.');
+            throw new LoggerValidationException('Размер файла должен быть не меньше 1 КБ.');
         }
     }
     
     /**
      * Валидирует доступ к директории логов
      * 
-     * @throws Exception Если директория недоступна
+     * @throws LoggerValidationException Если директория недоступна
      */
     private function validateDirectoryAccess(): void
     {
         if (!is_dir($this->directory)) {
             if (!mkdir($this->directory, 0775, true) && !is_dir($this->directory)) {
-                throw new Exception('Не удалось создать директорию для логов: ' . $this->directory);
+                throw new LoggerValidationException('Не удалось создать директорию для логов: ' . $this->directory);
             }
         }
 
         if (!is_writable($this->directory)) {
-            throw new Exception('Недостаточно прав на запись в директорию: ' . $this->directory);
+            throw new LoggerValidationException('Недостаточно прав на запись в директорию: ' . $this->directory);
         }
     }
 
@@ -212,7 +212,7 @@ class Logger
      *
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function info(string $message, array $context = []): void
     {
@@ -224,7 +224,7 @@ class Logger
      *
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function warning(string $message, array $context = []): void
     {
@@ -236,7 +236,7 @@ class Logger
      *
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function error(string $message, array $context = []): void
     {
@@ -248,7 +248,7 @@ class Logger
      *
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function debug(string $message, array $context = []): void
     {
@@ -260,7 +260,7 @@ class Logger
      *
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function critical(string $message, array $context = []): void
     {
@@ -273,7 +273,7 @@ class Logger
      * @param string $level Уровень логирования
      * @param string $message Текст сообщения
      * @param array<string, mixed> $context Дополнительные данные
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function log(string $level, string $message, array $context = []): void
     {
@@ -284,7 +284,7 @@ class Logger
         $normalizedLevel = strtoupper(trim($level));
         
         if (!in_array($normalizedLevel, self::ALLOWED_LEVELS, true)) {
-            throw new RuntimeException('Недопустимый уровень логирования: ' . $level);
+            throw new LoggerException('Недопустимый уровень логирования: ' . $level);
         }
         
         $record = $this->formatRecord($normalizedLevel, $message, $context) . PHP_EOL;
@@ -294,7 +294,7 @@ class Logger
     /**
      * Принудительно сбрасывает буфер логов в файл (публичный метод)
      * 
-     * @throws RuntimeException Если не удалось записать лог
+     * @throws LoggerException Если не удалось записать лог
      */
     public function flush(): void
     {
@@ -350,7 +350,7 @@ class Logger
      * Выполняет запись сообщения в файл с обработкой ошибок
      *
      * @param string $record Готовая строка лога
-     * @throws RuntimeException Если не удалось записать в файл
+     * @throws LoggerException Если не удалось записать в файл
      */
     private function writeLog(string $record): void
     {
@@ -374,7 +374,7 @@ class Logger
      * Выполняет физическую запись данных в файл с обработкой ошибок
      * 
      * @param string $content Содержимое для записи
-     * @throws RuntimeException Если не удалось записать в файл
+     * @throws LoggerException Если не удалось записать в файл
      */
     private function writeToFile(string $content): void
     {
@@ -384,7 +384,7 @@ class Logger
         if ($result === false) {
             $error = error_get_last();
             $errorMessage = $error !== null ? $error['message'] : 'Неизвестная ошибка';
-            throw new RuntimeException('Не удалось записать в лог-файл: ' . $errorMessage);
+            throw new LoggerException('Не удалось записать в лог-файл: ' . $errorMessage);
         }
         
         $this->invalidateFileCache($filePath);
@@ -460,7 +460,7 @@ class Logger
      * Производит ротацию файлов лога с учётом ограничения по количеству
      * и обработкой ошибок файловых операций
      * 
-     * @throws RuntimeException Если не удалось выполнить ротацию
+     * @throws LoggerException Если не удалось выполнить ротацию
      */
     private function rotateFiles(): void
     {
@@ -469,7 +469,7 @@ class Logger
         if ($lastIndex <= 0) {
             $filePath = $this->getLogFilePath();
             if (file_exists($filePath) && !@unlink($filePath)) {
-                throw new RuntimeException('Не удалось удалить файл при ротации: ' . $filePath);
+                throw new LoggerException('Не удалось удалить файл при ротации: ' . $filePath);
             }
             $this->invalidateFileCache($filePath);
             return;
@@ -478,7 +478,7 @@ class Logger
         $lastFile = $this->getLogFilePath($lastIndex);
         if (file_exists($lastFile)) {
             if (!@unlink($lastFile)) {
-                throw new RuntimeException('Не удалось удалить старый файл при ротации: ' . $lastFile);
+                throw new LoggerException('Не удалось удалить старый файл при ротации: ' . $lastFile);
             }
             $this->invalidateFileCache($lastFile);
         }
@@ -492,7 +492,7 @@ class Logger
             $target = $this->getLogFilePath($index + 1);
             
             if (!@rename($source, $target)) {
-                throw new RuntimeException("Не удалось переместить файл: {$source} -> {$target}");
+                throw new LoggerException("Не удалось переместить файл: {$source} -> {$target}");
             }
             
             $this->invalidateFileCache($source);
@@ -503,7 +503,7 @@ class Logger
     /**
      * Сбрасывает содержимое буфера в лог-файл с обработкой ошибок
      * 
-     * @throws RuntimeException Если не удалось записать в файл
+     * @throws LoggerException Если не удалось записать в файл
      */
     private function flushBuffer(): void
     {
