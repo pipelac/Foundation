@@ -8,7 +8,8 @@
         "ext-libxml": "*",
         "ext-curl": "*",
         "ext-pdo": "*",
-        "ext-pdo_mysql": "*"
+        "ext-pdo_mysql": "*",
+        "guzzlehttp/guzzle": "^7.8"
     },
     "autoload": {
         "classmap": [

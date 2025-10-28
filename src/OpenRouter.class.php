@@ -20,6 +20,7 @@ class OpenRouter
     private string $appName;
     private int $timeout;
     private ?Logger $logger;
+    private Http $http;
 
     /**
      * @param array<string, mixed> $config Конфигурация OpenRouter API
@@ -36,6 +37,12 @@ class OpenRouter
         if ($this->apiKey === '') {
             throw new Exception('API ключ OpenRouter не указан.');
         }
+
+        $this->http = new Http([
+            'base_uri' => self::BASE_URL,
+            'timeout' => $this->timeout,
+            'connect_timeout' => $this->timeout,
+        ], $logger);
     }
 
     /**
@@ -163,42 +170,24 @@ class OpenRouter
      */
     private function sendRequest(string $endpoint, array $payload): array
     {
-        $url = self::BASE_URL . $endpoint;
-        $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Не удалось инициализировать cURL.');
-        }
-
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $jsonPayload,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $this->apiKey,
-                'Content-Type: application/json',
-                'HTTP-Referer: ' . $this->appName,
+        $response = $this->http->request('POST', $endpoint, [
+            'json' => $payload,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json',
+                'HTTP-Referer' => $this->appName,
             ],
         ]);
 
-        $response = curl_exec($handle);
-        $statusCode = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($response === false) {
-            $this->logError('Ошибка cURL запроса', ['error' => $error]);
-            throw new RuntimeException('Ошибка запроса: ' . $error);
-        }
+        $statusCode = $response->getStatusCode();
+        $body = (string)$response->getBody();
 
         if ($statusCode >= 400) {
-            $this->logError('Сервер OpenRouter вернул ошибку', ['status_code' => $statusCode, 'response' => $response]);
-            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode . ' | ' . $response);
+            $this->logError('Сервер OpenRouter вернул ошибку', ['status_code' => $statusCode, 'response' => $body]);
+            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode . ' | ' . $body);
         }
 
-        return json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        return json_decode($body, true, 512, JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -212,69 +201,41 @@ class OpenRouter
      */
     private function sendStreamRequest(string $endpoint, array $payload, callable $callback): void
     {
-        $url = self::BASE_URL . $endpoint;
-        $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Не удалось инициализировать cURL.');
-        }
-
         $buffer = '';
 
-        curl_setopt_array($handle, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $jsonPayload,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $this->apiKey,
-                'Content-Type: application/json',
-                'HTTP-Referer: ' . $this->appName,
-            ],
-            CURLOPT_WRITEFUNCTION => static function ($curl, $data) use (&$buffer, $callback): int {
-                $buffer .= $data;
-                $lines = explode("\n", $buffer);
-                $buffer = array_pop($lines);
+        $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
+            $buffer .= $chunk;
+            $lines = explode("\n", $buffer);
+            $buffer = array_pop($lines) ?? '';
 
-                foreach ($lines as $line) {
-                    $line = trim($line);
+            foreach ($lines as $line) {
+                $line = trim($line);
 
-                    if ($line === '' || $line === 'data: [DONE]') {
+                if ($line === '' || $line === 'data: [DONE]') {
+                    continue;
+                }
+
+                if (str_starts_with($line, 'data: ')) {
+                    $json = substr($line, 6);
+                    $decoded = json_decode($json, true);
+
+                    if (json_last_error() !== JSON_ERROR_NONE) {
                         continue;
                     }
 
-                    if (str_starts_with($line, 'data: ')) {
-                        $json = substr($line, 6);
-                        $decoded = json_decode($json, true);
-
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            return strlen($data);
-                        }
-
-                        if (isset($decoded['choices'][0]['delta']['content'])) {
-                            $callback($decoded['choices'][0]['delta']['content']);
-                        }
+                    if (isset($decoded['choices'][0]['delta']['content'])) {
+                        $callback($decoded['choices'][0]['delta']['content']);
                     }
                 }
-
-                return strlen($data);
-            },
+            }
+        }, [
+            'json' => $payload,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json',
+                'HTTP-Referer' => $this->appName,
+            ],
         ]);
-
-        $result = curl_exec($handle);
-        $statusCode = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($result === false) {
-            $this->logError('Ошибка cURL streaming запроса', ['error' => $error]);
-            throw new RuntimeException('Ошибка streaming запроса: ' . $error);
-        }
-
-        if ($statusCode >= 400) {
-            $this->logError('Streaming запрос завершился ошибкой', ['status_code' => $statusCode]);
-            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode);
-        }
     }
 
     /**

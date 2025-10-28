@@ -11,12 +11,13 @@
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Logger** — структурированное логирование с ротацией файлов
+- **Http** — унифицированный HTTP клиент на базе Guzzle
 
 ## Требования
 
 - PHP 8.1 или выше
 - Расширения: `json`, `libxml`, `curl`, `pdo`, `pdo_mysql`
-- Composer
+- Composer (для установки Guzzle)
 
 ## Установка
 
@@ -152,6 +153,28 @@ $telegram->sendAudio('123456789', '/path/to/audio.mp3');
 $telegram->sendDocument('123456789', '/path/to/document.pdf');
 ```
 
+### Http
+
+```php
+use App\Component\Http;
+
+// Простой GET запрос
+$http = new Http(['timeout' => 10], $logger);
+$response = $http->request('GET', 'https://example.com/api/data');
+echo $response->getBody();
+
+// POST запрос с JSON
+$response = $http->request('POST', 'https://example.com/api', [
+    'json' => ['key' => 'value'],
+    'headers' => ['Authorization' => 'Bearer token'],
+]);
+
+// Streaming запрос
+$http->requestStream('GET', 'https://example.com/stream', function (string $chunk) {
+    echo $chunk;
+}, ['headers' => ['Accept' => 'text/event-stream']]);
+```
+
 ## Пример запуска
 
 ```bash
@@ -178,6 +201,7 @@ php bin/test_autoload.php
 ├── src/                    # Исходный код
 │   ├── Config/
 │   │   └── ConfigLoader.php
+│   ├── Http.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
 │   ├── OpenRouter.class.php

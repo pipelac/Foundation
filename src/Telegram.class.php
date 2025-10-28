@@ -6,6 +6,7 @@ namespace App\Component;
 
 use CURLFile;
 use Exception;
+use GuzzleHttp\Psr7\Utils;
 use JsonException;
 use RuntimeException;
 
@@ -21,6 +22,7 @@ class Telegram
     private ?string $defaultChatId;
     private int $timeout;
     private ?Logger $logger;
+    private Http $http;
 
     /**
      * @param array<string, mixed> $config Конфигурация Telegram API
@@ -37,6 +39,12 @@ class Telegram
         if ($this->token === '') {
             throw new Exception('Токен Telegram бота не указан.');
         }
+
+        $this->http = new Http([
+            'base_uri' => self::BASE_URL . $this->token . '/',
+            'timeout' => $this->timeout,
+            'connect_timeout' => $this->timeout,
+        ], $logger);
     }
 
     /**
@@ -140,14 +148,6 @@ class Telegram
     }
 
     /**
-     * Формирует полный URL метода API
-     */
-    private function buildUrl(string $method): string
-    {
-        return self::BASE_URL . $this->token . '/' . $method;
-    }
-
-    /**
      * Определяет идентификатор чата
      *
      * @param string|null $chatId Идентификатор чата
@@ -193,38 +193,19 @@ class Telegram
      */
     private function sendJson(string $method, array $payload): array
     {
-        $url = $this->buildUrl($method);
-        $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Не удалось инициализировать cURL.');
-        }
-
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $jsonPayload,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        $response = $this->http->request('POST', $method, [
+            'json' => $payload,
         ]);
 
-        $response = curl_exec($handle);
-        $statusCode = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($response === false) {
-            $this->logError('Ошибка cURL запроса', ['error' => $error]);
-            throw new RuntimeException('Ошибка запроса к Telegram API: ' . $error);
-        }
+        $statusCode = $response->getStatusCode();
+        $body = (string)$response->getBody();
 
         if ($statusCode >= 400) {
-            $this->logError('Telegram API вернул ошибку', ['status_code' => $statusCode, 'response' => $response]);
-            throw new RuntimeException('Telegram API вернул ошибку: ' . $response);
+            $this->logError('Telegram API вернул ошибку', ['status_code' => $statusCode, 'response' => $body]);
+            throw new RuntimeException('Telegram API вернул ошибку: ' . $body);
         }
 
-        $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         if (!($decoded['ok'] ?? false)) {
             $this->logError('Telegram API ответил ошибкой', ['response' => $decoded]);
             throw new RuntimeException('Telegram API ответил ошибкой.');
@@ -244,42 +225,139 @@ class Telegram
      */
     private function sendMultipart(string $method, array $payload): array
     {
-        $url = $this->buildUrl($method);
+        $multipart = $this->prepareMultipart($payload);
 
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Не удалось инициализировать cURL.');
-        }
-
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_TIMEOUT => $this->timeout,
+        $response = $this->http->request('POST', $method, [
+            'multipart' => $multipart,
         ]);
 
-        $response = curl_exec($handle);
-        $statusCode = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-
-        if ($response === false) {
-            $this->logError('Ошибка cURL multipart запроса', ['error' => $error]);
-            throw new RuntimeException('Ошибка multipart запроса к Telegram API: ' . $error);
-        }
+        $statusCode = $response->getStatusCode();
+        $body = (string)$response->getBody();
 
         if ($statusCode >= 400) {
-            $this->logError('Telegram API вернул ошибку', ['status_code' => $statusCode, 'response' => $response]);
-            throw new RuntimeException('Telegram API вернул ошибку: ' . $response);
+            $this->logError('Telegram API вернул ошибку', ['status_code' => $statusCode, 'response' => $body]);
+            throw new RuntimeException('Telegram API вернул ошибку: ' . $body);
         }
 
-        $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         if (!($decoded['ok'] ?? false)) {
             $this->logError('Telegram API ответил ошибкой', ['response' => $decoded]);
             throw new RuntimeException('Telegram API ответил ошибкой.');
         }
 
         return $decoded;
+    }
+
+    /**
+     * Преобразует массив данных в формат multipart/form-data
+     *
+     * @param array<string, mixed> $payload Данные запроса
+     * @return array<int, array<string, mixed>>
+     * @throws JsonException Если не удалось сериализовать данные
+     * @throws RuntimeException Если не удалось подготовить файловые данные
+     */
+    private function prepareMultipart(array $payload): array
+    {
+        $multipart = [];
+        $flattened = $this->flattenMultipart($payload);
+
+        foreach ($flattened as $name => $value) {
+            if ($value instanceof CURLFile) {
+                $multipart[] = $this->createFilePart($name, $value);
+                continue;
+            }
+
+            $multipart[] = [
+                'name' => $name,
+                'contents' => $this->normalizeMultipartValue($value),
+            ];
+        }
+
+        return $multipart;
+    }
+
+    /**
+     * Рекурсивно разворачивает многоуровневый массив параметров
+     *
+     * @param array<string, mixed> $payload Исходные данные
+     * @param string $prefix Текущий префикс ключа
+     * @return array<string, mixed>
+     */
+    private function flattenMultipart(array $payload, string $prefix = ''): array
+    {
+        $result = [];
+
+        foreach ($payload as $key => $value) {
+            $name = $prefix === '' ? (string)$key : sprintf('%s[%s]', $prefix, (string)$key);
+
+            if (is_array($value)) {
+                $result += $this->flattenMultipart($value, $name);
+                continue;
+            }
+
+            $result[$name] = $value;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Подготавливает файловую часть запроса
+     *
+     * @param string $name Имя поля
+     * @param CURLFile $file Файл для загрузки
+     * @return array<string, mixed>
+     */
+    private function createFilePart(string $name, CURLFile $file): array
+    {
+        $part = [
+            'name' => $name,
+            'contents' => Utils::tryFopen($file->getFilename(), 'rb'),
+        ];
+
+        $filename = $file->getPostFilename();
+        if ($filename === '' || $filename === null) {
+            $filename = basename($file->getFilename());
+        }
+
+        if ($filename !== '') {
+            $part['filename'] = $filename;
+        }
+
+        $mimeType = $file->getMimeType();
+        if ($mimeType !== '') {
+            $part['headers'] = ['Content-Type' => $mimeType];
+        }
+
+        return $part;
+    }
+
+    /**
+     * Преобразует значение в строку для multipart запроса
+     *
+     * @param mixed $value Значение параметра
+     * @return string
+     * @throws JsonException Если не удалось сериализовать значение
+     */
+    private function normalizeMultipartValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_scalar($value)) {
+            return (string)$value;
+        }
+
+        if (is_object($value) && method_exists($value, '__toString')) {
+            return (string)$value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     /**
