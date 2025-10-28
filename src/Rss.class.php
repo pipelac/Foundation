@@ -19,6 +19,7 @@ class Rss
     private string $userAgent;
     private int $timeout;
     private ?Logger $logger;
+    private Http $http;
 
     /**
      * @param array<string, mixed> $config Конфигурация загрузчика
@@ -29,6 +30,15 @@ class Rss
         $this->userAgent = (string)($config['user_agent'] ?? 'RSSClient/1.0 (+https://example.com)');
         $this->timeout = max(1, (int)($config['timeout'] ?? self::DEFAULT_TIMEOUT));
         $this->logger = $logger;
+
+        $this->http = new Http([
+            'timeout' => $this->timeout,
+            'connect_timeout' => $this->timeout,
+            'allow_redirects' => true,
+            'headers' => [
+                'User-Agent' => $this->userAgent,
+            ],
+        ], $logger);
     }
 
     /**
@@ -60,33 +70,17 @@ class Rss
      */
     private function download(string $url): string
     {
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new RuntimeException('Не удалось инициализировать запрос cURL.');
-        }
+        $response = $this->http->request('GET', $url);
 
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_CONNECTTIMEOUT => $this->timeout,
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_USERAGENT => $this->userAgent,
-        ]);
-
-        $response = curl_exec($handle);
-        $error = curl_error($handle);
-        $statusCode = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        curl_close($handle);
-
-        if ($response === false) {
-            throw new RuntimeException('Ошибка запроса: ' . $error);
-        }
+        $statusCode = $response->getStatusCode();
+        $body = (string)$response->getBody();
 
         if ($statusCode >= 400) {
+            $this->logError('Ошибка HTTP при загрузке ленты', ['url' => $url, 'status_code' => $statusCode]);
             throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode);
         }
 
-        return $response;
+        return $body;
     }
 
     /**
