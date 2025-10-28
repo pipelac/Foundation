@@ -197,8 +197,6 @@ foreach ($formats as $format) {
 
 ## Полезные ссылки
 
-- [Документация OpenRouter Audio](../docs/OPENROUTER_AUDIO.md)
-- [Changelog](../OPENROUTER_AUDIO_CHANGELOG.md)
 - [Основной README проекта](../README.md)
 - [OpenRouter API Docs](https://openrouter.ai/docs)
 
@@ -240,8 +238,7 @@ php -l examples/openrouter_audio_example.php
 1. Проверьте наличие API ключа
 2. Убедитесь в корректности параметров
 3. Посмотрите логи в `/logs/`
-4. Изучите полную документацию в `/docs/`
-5. Проверьте баланс на OpenRouter
+4. Проверьте баланс на OpenRouter
 
 ---
 
