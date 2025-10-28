@@ -1,6 +1,16 @@
 {
-  "from_email": "noreply@example.com",
-  "from_name": "Basic Utilities",
-  "reply_to": "support@example.com",
-  "charset": "UTF-8"
+    "from_email": "noreply@example.com",
+    "from_name": "Basic Utilities",
+    "reply_to": "support@example.com",
+    "charset": "UTF-8",
+    "_comment": [
+        "Конфигурация почтового компонента для отправки писем.",
+        "Содержит параметры отправителя и форматирования писем."
+    ],
+    "_fields": {
+        "from_email": "Email-адрес отправителя (часто используется noreply@example.com для автоматических уведомлений)",
+        "from_name": "Отображаемое имя отправителя (то, что увидит получатель в поле 'От')",
+        "reply_to": "Адрес для ответов пользователей (письма на него будут перенаправлены при нажатии 'Ответить')",
+        "charset": "Кодировка писем (UTF-8 обеспечивает корректное отображение кириллицы и символов Unicode)"
+    }
 }
