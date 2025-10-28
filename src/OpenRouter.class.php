@@ -4,17 +4,30 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use Exception;
+use App\Component\Exception\OpenRouterApiException;
+use App\Component\Exception\OpenRouterException;
+use App\Component\Exception\OpenRouterNetworkException;
+use App\Component\Exception\OpenRouterValidationException;
 use JsonException;
-use RuntimeException;
 
 /**
  * Класс для работы с OpenRouter API
+ * 
+ * Предоставляет методы для взаимодействия с различными AI моделями через OpenRouter API:
+ * - Текстовая генерация (text2text)
+ * - Генерация изображений (text2image)
+ * - Распознавание изображений (image2text)
+ * - Распознавание речи (audio2text)
+ * - Извлечение текста из PDF (pdf2text)
+ * - Потоковая передача текста (textStream)
  */
 class OpenRouter
 {
     private const BASE_URL = 'https://openrouter.ai/api/v1';
     private const DEFAULT_TIMEOUT = 60;
+    private const MAX_FILE_DOWNLOAD_SIZE = 52428800; // 50 МБ
+    private const STREAM_CHUNK_SIZE = 8192;
+    private const DOWNLOAD_CHUNK_SIZE = 8192;
 
     private string $apiKey;
     private string $appName;
@@ -23,20 +36,24 @@ class OpenRouter
     private Http $http;
 
     /**
-     * @param array<string, mixed> $config Конфигурация OpenRouter API
-     * @param Logger|null $logger Инстанс логгера
-     * @throws Exception Если API ключ не установлен
+     * Конструктор класса OpenRouter
+     *
+     * @param array<string, mixed> $config Конфигурация OpenRouter API:
+     *                                     - api_key (string, обязательно): API ключ OpenRouter
+     *                                     - app_name (string, необязательно): Название приложения
+     *                                     - timeout (int, необязательно): Таймаут соединения в секундах
+     *                                     - retries (int, необязательно): Количество повторных попыток
+     * @param Logger|null $logger Экземпляр логгера для записи событий
+     * @throws OpenRouterValidationException Если API ключ не указан или конфигурация некорректна
      */
     public function __construct(array $config, ?Logger $logger = null)
     {
-        $this->apiKey = (string)($config['api_key'] ?? '');
+        $this->validateConfiguration($config);
+        
+        $this->apiKey = $config['api_key'];
         $this->appName = (string)($config['app_name'] ?? 'BasicUtilitiesApp');
         $this->timeout = max(1, (int)($config['timeout'] ?? self::DEFAULT_TIMEOUT));
         $this->logger = $logger;
-
-        if ($this->apiKey === '') {
-            throw new Exception('API ключ OpenRouter не указан.');
-        }
 
         $httpConfig = [
             'base_uri' => self::BASE_URL,
@@ -44,8 +61,8 @@ class OpenRouter
             'connect_timeout' => $this->timeout,
         ];
 
-        if (array_key_exists('retries', $config)) {
-            $httpConfig['retries'] = (int)$config['retries'];
+        if (isset($config['retries'])) {
+            $httpConfig['retries'] = max(1, (int)$config['retries']);
         }
 
         $this->http = new Http($httpConfig, $logger);
@@ -54,14 +71,22 @@ class OpenRouter
     /**
      * Отправляет текстовый запрос и получает текстовый ответ (text2text)
      *
-     * @param string $model Модель ИИ для использования
-     * @param string $prompt Текстовый запрос
-     * @param array<string, mixed> $options Дополнительные параметры
+     * @param string $model Модель ИИ для использования (например, "openai/gpt-4")
+     * @param string $prompt Текстовый запрос для модели
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - temperature (float): Температура генерации (0.0 - 2.0)
+     *                                      - max_tokens (int): Максимальное количество токенов
+     *                                      - top_p (float): Top-p sampling
      * @return string Ответ модели
-     * @throws Exception Если запрос завершился с ошибкой
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
      */
     public function text2text(string $model, string $prompt, array $options = []): string
     {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($prompt, 'prompt');
+
         $messages = [
             ['role' => 'user', 'content' => $prompt],
         ];
@@ -74,7 +99,7 @@ class OpenRouter
         $response = $this->sendRequest('/chat/completions', $payload);
 
         if (!isset($response['choices'][0]['message']['content'])) {
-            throw new RuntimeException('Модель не вернула текстовый ответ.');
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
         }
 
         return (string)$response['choices'][0]['message']['content'];
@@ -83,14 +108,22 @@ class OpenRouter
     /**
      * Отправляет текстовый запрос и получает изображение (text2image)
      *
-     * @param string $model Модель генерации изображений
-     * @param string $prompt Описание изображения
-     * @param array<string, mixed> $options Дополнительные параметры
+     * @param string $model Модель генерации изображений (например, "openai/dall-e-3")
+     * @param string $prompt Описание изображения для генерации
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - size (string): Размер изображения
+     *                                      - quality (string): Качество изображения
+     *                                      - style (string): Стиль изображения
      * @return string URL сгенерированного изображения
-     * @throws Exception Если запрос завершился с ошибкой
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула URL изображения
      */
     public function text2image(string $model, string $prompt, array $options = []): string
     {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($prompt, 'prompt');
+
         $payload = array_merge([
             'model' => $model,
             'prompt' => $prompt,
@@ -99,7 +132,7 @@ class OpenRouter
         $response = $this->sendRequest('/images/generations', $payload);
 
         if (!isset($response['data'][0]['url'])) {
-            throw new RuntimeException('Модель не вернула URL изображения.');
+            throw new OpenRouterException('Модель не вернула URL изображения.');
         }
 
         return (string)$response['data'][0]['url'];
@@ -108,15 +141,25 @@ class OpenRouter
     /**
      * Отправляет изображение и получает текстовое описание (image2text)
      *
-     * @param string $model Модель распознавания изображений
-     * @param string $imageUrl URL изображения
+     * @param string $model Модель распознавания изображений (например, "openai/gpt-4-vision-preview")
+     * @param string $imageUrl URL изображения для анализа
      * @param string $question Вопрос к изображению
-     * @param array<string, mixed> $options Дополнительные параметры
+     * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return string Описание или ответ модели
-     * @throws Exception Если запрос завершился с ошибкой
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
      */
-    public function image2text(string $model, string $imageUrl, string $question = 'Опиши это изображение', array $options = []): string
-    {
+    public function image2text(
+        string $model,
+        string $imageUrl,
+        string $question = 'Опиши это изображение',
+        array $options = []
+    ): string {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($imageUrl, 'imageUrl');
+        $this->validateNotEmpty($question, 'question');
+
         $messages = [
             [
                 'role' => 'user',
@@ -135,7 +178,7 @@ class OpenRouter
         $response = $this->sendRequest('/chat/completions', $payload);
 
         if (!isset($response['choices'][0]['message']['content'])) {
-            throw new RuntimeException('Модель не вернула текстовый ответ.');
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
         }
 
         return (string)$response['choices'][0]['message']['content'];
@@ -144,15 +187,24 @@ class OpenRouter
     /**
      * Преобразует аудио в текст (audio2text)
      *
-     * @param string $model Модель распознавания речи (например, openai/whisper-1)
+     * @param string $model Модель распознавания речи (например, "openai/whisper-1")
      * @param string $audioSource URL аудиофайла или путь к локальному файлу
-     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - language (string): Код языка (ISO-639-1)
+     *                                      - temperature (float): Температура генерации
+     *                                      - prompt (string): Подсказка для модели
      * @return string Распознанный текст
-     * @throws RuntimeException Если запрос завершился с ошибкой или ответ не содержит текста
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterNetworkException Если файл не удалось загрузить
+     * @throws OpenRouterException Если модель не вернула текстовую транскрипцию
      * @throws JsonException Если не удалось декодировать ответ API
      */
     public function audio2text(string $model, string $audioSource, array $options = []): string
     {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($audioSource, 'audioSource');
+
         $multipart = [
             [
                 'name' => 'model',
@@ -170,10 +222,7 @@ class OpenRouter
 
         $response = $this->http->request('POST', '/audio/transcriptions', [
             'multipart' => $multipart,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'HTTP-Referer' => $this->appName,
-            ],
+            'headers' => $this->buildHeaders(),
         ]);
 
         $statusCode = $response->getStatusCode();
@@ -185,7 +234,11 @@ class OpenRouter
                 'response' => $body,
             ]);
 
-            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode . ' | ' . $body);
+            throw new OpenRouterApiException(
+                'Сервер вернул код ошибки при транскрибации аудио',
+                $statusCode,
+                $body
+            );
         }
 
         $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
@@ -198,21 +251,32 @@ class OpenRouter
             return (string)$decoded['data'][0]['text'];
         }
 
-        throw new RuntimeException('Модель не вернула текстовую транскрипцию.');
+        throw new OpenRouterException('Модель не вернула текстовую транскрипцию.');
     }
 
     /**
      * Извлекает текст из PDF документа (pdf2text)
      *
-     * @param string $model Модель анализа документов (например, openai/gpt-4-vision или claude-3)
+     * @param string $model Модель анализа документов (например, "openai/gpt-4-vision" или "anthropic/claude-3")
      * @param string $pdfUrl URL PDF файла или путь к локальному файлу
-     * @param string $instruction Инструкция для обработки (по умолчанию - извлечение текста)
-     * @param array<string, mixed> $options Дополнительные параметры
+     * @param string $instruction Инструкция для обработки документа
+     * @param array<string, mixed> $options Дополнительные параметры запроса
      * @return string Извлеченный текст
-     * @throws Exception Если запрос завершился с ошибкой
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterNetworkException Если файл не удалось загрузить
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
      */
-    public function pdf2text(string $model, string $pdfUrl, string $instruction = 'Извлеки весь текст из этого PDF документа', array $options = []): string
-    {
+    public function pdf2text(
+        string $model,
+        string $pdfUrl,
+        string $instruction = 'Извлеки весь текст из этого PDF документа',
+        array $options = []
+    ): string {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($pdfUrl, 'pdfUrl');
+        $this->validateNotEmpty($instruction, 'instruction');
+
         $pdfResource = $this->normalizeMediaReference($pdfUrl, 'application/pdf');
 
         $messages = [
@@ -233,7 +297,7 @@ class OpenRouter
         $response = $this->sendRequest('/chat/completions', $payload);
 
         if (!isset($response['choices'][0]['message']['content'])) {
-            throw new RuntimeException('Модель не вернула текстовый ответ.');
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
         }
 
         return (string)$response['choices'][0]['message']['content'];
@@ -244,12 +308,17 @@ class OpenRouter
      *
      * @param string $model Модель ИИ для использования
      * @param string $prompt Текстовый запрос
-     * @param callable $callback Функция-обработчик частей ответа
-     * @param array<string, mixed> $options Дополнительные параметры
-     * @throws Exception Если запрос завершился с ошибкой
+     * @param callable $callback Функция-обработчик частей ответа (принимает string)
+     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если произошла ошибка при обработке потока
      */
     public function textStream(string $model, string $prompt, callable $callback, array $options = []): void
     {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($prompt, 'prompt');
+
         $messages = [
             ['role' => 'user', 'content' => $prompt],
         ];
@@ -264,48 +333,106 @@ class OpenRouter
     }
 
     /**
+     * Валидирует конфигурацию при создании экземпляра класса
+     *
+     * @param array<string, mixed> $config Конфигурация для валидации
+     * @throws OpenRouterValidationException Если конфигурация некорректна
+     */
+    private function validateConfiguration(array $config): void
+    {
+        if (!isset($config['api_key']) || !is_string($config['api_key']) || trim($config['api_key']) === '') {
+            throw new OpenRouterValidationException('API ключ OpenRouter не указан или пустой.');
+        }
+
+        $config['api_key'] = trim($config['api_key']);
+    }
+
+    /**
+     * Валидирует строковый параметр на пустоту
+     *
+     * @param string $value Значение для проверки
+     * @param string $paramName Название параметра (для сообщения об ошибке)
+     * @throws OpenRouterValidationException Если значение пустое
+     */
+    private function validateNotEmpty(string $value, string $paramName): void
+    {
+        if (trim($value) === '') {
+            throw new OpenRouterValidationException(
+                sprintf('Параметр "%s" не может быть пустым.', $paramName)
+            );
+        }
+    }
+
+    /**
+     * Формирует стандартные заголовки для запросов к API
+     *
+     * @return array<string, string> Массив заголовков
+     */
+    private function buildHeaders(): array
+    {
+        return [
+            'Authorization' => 'Bearer ' . $this->apiKey,
+            'HTTP-Referer' => $this->appName,
+        ];
+    }
+
+    /**
      * Выполняет стандартный HTTP-запрос к API
      *
-     * @param string $endpoint Endpoint API
-     * @param array<string, mixed> $payload Данные для отправки
+     * @param string $endpoint Endpoint API (например, "/chat/completions")
+     * @param array<string, mixed> $payload Данные для отправки в формате JSON
      * @return array<string, mixed> Декодированный ответ API
-     * @throws RuntimeException Если запрос завершился с ошибкой
-     * @throws JsonException Если не удалось закодировать JSON
+     * @throws OpenRouterApiException Если API вернул код ошибки >= 400
+     * @throws OpenRouterException Если не удалось декодировать JSON ответ
      */
     private function sendRequest(string $endpoint, array $payload): array
     {
+        $headers = $this->buildHeaders();
+        $headers['Content-Type'] = 'application/json';
+
         $response = $this->http->request('POST', $endpoint, [
             'json' => $payload,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-                'HTTP-Referer' => $this->appName,
-            ],
+            'headers' => $headers,
         ]);
 
         $statusCode = $response->getStatusCode();
         $body = (string)$response->getBody();
 
         if ($statusCode >= 400) {
-            $this->logError('Сервер OpenRouter вернул ошибку', ['status_code' => $statusCode, 'response' => $body]);
-            throw new RuntimeException('Сервер вернул код ошибки: ' . $statusCode . ' | ' . $body);
+            $this->logError('Сервер OpenRouter вернул ошибку', [
+                'status_code' => $statusCode,
+                'endpoint' => $endpoint,
+                'response' => $body
+            ]);
+
+            throw new OpenRouterApiException('Сервер вернул код ошибки', $statusCode, $body);
         }
 
-        return json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        try {
+            return json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new OpenRouterException(
+                'Не удалось декодировать ответ API: ' . $exception->getMessage(),
+                0,
+                $exception
+            );
+        }
     }
 
     /**
-     * Выполняет streaming HTTP-запрос к API
+     * Выполняет streaming HTTP-запрос к API с обработкой данных в реальном времени
      *
      * @param string $endpoint Endpoint API
      * @param array<string, mixed> $payload Данные для отправки
-     * @param callable $callback Функция для обработки потоков данных
-     * @throws RuntimeException Если запрос завершился с ошибкой
-     * @throws JsonException Если не удалось закодировать JSON
+     * @param callable $callback Функция для обработки потоков данных (принимает string)
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если произошла ошибка при обработке потока
      */
     private function sendStreamRequest(string $endpoint, array $payload, callable $callback): void
     {
         $buffer = '';
+        $headers = $this->buildHeaders();
+        $headers['Content-Type'] = 'application/json';
 
         $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
             $buffer .= $chunk;
@@ -321,57 +448,63 @@ class OpenRouter
 
                 if (str_starts_with($line, 'data: ')) {
                     $json = substr($line, 6);
-                    $decoded = json_decode($json, true);
 
-                    if (json_last_error() !== JSON_ERROR_NONE) {
+                    try {
+                        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+                    } catch (JsonException $exception) {
+                        $this->logError('Ошибка декодирования JSON в потоке', [
+                            'json' => $json,
+                            'error' => $exception->getMessage()
+                        ]);
                         continue;
                     }
 
                     if (isset($decoded['choices'][0]['delta']['content'])) {
-                        $callback($decoded['choices'][0]['delta']['content']);
+                        $callback((string)$decoded['choices'][0]['delta']['content']);
                     }
                 }
             }
         }, [
             'json' => $payload,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-                'HTTP-Referer' => $this->appName,
-            ],
+            'headers' => $headers,
         ]);
     }
 
     /**
-     * Подготавливает часть multipart-запроса с файлом.
+     * Подготавливает часть multipart-запроса с файлом
      *
      * @param string $fieldName Имя поля в multipart запросе
-     * @param string $reference URL или путь к файлу
+     * @param string $reference URL или путь к локальному файлу
      * @param string $defaultMimeType MIME тип по умолчанию
-     * @return array<string, mixed>
-     * @throws RuntimeException Если файл не найден, не доступен или не удалось его прочитать
+     * @return array<string, mixed> Массив для multipart запроса
+     * @throws OpenRouterValidationException Если файл не найден или не доступен
+     * @throws OpenRouterNetworkException Если не удалось загрузить файл по URL
      */
     private function prepareMultipartFile(string $fieldName, string $reference, string $defaultMimeType): array
     {
-        if (filter_var($reference, FILTER_VALIDATE_URL)) {
+        if (filter_var($reference, FILTER_VALIDATE_URL) !== false) {
             $contents = $this->downloadFile($reference);
             $filename = $this->deriveFileNameFromUrl($reference);
             $mimeType = $this->guessMimeTypeFromFileName($filename, $defaultMimeType);
         } else {
-            if (!is_file($reference) || !is_readable($reference)) {
-                throw new RuntimeException('Файл не найден или недоступен: ' . $reference);
+            if (!is_file($reference)) {
+                throw new OpenRouterValidationException('Файл не найден: ' . $reference);
+            }
+
+            if (!is_readable($reference)) {
+                throw new OpenRouterValidationException('Файл не доступен для чтения: ' . $reference);
             }
 
             $contents = file_get_contents($reference);
 
             if ($contents === false) {
-                throw new RuntimeException('Не удалось прочитать файл: ' . $reference);
+                throw new OpenRouterNetworkException('Не удалось прочитать файл: ' . $reference);
             }
 
             $filename = basename($reference);
 
             if ($filename === '' || $filename === '.' || $filename === DIRECTORY_SEPARATOR) {
-                $filename = 'audio-file.bin';
+                $filename = 'file-' . md5($reference) . '.bin';
             }
 
             $mimeType = mime_content_type($reference);
@@ -392,12 +525,11 @@ class OpenRouter
     }
 
     /**
-     * Преобразует значение опции в строку для multipart-запроса.
+     * Преобразует значение опции в строку для multipart-запроса
      *
-     * @param mixed $value Значение опции
-     * @return string
-     *
-     * @throws RuntimeException Если не удалось сериализовать значение
+     * @param mixed $value Значение опции для преобразования
+     * @return string Строковое представление значения
+     * @throws OpenRouterException Если не удалось сериализовать значение
      */
     private function normalizeMultipartValue(mixed $value): string
     {
@@ -412,16 +544,20 @@ class OpenRouter
         try {
             return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         } catch (JsonException $exception) {
-            throw new RuntimeException('Не удалось сериализовать параметр multipart запроса.', 0, $exception);
+            throw new OpenRouterException(
+                'Не удалось сериализовать параметр multipart запроса: ' . $exception->getMessage(),
+                0,
+                $exception
+            );
         }
     }
 
     /**
-     * Загружает файл по URL.
+     * Загружает файл по URL с ограничением размера и проверкой безопасности
      *
-     * @param string $url URL файла
+     * @param string $url URL файла для загрузки
      * @return string Содержимое файла
-     * @throws RuntimeException Если не удалось загрузить файл
+     * @throws OpenRouterNetworkException Если не удалось загрузить файл или размер превышен
      */
     private function downloadFile(string $url): string
     {
@@ -429,20 +565,54 @@ class OpenRouter
             'http' => [
                 'timeout' => $this->timeout,
                 'follow_location' => 1,
+                'max_redirects' => 5,
+                'user_agent' => $this->appName,
             ],
         ]);
 
-        $contents = @file_get_contents($url, false, $context);
+        $stream = @fopen($url, 'rb', false, $context);
 
-        if ($contents === false) {
-            throw new RuntimeException('Не удалось загрузить файл по URL: ' . $url);
+        if ($stream === false) {
+            throw new OpenRouterNetworkException('Не удалось открыть поток для загрузки файла по URL: ' . $url);
+        }
+
+        $contents = '';
+        $downloadedSize = 0;
+
+        try {
+            while (!feof($stream)) {
+                $chunk = fread($stream, self::DOWNLOAD_CHUNK_SIZE);
+
+                if ($chunk === false) {
+                    throw new OpenRouterNetworkException('Ошибка при чтении данных из потока: ' . $url);
+                }
+
+                $contents .= $chunk;
+                $downloadedSize += strlen($chunk);
+
+                if ($downloadedSize > self::MAX_FILE_DOWNLOAD_SIZE) {
+                    throw new OpenRouterNetworkException(
+                        sprintf(
+                            'Размер загружаемого файла превышает максимально допустимый (%d МБ): %s',
+                            self::MAX_FILE_DOWNLOAD_SIZE / 1048576,
+                            $url
+                        )
+                    );
+                }
+            }
+        } finally {
+            fclose($stream);
+        }
+
+        if ($contents === '') {
+            throw new OpenRouterNetworkException('Загруженный файл пустой: ' . $url);
         }
 
         return $contents;
     }
 
     /**
-     * Определяет имя файла на основе URL.
+     * Определяет имя файла на основе URL
      *
      * @param string $url URL файла
      * @return string Имя файла
@@ -451,7 +621,7 @@ class OpenRouter
     {
         $path = parse_url($url, PHP_URL_PATH);
 
-        if (is_string($path)) {
+        if (is_string($path) && $path !== '') {
             $basename = basename($path);
 
             if ($basename !== '' && $basename !== '.' && $basename !== DIRECTORY_SEPARATOR) {
@@ -459,11 +629,11 @@ class OpenRouter
             }
         }
 
-        return 'audio-' . md5($url) . '.bin';
+        return 'file-' . md5($url) . '.bin';
     }
 
     /**
-     * Определяет MIME-тип файла по его расширению.
+     * Определяет MIME-тип файла по его расширению
      *
      * @param string $filename Имя файла
      * @param string $defaultMimeType MIME тип по умолчанию
@@ -482,32 +652,42 @@ class OpenRouter
             'opus' => 'audio/opus',
             'flac' => 'audio/flac',
             'aac' => 'audio/aac',
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
             default => $defaultMimeType,
         };
     }
 
     /**
-     * Нормализует ссылку на медиафайл (URL или локальный путь в data URI)
+     * Нормализует ссылку на медиафайл (URL или локальный путь преобразуется в data URI)
      *
      * @param string $reference URL или путь к файлу
-     * @param string $defaultMimeType MIME тип по умолчанию, если не удалось определить автоматически
+     * @param string $defaultMimeType MIME тип по умолчанию
      * @return string URL или data URI
-     * @throws RuntimeException Если файл не найден или не удалось прочитать содержимое
+     * @throws OpenRouterValidationException Если файл не найден
+     * @throws OpenRouterNetworkException Если не удалось прочитать содержимое файла
      */
     private function normalizeMediaReference(string $reference, string $defaultMimeType): string
     {
-        if (filter_var($reference, FILTER_VALIDATE_URL)) {
+        if (filter_var($reference, FILTER_VALIDATE_URL) !== false) {
             return $reference;
         }
 
-        if (!is_file($reference) || !is_readable($reference)) {
-            throw new RuntimeException('Файл не найден или недоступен: ' . $reference);
+        if (!is_file($reference)) {
+            throw new OpenRouterValidationException('Файл не найден: ' . $reference);
+        }
+
+        if (!is_readable($reference)) {
+            throw new OpenRouterValidationException('Файл не доступен для чтения: ' . $reference);
         }
 
         $content = file_get_contents($reference);
 
         if ($content === false) {
-            throw new RuntimeException('Не удалось прочитать файл: ' . $reference);
+            throw new OpenRouterNetworkException('Не удалось прочитать файл: ' . $reference);
         }
 
         $mimeType = mime_content_type($reference);
