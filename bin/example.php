@@ -15,7 +15,7 @@ if (file_exists($autoloaderPath)) {
 }
 
 use App\Component\Logger;
-use App\Component\MySQL;
+use App\Component\MySQLConnectionFactory;
 use App\Component\Rss;
 use App\Component\OpenRouter;
 use App\Component\Telegram;
@@ -34,7 +34,7 @@ try {
     $logger->info('Приложение запущено');
 
     // Инициализация компонентов
-    $mysql = new MySQL($mysqlConfig, $logger);
+    $mysql = MySQLConnectionFactory::get($mysqlConfig, $logger);
     $rss = new Rss($rssConfig, $logger);
     $openRouter = new OpenRouter($openRouterConfig, $logger);
     $telegram = new Telegram($telegramConfig, $logger);
