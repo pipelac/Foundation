@@ -1,22 +1,65 @@
 {
-    "host": "localhost",
-    "port": 3306,
-    "database": "utilities_db",
-    "username": "root",
-    "password": "",
-    "charset": "utf8mb4",
-    "options": {},
+    "databases": {
+        "main": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "utilities_db",
+            "username": "root",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": false,
+            "cache_statements": true,
+            "options": {}
+        },
+        "analytics": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "analytics_db",
+            "username": "root",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": false,
+            "cache_statements": true,
+            "options": {}
+        },
+        "logs": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "logs_db",
+            "username": "root",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": true,
+            "cache_statements": true,
+            "options": {}
+        }
+    },
+    "default": "main",
     "_comment": [
-        "Конфигурация подключения к базе данных MySQL.",
-        "Используется компонентом MySQL для установления соединения через PDO."
+        "Конфигурация подключений к базам данных MySQL с поддержкой множественных БД.",
+        "Используется компонентом MySQLConnectionFactory для управления соединениями.",
+        "Каждое соединение кешируется и переиспользуется, что оптимизирует производительность."
     ],
-    "_fields": {
-        "host": "Адрес сервера MySQL (localhost — локальный компьютер, либо домен/IPv4/IPv6 удалённого сервера)",
-        "port": "Порт MySQL (3306 — стандартное значение по умолчанию)",
-        "database": "Имя базы данных, к которой выполняется подключение",
-        "username": "Имя пользователя MySQL. Рекомендуется создать отдельного пользователя с ограниченными правами",
-        "password": "Пароль пользователя. Пустая строка допустима только в изолированной среде разработки",
-        "charset": "Кодировка соединения (utf8mb4 — полная поддержка Unicode, включая emoji)",
-        "options": "Дополнительные опции PDO (например, режим ошибок, подготовленные выражения и т.д.)"
-    }
+    "_structure": {
+        "databases": "Объект с конфигурациями всех доступных баз данных. Ключ - имя БД для использования в коде",
+        "default": "Имя базы данных по умолчанию (если не указано - используется первая из списка)"
+    },
+    "_database_fields": {
+        "host": "Адрес сервера MySQL (localhost, домен, IPv4, IPv6)",
+        "port": "Порт MySQL (по умолчанию: 3306)",
+        "database": "Имя базы данных для подключения",
+        "username": "Имя пользователя MySQL (рекомендуется создать отдельного с ограниченными правами)",
+        "password": "Пароль пользователя (пустая строка допустима только в dev-окружении)",
+        "charset": "Кодировка соединения (utf8mb4 рекомендуется для полной поддержки Unicode)",
+        "persistent": "Использовать персистентное соединение (true/false)",
+        "cache_statements": "Кешировать подготовленные запросы (true/false, по умолчанию: true)",
+        "options": "Дополнительные опции PDO (объект с числовыми ключами констант PDO)"
+    },
+    "_usage_example": [
+        "$factory = new MySQLConnectionFactory($config, $logger);",
+        "$mainDb = $factory->getConnection('main');",
+        "$analyticsDb = $factory->getConnection('analytics');",
+        "$users = $mainDb->query('SELECT * FROM users');",
+        "$stats = $analyticsDb->query('SELECT * FROM statistics');"
+    ]
 }
