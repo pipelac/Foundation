@@ -1,0 +1,6 @@
+{
+  "from_email": "noreply@example.com",
+  "from_name": "RSS Service",
+  "reply_to": "support@example.com",
+  "charset": "UTF-8"
+}

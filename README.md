@@ -10,6 +10,7 @@
 - **MySQL** — работа с БД через PDO
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
+- **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов
 - **Http** — унифицированный HTTP клиент на базе Guzzle
 
@@ -36,6 +37,7 @@ composer install
 - `config/rss.json` — настройки RSS парсера
 - `config/openrouter.json` — API ключ OpenRouter
 - `config/telegram.json` — токен Telegram бота
+- `config/email.json` — параметры отправки почты
 
 ## Использование
 
@@ -153,6 +155,28 @@ $telegram->sendAudio('123456789', '/path/to/audio.mp3');
 $telegram->sendDocument('123456789', '/path/to/document.pdf');
 ```
 
+### Email
+
+```php
+use App\Component\Email;
+
+$config = ConfigLoader::load(__DIR__ . '/config/email.json');
+$email = new Email($config, $logger);
+
+$email->send(
+    ['user@example.com', 'team@example.com'],
+    'Добро пожаловать',
+    '<p>Спасибо за регистрацию!</p>',
+    [
+        'is_html' => true,
+        'cc' => 'manager@example.com',
+        'attachments' => [
+            ['path' => __DIR__ . '/files/presentation.pdf', 'name' => 'Презентация.pdf'],
+        ],
+    ]
+);
+```
+
 ### Http
 
 ```php
@@ -192,6 +216,7 @@ php bin/test_autoload.php
 ├── bin/                    # Исполняемые скрипты
 │   └── example.php
 ├── config/                 # Конфигурационные файлы
+│   ├── email.json
 │   ├── logger.json
 │   ├── mysql.json
 │   ├── openrouter.json
@@ -201,6 +226,7 @@ php bin/test_autoload.php
 ├── src/                    # Исходный код
 │   ├── Config/
 │   │   └── ConfigLoader.php
+│   ├── Email.class.php
 │   ├── Http.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
