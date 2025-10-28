@@ -1,5 +1,6 @@
 {
     "token": "YOUR_TELEGRAM_BOT_TOKEN",
     "default_chat_id": null,
-    "timeout": 30
+    "timeout": 30,
+    "retries": 3
 }

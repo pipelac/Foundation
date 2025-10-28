@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace App\Component;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 
@@ -28,6 +33,8 @@ class Http
      */
     public function __construct(array $config = [], ?Logger $logger = null)
     {
+        $this->logger = $logger;
+        
         $clientConfig = [
             'http_errors' => false,
         ];
@@ -60,12 +67,15 @@ class Http
             $clientConfig['allow_redirects'] = $config['allow_redirects'];
         }
 
+        if (array_key_exists('retries', $config)) {
+            $clientConfig['handler'] = $this->createRetryHandler((int)$config['retries']);
+        }
+
         $this->defaultOptions = isset($config['options']) && is_array($config['options'])
             ? $config['options']
             : [];
 
         $this->client = new Client($clientConfig);
-        $this->logger = $logger;
     }
 
     /**
@@ -157,6 +167,69 @@ class Http
 
             throw new RuntimeException('Ошибка потокового HTTP запроса: ' . $exception->getMessage(), (int)$exception->getCode(), $exception);
         }
+    }
+
+    /**
+     * Создаёт handler с поддержкой повторных попыток
+     *
+     * @param int $attempts Общее количество попыток выполнения запроса
+     * @return HandlerStack
+     */
+    private function createRetryHandler(int $attempts): HandlerStack
+    {
+        $maxAttempts = max(1, $attempts);
+        $handlerStack = HandlerStack::create();
+
+        if ($maxAttempts === 1) {
+            return $handlerStack;
+        }
+
+        $handlerStack->push(Middleware::retry(
+            function (
+                int $retriesAttempt,
+                RequestInterface $request,
+                ?ResponseInterface $response = null,
+                ?RequestException $exception = null
+            ) use ($maxAttempts): bool {
+                if (!$exception instanceof ConnectException) {
+                    return false;
+                }
+
+                if ($retriesAttempt >= $maxAttempts - 1) {
+                    return false;
+                }
+
+                $this->logRetry($retriesAttempt + 1, $request, $exception);
+
+                return true;
+            },
+            static function (int $retriesAttempt): int {
+                return (int)(1000 * (2 ** $retriesAttempt));
+            }
+        ));
+
+        return $handlerStack;
+    }
+
+    /**
+     * Логирует попытку повторного запроса
+     *
+     * @param int $attemptNumber Номер попытки (начиная с 1 для повторов)
+     * @param RequestInterface $request Запрос
+     * @param RequestException $exception Исключение при ошибке соединения
+     */
+    private function logRetry(int $attemptNumber, RequestInterface $request, RequestException $exception): void
+    {
+        if ($this->logger === null) {
+            return;
+        }
+
+        $this->logger->warning('Повторная попытка HTTP запроса', [
+            'retry_attempt' => $attemptNumber,
+            'method' => $request->getMethod(),
+            'uri' => (string)$request->getUri(),
+            'error' => $exception->getMessage(),
+        ]);
     }
 
     /**
