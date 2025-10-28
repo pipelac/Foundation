@@ -48,9 +48,33 @@ class FileCache
      */
     private ?array $currentTags = null;
 
+    /**
+     * Конструктор файлового кэша
+     * 
+     * Инициализирует файловый кэш с заданной конфигурацией. Конфигурация может быть
+     * передана в виде массива или объекта FileCacheConfig. При использовании массива,
+     * можно указать путь к JSON-файлу конфигурации через ключ 'configFile'.
+     * 
+     * @param FileCacheConfig|array $config Конфигурация кэша (массив или объект FileCacheConfig)
+     * @throws \InvalidArgumentException Если конфигурация невалидна
+     * @throws \RuntimeException Если не удается создать директорию кэша
+     */
     public function __construct(FileCacheConfig|array $config = [])
     {
         if (is_array($config)) {
+            // Поддержка загрузки конфигурации из файла
+            if (isset($config['configFile']) && is_string($config['configFile'])) {
+                $configFile = $config['configFile'];
+                if (file_exists($configFile)) {
+                    $fileConfig = json_decode(file_get_contents($configFile), true);
+                    if (is_array($fileConfig)) {
+                        // Удаляем служебные поля из конфигурации
+                        unset($fileConfig['_comment'], $fileConfig['_fields']);
+                        $config = array_merge($fileConfig, $config);
+                        unset($config['configFile']);
+                    }
+                }
+            }
             $config = new FileCacheConfig($config);
         }
 
@@ -66,6 +90,16 @@ class FileCache
         }
     }
 
+    /**
+     * Получает значение из кэша по ключу
+     * 
+     * Возвращает закэшированное значение, если оно существует и не истекло.
+     * В противном случае возвращает значение по умолчанию.
+     * 
+     * @param string $key Ключ кэша
+     * @param mixed $default Значение по умолчанию, если ключ не найден
+     * @return mixed Закэшированное значение или значение по умолчанию
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $this->validateKey($key);
@@ -114,6 +148,16 @@ class FileCache
         }
     }
 
+    /**
+     * Сохраняет значение в кэш
+     * 
+     * Записывает значение в кэш с указанным ключом и временем жизни.
+     * 
+     * @param string $key Ключ кэша
+     * @param mixed $value Значение для сохранения
+     * @param null|int|DateInterval $ttl Время жизни в секундах или DateInterval (null = использовать defaultTtl)
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     public function set(string $key, mixed $value, null|int|DateInterval $ttl = null): bool
     {
         $this->validateKey($key);
@@ -127,6 +171,14 @@ class FileCache
         }
     }
 
+    /**
+     * Удаляет значение из кэша
+     * 
+     * Удаляет элемент кэша с указанным ключом.
+     * 
+     * @param string $key Ключ кэша для удаления
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     public function delete(string $key): bool
     {
         $this->validateKey($key);
@@ -139,6 +191,13 @@ class FileCache
         }
     }
 
+    /**
+     * Очищает весь кэш
+     * 
+     * Удаляет все элементы из кэша, включая индексы тегов и статистику.
+     * 
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     public function clear(): bool
     {
         try {
@@ -155,6 +214,14 @@ class FileCache
         }
     }
 
+    /**
+     * Проверяет существование ключа в кэше
+     * 
+     * Проверяет, существует ли элемент с указанным ключом в кэше и не истек ли срок его действия.
+     * 
+     * @param string $key Ключ кэша для проверки
+     * @return bool True если ключ существует и актуален, false в противном случае
+     */
     public function has(string $key): bool
     {
         $this->validateKey($key);
@@ -193,6 +260,15 @@ class FileCache
         }
     }
 
+    /**
+     * Получает несколько значений из кэша
+     * 
+     * Возвращает массив значений для указанных ключей.
+     * 
+     * @param iterable $keys Список ключей для получения
+     * @param mixed $default Значение по умолчанию для несуществующих ключей
+     * @return iterable Ассоциативный массив ключей и значений
+     */
     public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         $result = [];
@@ -202,6 +278,15 @@ class FileCache
         return $result;
     }
 
+    /**
+     * Сохраняет несколько значений в кэш
+     * 
+     * Записывает множество пар ключ-значение в кэш с указанным временем жизни.
+     * 
+     * @param iterable $values Ассоциативный массив или итератор пар ключ-значение
+     * @param null|int|DateInterval $ttl Время жизни для всех элементов
+     * @return bool True если все операции успешны, false если хотя бы одна не удалась
+     */
     public function setMultiple(iterable $values, null|int|DateInterval $ttl = null): bool
     {
         $tags = $this->consumeTags();
@@ -221,6 +306,14 @@ class FileCache
         return $success;
     }
 
+    /**
+     * Удаляет несколько значений из кэша
+     * 
+     * Удаляет элементы кэша по списку ключей.
+     * 
+     * @param iterable $keys Список ключей для удаления
+     * @return bool True если все операции успешны, false если хотя бы одна не удалась
+     */
     public function deleteMultiple(iterable $keys): bool
     {
         $success = true;
@@ -232,6 +325,17 @@ class FileCache
         return $success;
     }
 
+    /**
+     * Получает значение из кэша или выполняет callback и сохраняет результат
+     * 
+     * Возвращает значение из кэша, если оно существует. В противном случае выполняет callback,
+     * сохраняет его результат в кэш и возвращает этот результат.
+     * 
+     * @param string $key Ключ кэша
+     * @param callable $callback Функция для получения значения, если оно отсутствует в кэше
+     * @param null|int|DateInterval $ttl Время жизни для сохраняемого значения
+     * @return mixed Значение из кэша или результат выполнения callback
+     */
     public function remember(string $key, callable $callback, null|int|DateInterval $ttl = null): mixed
     {
         $sentinel = new \stdClass();
@@ -247,6 +351,17 @@ class FileCache
         return $value;
     }
 
+    /**
+     * Инкрементирует числовое значение в кэше
+     * 
+     * Увеличивает числовое значение в кэше на указанную величину.
+     * Если ключ не существует, создается с начальным значением равным инкременту.
+     * 
+     * @param string $key Ключ кэша
+     * @param int $value Значение инкремента (по умолчанию 1)
+     * @return int|false Новое значение или false в случае ошибки
+     * @throws RuntimeException Если значение в кэше не является числом
+     */
     public function increment(string $key, int $value = 1): int|false
     {
         $this->validateKey($key);
@@ -269,7 +384,7 @@ class FileCache
             $current = 0;
             if ($data !== null) {
                 if (!is_numeric($data['value'])) {
-                    throw new RuntimeException('Cannot increment a non-numeric cache value.');
+                    throw new RuntimeException('Невозможно инкрементировать нечисловое значение кэша.');
                 }
                 $current = (int) $data['value'];
             }
@@ -295,11 +410,29 @@ class FileCache
         }
     }
 
+    /**
+     * Декрементирует числовое значение в кэше
+     * 
+     * Уменьшает числовое значение в кэше на указанную величину.
+     * 
+     * @param string $key Ключ кэша
+     * @param int $value Значение декремента (по умолчанию 1)
+     * @return int|false Новое значение или false в случае ошибки
+     */
     public function decrement(string $key, int $value = 1): int|false
     {
         return $this->increment($key, -$value);
     }
 
+    /**
+     * Обновляет время жизни элемента кэша
+     * 
+     * Продлевает срок действия существующего элемента кэша без изменения его значения.
+     * 
+     * @param string $key Ключ кэша
+     * @param null|int|DateInterval $ttl Новое время жизни
+     * @return bool True в случае успеха, false если ключ не существует или произошла ошибка
+     */
     public function touch(string $key, null|int|DateInterval $ttl = null): bool
     {
         $this->validateKey($key);
@@ -326,7 +459,7 @@ class FileCache
             $payload = $this->serialize($data);
 
             if ($this->config->maxItemSize !== null && strlen($payload) > $this->config->maxItemSize) {
-                throw new InvalidArgumentException('Item size exceeds maxItemSize constraint.');
+                throw new InvalidArgumentException('Размер элемента превышает ограничение maxItemSize.');
             }
 
             if (!$this->writeFile($filePath, $payload)) {
@@ -341,6 +474,15 @@ class FileCache
         }
     }
 
+    /**
+     * Получает значение из кэша и удаляет его
+     * 
+     * Возвращает значение по ключу и сразу же удаляет его из кэша.
+     * 
+     * @param string $key Ключ кэша
+     * @param mixed $default Значение по умолчанию, если ключ не найден
+     * @return mixed Значение из кэша или значение по умолчанию
+     */
     public function pull(string $key, mixed $default = null): mixed
     {
         $sentinel = new \stdClass();
@@ -354,6 +496,15 @@ class FileCache
         return $value;
     }
 
+    /**
+     * Устанавливает теги для следующей операции записи в кэш
+     * 
+     * Позволяет группировать элементы кэша по тегам для последующего удаления по тегу.
+     * Теги применяются только к следующей операции set или setMultiple.
+     * 
+     * @param array $tags Массив тегов
+     * @return self Возвращает текущий экземпляр для цепочки вызовов
+     */
     public function tags(array $tags): self
     {
         $normalized = [];
@@ -368,6 +519,14 @@ class FileCache
         return $this;
     }
 
+    /**
+     * Удаляет все элементы кэша с указанным тегом
+     * 
+     * Удаляет все элементы кэша, которые были помечены указанным тегом.
+     * 
+     * @param string $tag Тег для удаления
+     * @return bool True в случае успеха, false если хотя бы одна операция удаления не удалась
+     */
     public function deleteByTag(string $tag): bool
     {
         $tag = (string) $tag;
@@ -390,11 +549,26 @@ class FileCache
         return $success;
     }
 
+    /**
+     * Очищает весь кэш (алиас для clear)
+     * 
+     * Удаляет все элементы из кэша. Эквивалентен методу clear().
+     * 
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     public function flush(): bool
     {
         return $this->clear();
     }
 
+    /**
+     * Запускает сборщик мусора для удаления устаревших элементов кэша
+     * 
+     * Удаляет все истекшие элементы кэша и при необходимости обеспечивает соблюдение maxCacheSize.
+     * 
+     * @param bool $force Принудительный запуск сборщика мусора (игнорирование вероятности)
+     * @return int Количество удаленных элементов
+     */
     public function gc(bool $force = false): int
     {
         if (!$force && !$this->shouldRunGc()) {
@@ -449,11 +623,26 @@ class FileCache
         return $deleted;
     }
 
+    /**
+     * Удаляет все истекшие элементы из кэша
+     * 
+     * Принудительно запускает сборщик мусора для очистки устаревших данных.
+     * Эквивалентен gc(true).
+     * 
+     * @return int Количество удаленных элементов
+     */
     public function prune(): int
     {
         return $this->gc(true);
     }
 
+    /**
+     * Удаляет пустые директории из кэша
+     * 
+     * Очищает структуру директорий кэша от пустых поддиректорий.
+     * 
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     public function vacuum(): bool
     {
         try {
@@ -465,6 +654,13 @@ class FileCache
         }
     }
 
+    /**
+     * Возвращает общий размер кэша в байтах
+     * 
+     * Подсчитывает и возвращает размер всех файлов кэша.
+     * 
+     * @return int Размер кэша в байтах
+     */
     public function getSize(): int
     {
         $total = 0;
@@ -490,6 +686,13 @@ class FileCache
         return $total;
     }
 
+    /**
+     * Возвращает количество элементов в кэше
+     * 
+     * Подсчитывает и возвращает количество файлов кэша.
+     * 
+     * @return int Количество элементов в кэше
+     */
     public function getItemCount(): int
     {
         $count = 0;
@@ -515,6 +718,14 @@ class FileCache
         return $count;
     }
 
+    /**
+     * Возвращает статистику использования кэша
+     * 
+     * Возвращает массив со статистикой: попадания, промахи, записи, удаления,
+     * процент попаданий, размер кэша и количество элементов.
+     * 
+     * @return array Массив статистики кэша
+     */
     public function getStats(): array
     {
         $total = $this->stats['hits'] + $this->stats['misses'];
@@ -531,6 +742,11 @@ class FileCache
         ];
     }
 
+    /**
+     * Сбрасывает статистику использования кэша
+     * 
+     * Обнуляет все счетчики статистики (попадания, промахи, записи, удаления).
+     */
     public function resetStats(): void
     {
         $this->stats = [
@@ -541,6 +757,14 @@ class FileCache
         ];
     }
 
+    /**
+     * Возвращает метаданные элемента кэша
+     * 
+     * Получает информацию о элементе кэша: время создания, истечения, размер, количество обращений и теги.
+     * 
+     * @param string $key Ключ кэша
+     * @return array|null Массив метаданных или null если ключ не найден
+     */
     public function getMetadata(string $key): ?array
     {
         $this->validateKey($key);
@@ -576,6 +800,14 @@ class FileCache
         }
     }
 
+    /**
+     * Проверяет, истек ли срок действия элемента кэша
+     * 
+     * Проверяет, существует ли элемент и не истек ли срок его действия.
+     * 
+     * @param string $key Ключ кэша
+     * @return bool True если элемент истек или не существует, false если элемент актуален
+     */
     public function isExpired(string $key): bool
     {
         $this->validateKey($key);
@@ -596,23 +828,41 @@ class FileCache
         }
     }
 
+    /**
+     * Валидирует ключ кэша
+     * 
+     * Проверяет, что ключ кэша соответствует требованиям: не пустой, не длиннее 255 символов,
+     * и не содержит недопустимых символов.
+     * 
+     * @param string $key Ключ кэша для проверки
+     * @return bool True если ключ валиден
+     * @throws InvalidArgumentException Если ключ невалиден
+     */
     public function validateKey(string $key): bool
     {
         if ($key === '') {
-            throw new InvalidArgumentException('Cache key cannot be empty.');
+            throw new InvalidArgumentException('Ключ кэша не может быть пустым.');
         }
 
         if (strlen($key) > 255) {
-            throw new InvalidArgumentException('Cache key is too long (max 255 characters).');
+            throw new InvalidArgumentException('Ключ кэша слишком длинный (максимум 255 символов).');
         }
 
         if (preg_match('/[{}()\/\\@:]/', $key)) {
-            throw new InvalidArgumentException('Cache key contains invalid characters.');
+            throw new InvalidArgumentException('Ключ кэша содержит недопустимые символы.');
         }
 
         return true;
     }
 
+    /**
+     * Предзагружает указанные ключи в память
+     * 
+     * Загружает данные для указанных ключей из файлов в память для быстрого доступа.
+     * 
+     * @param array $keys Массив ключей для предзагрузки
+     * @return int Количество успешно загруженных элементов
+     */
     public function warmup(array $keys): int
     {
         $loaded = 0;
@@ -643,6 +893,14 @@ class FileCache
         return $loaded;
     }
 
+    /**
+     * Проверяет состояние кэша
+     * 
+     * Возвращает информацию о доступности директории кэша, свободном месте и
+     * доступности необходимых расширений PHP.
+     * 
+     * @return array Массив с результатами проверки состояния
+     */
     public function healthCheck(): array
     {
         $directory = $this->config->cacheDirectory;
@@ -661,6 +919,14 @@ class FileCache
         ];
     }
 
+    /**
+     * Возвращает путь к файлу кэша для указанного ключа
+     * 
+     * Генерирует путь к файлу кэша на основе хеша ключа с учетом настроек шардирования.
+     * 
+     * @param string $key Ключ кэша
+     * @return string Полный путь к файлу кэша
+     */
     public function getPath(string $key): string
     {
         $hash = $this->hashKey($this->getFullKey($key));
@@ -680,6 +946,16 @@ class FileCache
         return $path . DIRECTORY_SEPARATOR . $hash . $this->config->fileExtension;
     }
 
+    /**
+     * Сериализует значение для сохранения в кэш
+     * 
+     * Преобразует значение в строку с использованием выбранного сериализатора
+     * и применяет сжатие при необходимости.
+     * 
+     * @param mixed $value Значение для сериализации
+     * @return string Сериализованная строка
+     * @throws RuntimeException Если сериализация или сжатие не удались
+     */
     public function serialize(mixed $value): string
     {
         $payload = match ($this->config->serializer) {
@@ -691,12 +967,12 @@ class FileCache
 
         if ($this->config->compressionEnabled && strlen($payload) >= $this->config->compressionThreshold) {
             if (!extension_loaded('zlib')) {
-                throw new RuntimeException('Cannot compress cache payload without zlib extension.');
+                throw new RuntimeException('Невозможно сжать данные кэша без расширения zlib.');
             }
 
             $compressed = gzcompress($payload, $this->config->compressionLevel);
             if ($compressed === false) {
-                throw new RuntimeException('Failed to compress cache payload.');
+                throw new RuntimeException('Не удалось сжать данные кэша.');
             }
 
             return self::COMPRESSED_PREFIX . $compressed;
@@ -705,18 +981,28 @@ class FileCache
         return $payload;
     }
 
+    /**
+     * Десериализует значение из кэша
+     * 
+     * Преобразует сериализованную строку обратно в значение с учетом
+     * сжатия и выбранного сериализатора.
+     * 
+     * @param string $payload Сериализованная строка
+     * @return mixed Десериализованное значение
+     * @throws RuntimeException Если десериализация или распаковка не удались
+     */
     public function unserialize(string $payload): mixed
     {
         $data = $payload;
 
         if (str_starts_with($data, self::COMPRESSED_PREFIX)) {
             if (!extension_loaded('zlib')) {
-                throw new RuntimeException('Cannot decompress cache payload without zlib extension.');
+                throw new RuntimeException('Невозможно распаковать данные кэша без расширения zlib.');
             }
 
             $decompressed = gzuncompress(substr($data, strlen(self::COMPRESSED_PREFIX)));
             if ($decompressed === false) {
-                throw new RuntimeException('Failed to decompress cache payload.');
+                throw new RuntimeException('Не удалось распаковать данные кэша.');
             }
 
             $data = $decompressed;
@@ -730,6 +1016,16 @@ class FileCache
         };
     }
 
+    /**
+     * Устанавливает блокировку для ключа кэша
+     * 
+     * Создает эксклюзивную блокировку для предотвращения одновременного доступа
+     * к элементу кэша из разных процессов.
+     * 
+     * @param string $key Ключ кэша для блокировки
+     * @param int|null $timeout Время ожидания блокировки в секундах (null = использовать lockTimeout из конфига)
+     * @return bool True если блокировка успешна, false в противном случае
+     */
     public function lock(string $key, int $timeout = null): bool
     {
         if (!$this->config->fileLocking) {
@@ -767,6 +1063,14 @@ class FileCache
         return false;
     }
 
+    /**
+     * Снимает блокировку с ключа кэша
+     * 
+     * Освобождает ранее установленную блокировку для указанного ключа.
+     * 
+     * @param string $key Ключ кэша для разблокировки
+     * @return bool True если разблокировка успешна, false если блокировка не была установлена
+     */
     public function unlock(string $key): bool
     {
         if (!$this->config->fileLocking) {
@@ -787,6 +1091,11 @@ class FileCache
         return true;
     }
 
+    /**
+     * Деструктор класса
+     * 
+     * Автоматически освобождает все блокировки при уничтожении объекта.
+     */
     public function __destruct()
     {
         foreach (array_keys($this->locks) as $key) {
@@ -794,6 +1103,13 @@ class FileCache
         }
     }
 
+    /**
+     * Потребляет и возвращает текущие теги
+     * 
+     * Возвращает установленные теги и сбрасывает их для следующей операции.
+     * 
+     * @return array Массив тегов
+     */
     private function consumeTags(): array
     {
         $tags = $this->currentTags ?? [];
@@ -810,6 +1126,16 @@ class FileCache
         return array_values(array_unique($filtered));
     }
 
+    /**
+     * Внутренний метод для сохранения значения в кэш
+     * 
+     * @param string $key Ключ кэша
+     * @param mixed $value Значение для сохранения
+     * @param null|int|DateInterval $ttl Время жизни
+     * @param array $tags Теги для элемента
+     * @param array|null $existingData Существующие данные элемента (если есть)
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     private function doSet(string $key, mixed $value, null|int|DateInterval $ttl, array $tags, ?array $existingData): bool
     {
         $ttlSeconds = $this->normalizeTtl($ttl);
@@ -843,7 +1169,7 @@ class FileCache
 
         $serialized = $this->serialize($payloadData);
         if ($this->config->maxItemSize !== null && strlen($serialized) > $this->config->maxItemSize) {
-            throw new InvalidArgumentException('Item size exceeds maxItemSize constraint.');
+            throw new InvalidArgumentException('Размер элемента превышает ограничение maxItemSize.');
         }
 
         if (!$this->writeFile($filePath, $serialized)) {
@@ -865,6 +1191,12 @@ class FileCache
         return true;
     }
 
+    /**
+     * Нормализует время жизни к секундам
+     * 
+     * @param null|int|DateInterval $ttl Время жизни
+     * @return int|null Время жизни в секундах или null
+     */
     private function normalizeTtl(null|int|DateInterval $ttl): ?int
     {
         if ($ttl === null) {
@@ -887,6 +1219,12 @@ class FileCache
         return $ttl;
     }
 
+    /**
+     * Вычисляет оставшееся время жизни элемента
+     * 
+     * @param array $data Данные элемента кэша
+     * @return int|null Оставшееся время в секундах или null если без ограничений
+     */
     private function calculateRemainingTtl(array $data): ?int
     {
         if (!isset($data['expires']) || $data['expires'] === null) {
@@ -897,6 +1235,12 @@ class FileCache
         return $remaining > 0 ? $remaining : 0;
     }
 
+    /**
+     * Сохраняет данные в памяти
+     * 
+     * @param string $key Ключ кэша
+     * @param array $data Данные для сохранения
+     */
     private function rememberInMemory(string $key, array $data): void
     {
         if ($this->config->preloadEnabled || array_key_exists($key, $this->memoryCache)) {
@@ -904,6 +1248,15 @@ class FileCache
         }
     }
 
+    /**
+     * Внутренний метод для удаления элемента кэша
+     * 
+     * @param string $key Ключ кэша
+     * @param string $filePath Путь к файлу кэша
+     * @param array|null $data Данные элемента (опционально)
+     * @param bool $countStats Учитывать ли удаление в статистике
+     * @return bool True в случае успеха
+     */
     private function deleteInternal(string $key, string $filePath, ?array $data = null, bool $countStats = true): bool
     {
         if (!is_file($filePath)) {
@@ -938,6 +1291,11 @@ class FileCache
         return $result;
     }
 
+    /**
+     * Определяет, нужно ли запускать сборщик мусора
+     * 
+     * @return bool True если нужно запустить сборщик мусора
+     */
     private function shouldRunGc(): bool
     {
         if ($this->config->gcProbability <= 0) {
@@ -948,6 +1306,11 @@ class FileCache
         return $random <= $this->config->gcProbability;
     }
 
+    /**
+     * Инкрементирует счетчик статистики
+     * 
+     * @param string $name Название счетчика
+     */
     private function incrementStat(string $name): void
     {
         if (!$this->config->enableStatistics) {
@@ -959,6 +1322,12 @@ class FileCache
         }
     }
 
+    /**
+     * Инкрементирует счетчик обращений к элементу
+     * 
+     * @param string $key Ключ кэша
+     * @param array $data Данные элемента
+     */
     private function incrementItemHits(string $key, array $data): void
     {
         if (!$this->config->enableStatistics) {
@@ -975,6 +1344,12 @@ class FileCache
         }
     }
 
+    /**
+     * Читает и десериализует файл кэша
+     * 
+     * @param string $filePath Путь к файлу кэша
+     * @return array|null Данные из файла или null если файл не найден/поврежден
+     */
     private function readFile(string $filePath): ?array
     {
         if (!is_file($filePath)) {
@@ -1018,6 +1393,13 @@ class FileCache
         return $data;
     }
 
+    /**
+     * Записывает данные в файл кэша
+     * 
+     * @param string $filePath Путь к файлу кэша
+     * @param string $payload Данные для записи
+     * @return bool True в случае успеха, false в случае ошибки
+     */
     private function writeFile(string $filePath, string $payload): bool
     {
         $directory = dirname($filePath);
@@ -1094,6 +1476,12 @@ class FileCache
         return true;
     }
 
+    /**
+     * Создает директорию, если она не существует
+     * 
+     * @param string $directory Путь к директории
+     * @throws RuntimeException Если не удается создать директорию
+     */
     private function ensureDirectoryExists(string $directory): void
     {
         if (is_dir($directory)) {
@@ -1101,10 +1489,15 @@ class FileCache
         }
 
         if (!@mkdir($directory, $this->config->directoryPermissions, true) && !is_dir($directory)) {
-            throw new RuntimeException(sprintf('Unable to create cache directory: %s', $directory));
+            throw new RuntimeException(sprintf('Не удается создать директорию кэша: %s', $directory));
         }
     }
 
+    /**
+     * Удаляет содержимое директории
+     * 
+     * @param string $directory Путь к директории
+     */
     private function deleteDirectoryContents(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -1125,6 +1518,11 @@ class FileCache
         }
     }
 
+    /**
+     * Удаляет пустые поддиректории
+     * 
+     * @param string $directory Путь к директории
+     */
     private function removeEmptyDirectories(string $directory): void
     {
         if (!is_dir($directory)) {
@@ -1153,6 +1551,12 @@ class FileCache
         }
     }
 
+    /**
+     * Хеширует ключ кэша
+     * 
+     * @param string $value Значение для хеширования
+     * @return string Хеш значения
+     */
     private function hashKey(string $value): string
     {
         return match ($this->config->keyHashAlgorithm) {
@@ -1162,6 +1566,11 @@ class FileCache
         };
     }
 
+    /**
+     * Обеспечивает соблюдение максимального размера кэша
+     * 
+     * @return int Количество удаленных элементов
+     */
     private function enforceMaxCacheSize(): int
     {
         $limit = $this->config->maxCacheSize;
@@ -1228,6 +1637,11 @@ class FileCache
         return $deleted;
     }
 
+    /**
+     * Инициализирует индекс тегов
+     * 
+     * Загружает индекс тегов из файла или создает пустой индекс.
+     */
     private function initializeTagIndex(): void
     {
         $path = $this->getTagIndexPath();
@@ -1255,6 +1669,11 @@ class FileCache
         }
     }
 
+    /**
+     * Сохраняет индекс тегов в файл
+     * 
+     * @throws RuntimeException Если не удается закодировать индекс
+     */
     private function saveTagIndex(): void
     {
         $path = $this->getTagIndexPath();
@@ -1262,18 +1681,29 @@ class FileCache
 
         $json = json_encode($this->tagIndex, JSON_UNESCAPED_UNICODE);
         if ($json === false) {
-            throw new RuntimeException('Failed to encode tag index.');
+            throw new RuntimeException('Не удалось закодировать индекс тегов.');
         }
 
         file_put_contents($path, $json, LOCK_EX);
         @chmod($path, $this->config->filePermissions);
     }
 
+    /**
+     * Возвращает путь к файлу индекса тегов
+     * 
+     * @return string Путь к файлу индекса тегов
+     */
     private function getTagIndexPath(): string
     {
         return $this->config->cacheDirectory . DIRECTORY_SEPARATOR . self::TAG_INDEX_FILENAME;
     }
 
+    /**
+     * Обновляет индекс тегов для ключа
+     * 
+     * @param string $key Ключ кэша
+     * @param array $tags Теги для ключа
+     */
     private function updateTagIndex(string $key, array $tags): void
     {
         $tags = array_values(array_unique(array_map('strval', $tags)));
@@ -1302,6 +1732,12 @@ class FileCache
         }
     }
 
+    /**
+     * Удаляет ключ из индекса тегов
+     * 
+     * @param string $key Ключ кэша
+     * @param array|null $onlyTags Удалить только из указанных тегов (null = из всех)
+     */
     private function removeFromTagIndex(string $key, ?array $onlyTags = null): void
     {
         $changed = false;
@@ -1331,6 +1767,11 @@ class FileCache
         }
     }
 
+    /**
+     * Предзагружает все данные кэша в память
+     * 
+     * Загружает все актуальные элементы кэша в память при инициализации.
+     */
     private function preloadCache(): void
     {
         try {
@@ -1357,6 +1798,11 @@ class FileCache
         }
     }
 
+    /**
+     * Создает итератор для обхода файлов кэша
+     * 
+     * @return \RecursiveIteratorIterator Итератор для обхода директории кэша
+     */
     private function createCacheIterator(): \RecursiveIteratorIterator
     {
         return new \RecursiveIteratorIterator(
@@ -1365,6 +1811,12 @@ class FileCache
         );
     }
 
+    /**
+     * Проверяет, истекли ли данные кэша
+     * 
+     * @param array $data Данные элемента кэша
+     * @return bool True если данные истекли, false в противном случае
+     */
     private function isExpiredData(array $data): bool
     {
         if (!isset($data['expires']) || $data['expires'] === null) {
@@ -1374,73 +1826,133 @@ class FileCache
         return (int) $data['expires'] < time();
     }
 
+    /**
+     * Кодирует значение в JSON
+     * 
+     * @param mixed $value Значение для кодирования
+     * @return string JSON-строка
+     * @throws RuntimeException Если не удается закодировать значение
+     */
     private function encodeJson(mixed $value): string
     {
         $encoded = json_encode($value, $this->config->jsonOptions);
         if ($encoded === false) {
-            throw new RuntimeException('Failed to encode value to JSON: ' . json_last_error_msg());
+            throw new RuntimeException('Не удалось закодировать значение в JSON: ' . json_last_error_msg());
         }
 
         return $encoded;
     }
 
+    /**
+     * Декодирует JSON-строку
+     * 
+     * @param string $data JSON-строка
+     * @return mixed Декодированное значение
+     * @throws RuntimeException Если не удается декодировать JSON
+     */
     private function decodeJson(string $data): mixed
     {
         $decoded = json_decode($data, true, 512, $this->config->jsonOptions);
         if ($decoded === null && $data !== 'null' && ($this->config->jsonOptions & JSON_THROW_ON_ERROR) === 0) {
-            throw new RuntimeException('Failed to decode JSON payload: ' . json_last_error_msg());
+            throw new RuntimeException('Не удалось декодировать JSON: ' . json_last_error_msg());
         }
 
         return $decoded;
     }
 
+    /**
+     * Кодирует значение с помощью igbinary
+     * 
+     * @param mixed $value Значение для кодирования
+     * @return string Закодированная строка
+     * @throws RuntimeException Если расширение igbinary недоступно
+     */
     private function encodeIgbinary(mixed $value): string
     {
         if (!function_exists('igbinary_serialize')) {
-            throw new RuntimeException('Igbinary extension is required for igbinary serialization.');
+            throw new RuntimeException('Для сериализации igbinary требуется расширение Igbinary.');
         }
 
         return igbinary_serialize($value);
     }
 
+    /**
+     * Декодирует строку igbinary
+     * 
+     * @param string $data Закодированная строка
+     * @return mixed Декодированное значение
+     * @throws RuntimeException Если расширение igbinary недоступно
+     */
     private function decodeIgbinary(string $data): mixed
     {
         if (!function_exists('igbinary_unserialize')) {
-            throw new RuntimeException('Igbinary extension is required for igbinary serialization.');
+            throw new RuntimeException('Для сериализации igbinary требуется расширение Igbinary.');
         }
 
         return igbinary_unserialize($data);
     }
 
+    /**
+     * Кодирует значение с помощью msgpack
+     * 
+     * @param mixed $value Значение для кодирования
+     * @return string Закодированная строка
+     * @throws RuntimeException Если расширение msgpack недоступно
+     */
     private function encodeMsgpack(mixed $value): string
     {
         if (!function_exists('msgpack_pack')) {
-            throw new RuntimeException('Msgpack extension is required for msgpack serialization.');
+            throw new RuntimeException('Для сериализации msgpack требуется расширение Msgpack.');
         }
 
         return msgpack_pack($value);
     }
 
+    /**
+     * Декодирует строку msgpack
+     * 
+     * @param string $data Закодированная строка
+     * @return mixed Декодированное значение
+     * @throws RuntimeException Если расширение msgpack недоступно
+     */
     private function decodeMsgpack(string $data): mixed
     {
         if (!function_exists('msgpack_unpack')) {
-            throw new RuntimeException('Msgpack extension is required for msgpack serialization.');
+            throw new RuntimeException('Для сериализации msgpack требуется расширение Msgpack.');
         }
 
         return msgpack_unpack($data);
     }
 
+    /**
+     * Возвращает полный ключ с учетом namespace и prefix
+     * 
+     * @param string $key Ключ кэша
+     * @return string Полный ключ
+     */
     private function getFullKey(string $key): string
     {
         return $this->config->namespace . $this->config->keyPrefix . $key;
     }
 
+    /**
+     * Возвращает путь к файлу блокировки для ключа
+     * 
+     * @param string $key Ключ кэша
+     * @return string Путь к файлу блокировки
+     */
     private function getLockPath(string $key): string
     {
         $hash = $this->hashKey($this->getFullKey($key));
         return $this->config->cacheDirectory . DIRECTORY_SEPARATOR . self::LOCKS_DIRECTORY . DIRECTORY_SEPARATOR . $hash . '.lock';
     }
 
+    /**
+     * Обрабатывает ошибки в соответствии с настройками
+     * 
+     * @param Throwable $exception Исключение для обработки
+     * @throws Throwable Если errorHandling установлен в 'throw'
+     */
     private function handleError(Throwable $exception): void
     {
         if ($this->config->errorHandling === 'throw') {

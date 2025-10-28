@@ -7,6 +7,7 @@ use Cache\FileCacheConfig;
 
 echo "=== File Cache Examples ===\n\n";
 
+// Вариант 1: Создание кэша с массивом конфигурации
 $config = new FileCacheConfig([
     'cacheDirectory' => __DIR__ . '/cache',
     'useSharding' => true,
@@ -19,6 +20,12 @@ $config = new FileCacheConfig([
 ]);
 
 $cache = new FileCache($config);
+
+// Вариант 2: Загрузка конфигурации из файла (раскомментируйте для использования)
+// $cache = new FileCache([
+//     'configFile' => __DIR__ . '/../config/filecache.json',
+//     'cacheDirectory' => __DIR__ . '/cache', // можно переопределить параметры из файла
+// ]);
 
 echo "1. Basic set/get operations:\n";
 $cache->set('user:1', ['name' => 'John Doe', 'email' => 'john@example.com']);

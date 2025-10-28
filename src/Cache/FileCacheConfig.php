@@ -63,97 +63,97 @@ class FileCacheConfig
     public function validate(): void
     {
         if ($this->cacheDirectory === '') {
-            throw new InvalidArgumentException('cacheDirectory cannot be empty.');
+            throw new InvalidArgumentException('Директория кэша не может быть пустой.');
         }
 
         if (!$this->isAbsolutePath($this->cacheDirectory)) {
-            throw new InvalidArgumentException('cacheDirectory must be an absolute path.');
+            throw new InvalidArgumentException('Директория кэша должна быть абсолютным путем.');
         }
 
         if ($this->directoryPermissions < 0 || $this->directoryPermissions > 0o777) {
-            throw new InvalidArgumentException('directoryPermissions must be between 0000 and 0777.');
+            throw new InvalidArgumentException('Права доступа директории должны быть между 0000 и 0777.');
         }
 
         if ($this->filePermissions < 0 || $this->filePermissions > 0o777) {
-            throw new InvalidArgumentException('filePermissions must be between 0000 and 0777.');
+            throw new InvalidArgumentException('Права доступа файла должны быть между 0000 и 0777.');
         }
 
         if ($this->fileExtension === '' || $this->fileExtension[0] !== '.') {
-            throw new InvalidArgumentException('fileExtension must start with a dot.');
+            throw new InvalidArgumentException('Расширение файла должно начинаться с точки.');
         }
 
         if ($this->shardingDepth < 0) {
-            throw new InvalidArgumentException('shardingDepth cannot be negative.');
+            throw new InvalidArgumentException('Глубина шардирования не может быть отрицательной.');
         }
 
         if ($this->defaultTtl !== null && $this->defaultTtl < 0) {
-            throw new InvalidArgumentException('defaultTtl cannot be negative.');
+            throw new InvalidArgumentException('Время жизни по умолчанию не может быть отрицательным.');
         }
 
         if ($this->maxTtl !== null && $this->maxTtl <= 0) {
-            throw new InvalidArgumentException('maxTtl must be greater than zero when provided.');
+            throw new InvalidArgumentException('Максимальное время жизни должно быть больше нуля.');
         }
 
         if ($this->defaultTtl !== null && $this->maxTtl !== null && $this->defaultTtl > $this->maxTtl) {
-            throw new InvalidArgumentException('defaultTtl cannot be greater than maxTtl.');
+            throw new InvalidArgumentException('Время жизни по умолчанию не может быть больше максимального времени жизни.');
         }
 
         if ($this->gcDivisor <= 0) {
-            throw new InvalidArgumentException('gcDivisor must be greater than zero.');
+            throw new InvalidArgumentException('Делитель сборщика мусора должен быть больше нуля.');
         }
 
         if ($this->gcProbability < 0 || $this->gcProbability > $this->gcDivisor) {
-            throw new InvalidArgumentException('gcProbability must be between 0 and gcDivisor.');
+            throw new InvalidArgumentException('Вероятность сборщика мусора должна быть между 0 и делителем.');
         }
 
         if (!in_array($this->serializer, ['native', 'json', 'igbinary', 'msgpack'], true)) {
-            throw new InvalidArgumentException('Unsupported serializer: ' . $this->serializer);
+            throw new InvalidArgumentException('Неподдерживаемый сериализатор: ' . $this->serializer);
         }
 
         if ($this->serializer === 'igbinary' && !extension_loaded('igbinary')) {
-            throw new InvalidArgumentException('Serializer "igbinary" requires the igbinary extension.');
+            throw new InvalidArgumentException('Сериализатор "igbinary" требует расширения igbinary.');
         }
 
         if ($this->serializer === 'msgpack' && !extension_loaded('msgpack')) {
-            throw new InvalidArgumentException('Serializer "msgpack" requires the msgpack extension.');
+            throw new InvalidArgumentException('Сериализатор "msgpack" требует расширения msgpack.');
         }
 
         if ($this->compressionEnabled) {
             if (!extension_loaded('zlib')) {
-                throw new InvalidArgumentException('Compression requires the zlib extension.');
+                throw new InvalidArgumentException('Сжатие требует расширения zlib.');
             }
 
             if ($this->compressionLevel < 1 || $this->compressionLevel > 9) {
-                throw new InvalidArgumentException('compressionLevel must be between 1 and 9.');
+                throw new InvalidArgumentException('Уровень сжатия должен быть между 1 и 9.');
             }
 
             if ($this->compressionThreshold < 0) {
-                throw new InvalidArgumentException('compressionThreshold cannot be negative.');
+                throw new InvalidArgumentException('Порог сжатия не может быть отрицательным.');
             }
         }
 
         if ($this->lockTimeout < 0) {
-            throw new InvalidArgumentException('lockTimeout cannot be negative.');
+            throw new InvalidArgumentException('Время ожидания блокировки не может быть отрицательным.');
         }
 
         if ($this->lockRetries < 0) {
-            throw new InvalidArgumentException('lockRetries cannot be negative.');
+            throw new InvalidArgumentException('Количество попыток блокировки не может быть отрицательным.');
         }
 
         if (!in_array($this->keyHashAlgorithm, ['sha1', 'md5', 'xxh3'], true)) {
-            throw new InvalidArgumentException('Unsupported keyHashAlgorithm: ' . $this->keyHashAlgorithm);
+            throw new InvalidArgumentException('Неподдерживаемый алгоритм хеширования ключей: ' . $this->keyHashAlgorithm);
         }
 
         if ($this->maxCacheSize !== null && $this->maxCacheSize <= 0) {
-            throw new InvalidArgumentException('maxCacheSize must be greater than zero.');
+            throw new InvalidArgumentException('Максимальный размер кэша должен быть больше нуля.');
         }
 
         if ($this->maxItemSize !== null && $this->maxItemSize <= 0) {
-            throw new InvalidArgumentException('maxItemSize must be greater than zero.');
+            throw new InvalidArgumentException('Максимальный размер элемента должен быть больше нуля.');
         }
 
         if (!in_array($this->errorHandling, ['throw', 'log', 'silent'], true)) {
-            throw new InvalidArgumentException('Unsupported errorHandling strategy: ' . $this->errorHandling);
+            throw new InvalidArgumentException('Неподдерживаемая стратегия обработки ошибок: ' . $this->errorHandling);
         }
     }
 
