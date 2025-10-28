@@ -1,7 +1,7 @@
 {
     "host": "localhost",
     "port": 3306,
-    "database": "rss_db",
+    "database": "utilities_db",
     "username": "root",
     "password": "",
     "charset": "utf8mb4",

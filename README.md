@@ -1,6 +1,6 @@
-# RSS Service Boilerplate
+# Базовый набор утилит
 
-Базовый набор компонентов на PHP 8.1+ для создания RSS сервисов с интеграцией OpenRouter AI, Telegram и MySQL.
+Базовый набор компонентов на PHP 8.1+ с интеграцией OpenRouter AI, Telegram, MySQL и инструментов для работы с RSS.
 
 ## Архитектура
 
@@ -8,7 +8,7 @@
 
 - **Rss** — парсинг RSS/Atom лент
 - **MySQL** — работа с БД через PDO
-- **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, streaming)
+- **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, pdf2text, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов
@@ -124,6 +124,12 @@ $imageUrl = $openRouter->text2image('stability-ai/stable-diffusion-xl', 'Beautif
 
 // Image to Text
 $description = $openRouter->image2text('openai/gpt-4-vision', 'https://example.com/image.jpg', 'Что на изображении?');
+
+// Audio to Text
+$transcript = $openRouter->audio2text('openai/whisper-1', 'https://example.com/audio.mp3');
+
+// PDF to Text
+$pdfText = $openRouter->pdf2text('anthropic/claude-3-haiku', 'https://example.com/document.pdf');
 
 // Streaming
 $openRouter->textStream('openai/gpt-3.5-turbo', 'Расскажи историю', function (string $chunk) {
