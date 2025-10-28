@@ -8,6 +8,7 @@
 
 - **Rss** — парсинг RSS/Atom лент
 - **MySQL** — работа с БД через PDO
+- **MySQLConnectionFactory** — фабрика для управления множественными подключениями к БД с кешированием (новое)
 - **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, text2audio, pdf2text, streaming)
 - **OpenRouterMetrics** — мониторинг метрик OpenRouter (баланс, токены, стоимость, модели)
 - **Telegram** — отправка сообщений и медиафайлов
@@ -87,11 +88,13 @@ $logger = new Logger([
 
 ### MySQL
 
+#### Одиночное подключение
+
 ```php
 use App\Component\MySQL;
 
 $config = ConfigLoader::load(__DIR__ . '/config/mysql.json');
-$mysql = new MySQL($config, $logger);
+$mysql = new MySQL($config['connections']['default'], $logger);
 
 // SELECT запросы
 $users = $mysql->query('SELECT * FROM users WHERE status = ?', ['active']);
@@ -115,6 +118,45 @@ try {
     $mysql->rollback();
 }
 ```
+
+#### Множественные подключения (MySQLConnectionFactory)
+
+**Новинка: Работа с несколькими БД одновременно с кешированием соединений!**
+
+```php
+use App\Component\MySQLConnectionFactory;
+
+$config = ConfigLoader::load(__DIR__ . '/config/mysql.json');
+$factory = MySQLConnectionFactory::initialize($config, $logger);
+
+// Получение разных соединений
+$mainDb = $factory->getConnection('default');
+$analyticsDb = $factory->getConnection('analytics');
+$logsDb = $factory->getConnection('logs');
+
+// Работа с основной БД
+$users = $mainDb->query('SELECT * FROM users WHERE status = ?', ['active']);
+
+// Работа с БД аналитики
+$analyticsDb->insert(
+    'INSERT INTO events (user_id, event_type) VALUES (?, ?)',
+    [123, 'login']
+);
+
+// Работа с БД логов
+$logsDb->insert(
+    'INSERT INTO application_logs (level, message) VALUES (?, ?)',
+    ['info', 'User logged in']
+);
+
+// Соединения автоматически кешируются для повышения производительности
+$cachedDb = $factory->getConnection('default'); // Вернет то же соединение
+```
+
+📖 **Подробная документация:**
+- `MYSQL_FACTORY_README.md` — полное руководство по MySQLConnectionFactory
+- `examples/mysql_example.php` — примеры работы с одним подключением
+- `examples/mysql_multi_connection_example.php` — примеры множественных подключений
 
 ### RSS
 
@@ -295,24 +337,32 @@ php bin/test_autoload.php
 ├── config/                 # Конфигурационные файлы
 │   ├── email.json
 │   ├── logger.json
-│   ├── mysql.json
+│   ├── mysql.json          # Конфигурация множественных подключений
 │   ├── openrouter.json
 │   ├── rss.json
 │   └── telegram.json
+├── docs/                   # Документация
+├── examples/               # Примеры использования компонентов
+│   ├── mysql_example.php
+│   ├── mysql_multi_connection_example.php
+│   └── ...
 ├── logs/                   # Директория логов
 ├── src/                    # Исходный код
 │   ├── Config/
 │   │   └── ConfigLoader.php
+│   ├── Exception/          # Исключения
 │   ├── Email.class.php
 │   ├── Http.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
+│   ├── MySQLConnectionFactory.php  # Новая фабрика соединений
 │   ├── OpenRouter.class.php
 │   ├── OpenRouterMetrics.class.php
 │   ├── Rss.class.php
 │   └── Telegram.class.php
 ├── .gitignore
 ├── composer.json
+├── MYSQL_FACTORY_README.md # Документация фабрики MySQL
 └── README.md
 ```
 

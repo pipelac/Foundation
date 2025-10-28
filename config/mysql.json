@@ -1,22 +1,66 @@
 {
-    "host": "localhost",
-    "port": 3306,
-    "database": "utilities_db",
-    "username": "root",
-    "password": "",
-    "charset": "utf8mb4",
-    "options": {},
+    "connections": {
+        "default": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "utilities_db",
+            "username": "root",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": false,
+            "cache_statements": true,
+            "options": {}
+        },
+        "analytics": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "analytics_db",
+            "username": "analytics_user",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": true,
+            "cache_statements": true,
+            "options": {}
+        },
+        "logs": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "logs_db",
+            "username": "logs_user",
+            "password": "",
+            "charset": "utf8mb4",
+            "persistent": false,
+            "cache_statements": true,
+            "options": {}
+        }
+    },
+    "default_connection": "default",
     "_comment": [
-        "Конфигурация подключения к базе данных MySQL.",
-        "Используется компонентом MySQL для установления соединения через PDO."
+        "Конфигурация множественных подключений к базам данных MySQL.",
+        "Используется компонентом MySQLConnectionFactory для управления несколькими БД одновременно.",
+        "",
+        "Структура:",
+        "- connections: объект с именованными подключениями (ключ = имя подключения)",
+        "- default_connection: имя подключения, используемого по умолчанию",
+        "",
+        "Для обратной совместимости: можно использовать MySQL класс напрямую с конфигурацией одного подключения."
     ],
     "_fields": {
+        "connections": "Объект с именованными подключениями к различным БД",
+        "default_connection": "Имя подключения, которое будет использоваться по умолчанию (должно существовать в connections)",
         "host": "Адрес сервера MySQL (localhost — локальный компьютер, либо домен/IPv4/IPv6 удалённого сервера)",
         "port": "Порт MySQL (3306 — стандартное значение по умолчанию)",
         "database": "Имя базы данных, к которой выполняется подключение",
-        "username": "Имя пользователя MySQL. Рекомендуется создать отдельного пользователя с ограниченными правами",
+        "username": "Имя пользователя MySQL. Рекомендуется создать отдельного пользователя с ограниченными правами для каждой БД",
         "password": "Пароль пользователя. Пустая строка допустима только в изолированной среде разработки",
         "charset": "Кодировка соединения (utf8mb4 — полная поддержка Unicode, включая emoji)",
+        "persistent": "Использовать персистентные соединения (рекомендуется для часто используемых БД)",
+        "cache_statements": "Кешировать подготовленные SQL выражения для повышения производительности",
         "options": "Дополнительные опции PDO (например, режим ошибок, подготовленные выражения и т.д.)"
+    },
+    "_examples": {
+        "single_db_usage": "Для работы с одной БД используйте MySQL класс напрямую с конфигурацией одного подключения",
+        "multi_db_usage": "Для работы с несколькими БД используйте MySQLConnectionFactory::initialize($config)->getConnection('name')",
+        "connection_names": "Имена подключений могут быть любыми: 'default', 'analytics', 'logs', 'users', 'cache', и т.д."
     }
 }
