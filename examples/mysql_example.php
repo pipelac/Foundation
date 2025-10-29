@@ -46,6 +46,19 @@ echo "Версия клиента: {$info['client_version']}\n";
 echo "Статус соединения: {$info['connection_status']}\n";
 echo "Активная транзакция: " . ($info['in_transaction'] ? 'Да' : 'Нет') . "\n\n";
 
+echo "--- Проверка версии MySQL ---\n";
+$version = $db->getMySQLVersion();
+echo "Версия MySQL: {$version['version']}\n";
+echo "Основная версия: {$version['major']}.{$version['minor']}.{$version['patch']}\n";
+echo "Поддерживается: " . ($version['is_supported'] ? '✓ Да' : '✗ Нет') . "\n";
+echo "Рекомендуется: " . ($version['is_recommended'] ? '✓ Да (5.5.62+)' : '⚠ Обновление рекомендуется') . "\n";
+
+if (!$version['is_recommended']) {
+    echo "⚠ ПРЕДУПРЕЖДЕНИЕ: Рекомендуется использовать MySQL 5.5.62 или выше\n";
+    echo "  для лучшей безопасности и производительности.\n";
+}
+echo "\n";
+
 echo "--- Проверка подключения (ping) ---\n";
 if ($db->ping()) {
     echo "✓ Подключение активно\n\n";

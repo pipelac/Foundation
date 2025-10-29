@@ -22,6 +22,17 @@ use PDOStatement;
  * - Batch-операции для массовой вставки данных
  * - Структурированное логирование через Logger
  * - Специализированные исключения для разных типов ошибок
+ * 
+ * Системные требования:
+ * - PHP 8.1 или выше
+ * - MySQL 5.5.62 или выше (рекомендуется MySQL 5.7+ или MySQL 8.0+)
+ * - PDO расширение с драйвером MySQL
+ * 
+ * Поддержка версий MySQL:
+ * - MySQL 5.5.62+ - полная поддержка
+ * - MySQL 5.6+ - рекомендуется
+ * - MySQL 5.7+ - оптимально
+ * - MySQL 8.0+ - все возможности
  */
 class MySQL
 {
@@ -101,10 +112,15 @@ class MySQL
 
         try {
             $this->connection = new PDO($dsn, $username, $password, $mergedOptions);
+            
+            // Проверка версии MySQL для обеспечения совместимости
+            $this->validateMySQLVersion();
+            
             $this->logDebug('Успешное подключение к БД', [
                 'host' => $host,
                 'database' => $database,
                 'persistent' => $persistent,
+                'charset' => $charset,
             ]);
         } catch (PDOException $e) {
             $this->logError('Ошибка подключения к БД', [
@@ -139,6 +155,79 @@ class MySQL
 
         if (!isset($config['password'])) {
             throw new MySQLException('Не указан пароль для подключения к БД в конфигурации');
+        }
+    }
+
+    /**
+     * Валидирует версию MySQL для обеспечения совместимости
+     * 
+     * Проверяет, что версия MySQL соответствует минимальным требованиям (5.5.62+).
+     * Выводит предупреждение в лог при использовании устаревших версий.
+     * 
+     * @throws MySQLException Если версия MySQL слишком старая (< 5.5)
+     */
+    private function validateMySQLVersion(): void
+    {
+        try {
+            $version = (string)$this->connection->getAttribute(PDO::ATTR_SERVER_VERSION);
+            
+            // Извлекаем основную версию (например, "5.5.62" из "5.5.62-log")
+            preg_match('/^(\d+)\.(\d+)\.(\d+)/', $version, $matches);
+            
+            if (empty($matches)) {
+                $this->logDebug('Не удалось определить версию MySQL', ['version_string' => $version]);
+                return;
+            }
+            
+            $majorVersion = (int)$matches[1];
+            $minorVersion = (int)$matches[2];
+            $patchVersion = (int)$matches[3];
+            
+            // Минимальная поддерживаемая версия: MySQL 5.5.0
+            $minMajor = 5;
+            $minMinor = 5;
+            $minPatch = 0;
+            
+            // Рекомендуемая версия: MySQL 5.5.62+
+            $recommendedMajor = 5;
+            $recommendedMinor = 5;
+            $recommendedPatch = 62;
+            
+            // Проверка минимальной версии
+            if ($majorVersion < $minMajor || 
+                ($majorVersion === $minMajor && $minorVersion < $minMinor)) {
+                throw new MySQLException(
+                    sprintf(
+                        'Версия MySQL %s не поддерживается. Минимальная версия: %d.%d.%d',
+                        $version,
+                        $minMajor,
+                        $minMinor,
+                        $minPatch
+                    )
+                );
+            }
+            
+            // Предупреждение о старой версии (< 5.5.62)
+            if ($majorVersion === $recommendedMajor && 
+                $minorVersion === $recommendedMinor && 
+                $patchVersion < $recommendedPatch) {
+                $this->logDebug('Используется устаревшая версия MySQL', [
+                    'current_version' => $version,
+                    'recommended_version' => sprintf('%d.%d.%d', $recommendedMajor, $recommendedMinor, $recommendedPatch),
+                    'warning' => 'Рекомендуется обновление до MySQL 5.5.62 или выше для лучшей безопасности и производительности',
+                ]);
+            }
+            
+            // Информация о версии для отладки
+            $this->logDebug('Версия MySQL проверена', [
+                'version' => $version,
+                'major' => $majorVersion,
+                'minor' => $minorVersion,
+                'patch' => $patchVersion,
+            ]);
+            
+        } catch (PDOException $e) {
+            $this->logDebug('Не удалось проверить версию MySQL', ['error' => $e->getMessage()]);
         }
     }
 
@@ -616,6 +705,60 @@ class MySQL
             'connection_status' => $this->connection->getAttribute(PDO::ATTR_CONNECTION_STATUS),
             'server_info' => $this->connection->getAttribute(PDO::ATTR_SERVER_INFO),
             'in_transaction' => $this->connection->inTransaction(),
+        ];
+    }
+
+    /**
+     * Возвращает версию MySQL в структурированном виде
+     * 
+     * Полезно для проверки совместимости и отладки.
+     * 
+     * @return array{
+     *     version: string,
+     *     major: int,
+     *     minor: int,
+     *     patch: int,
+     *     is_supported: bool,
+     *     is_recommended: bool
+     * } Информация о версии MySQL
+     */
+    public function getMySQLVersion(): array
+    {
+        $version = (string)$this->connection->getAttribute(PDO::ATTR_SERVER_VERSION);
+        
+        // Извлекаем компоненты версии
+        preg_match('/^(\d+)\.(\d+)\.(\d+)/', $version, $matches);
+        
+        if (empty($matches)) {
+            return [
+                'version' => $version,
+                'major' => 0,
+                'minor' => 0,
+                'patch' => 0,
+                'is_supported' => false,
+                'is_recommended' => false,
+            ];
+        }
+        
+        $major = (int)$matches[1];
+        $minor = (int)$matches[2];
+        $patch = (int)$matches[3];
+        
+        // Проверка поддержки (>= 5.5.0)
+        $isSupported = ($major > 5) || ($major === 5 && $minor >= 5);
+        
+        // Проверка рекомендованной версии (>= 5.5.62)
+        $isRecommended = ($major > 5) || 
+                        ($major === 5 && $minor > 5) || 
+                        ($major === 5 && $minor === 5 && $patch >= 62);
+        
+        return [
+            'version' => $version,
+            'major' => $major,
+            'minor' => $minor,
+            'patch' => $patch,
+            'is_supported' => $isSupported,
+            'is_recommended' => $isRecommended,
         ];
     }
 

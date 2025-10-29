@@ -210,6 +210,36 @@ try {
     echo "✗ Ошибка транзакции: {$e->getMessage()}\n\n";
 }
 
+// Проверка версий MySQL
+echo "--- Проверка версий MySQL во всех соединениях ---\n";
+try {
+    $versions = $factory->getMySQLVersions();
+    
+    if (empty($versions)) {
+        echo "⚠ Нет активных соединений для проверки версий\n";
+    } else {
+        foreach ($versions as $dbName => $versionInfo) {
+            echo "БД '{$dbName}':\n";
+            echo "  Версия: {$versionInfo['version']}\n";
+            echo "  Компоненты: {$versionInfo['major']}.{$versionInfo['minor']}.{$versionInfo['patch']}\n";
+            echo "  Поддерживается: " . ($versionInfo['is_supported'] ? '✓ Да' : '✗ Нет') . "\n";
+            echo "  Рекомендуется: " . ($versionInfo['is_recommended'] ? '✓ Да (5.5.62+)' : '⚠ Обновление рекомендуется') . "\n";
+        }
+        
+        echo "\nОбщая совместимость:\n";
+        echo "  Все версии поддерживаются: " . ($factory->areAllVersionsSupported() ? '✓ Да' : '✗ Нет') . "\n";
+        echo "  Все версии рекомендованы: " . ($factory->areAllVersionsRecommended() ? '✓ Да' : '⚠ Нет') . "\n";
+        
+        if (!$factory->areAllVersionsRecommended()) {
+            echo "\n⚠ РЕКОМЕНДАЦИЯ: Обновите MySQL до версии 5.5.62 или выше\n";
+            echo "  для обеспечения лучшей безопасности и производительности.\n";
+        }
+    }
+} catch (MySQLException $e) {
+    echo "✗ Ошибка проверки версий: {$e->getMessage()}\n";
+}
+echo "\n";
+
 // Статистика по соединениям
 echo "--- Финальная статистика ---\n";
 echo "Всего доступных БД: " . count($factory->getAvailableDatabases()) . "\n";
