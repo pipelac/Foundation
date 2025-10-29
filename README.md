@@ -11,6 +11,7 @@
 - **MySQLConnectionFactory** ⚡ — фабрика соединений с кешированием для работы с несколькими БД одновременно
 - **OpenRouter** — интеграция с ИИ моделями через OpenRouter API (text2text, text2image, image2text, pdf2text, audio2text, streaming)
 - **OpenRouterMetrics** — мониторинг метрик OpenRouter (баланс, токены, стоимость, модели)
+- **OpenAi** ✨ — интеграция с OpenAI API (GPT-4o, DALL-E 3, Whisper, Vision, embeddings, moderation, streaming)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов + email уведомления администратору (v2.1)
@@ -294,6 +295,83 @@ $status = $metrics->getAccountStatus();
 ```
 
 📖 **Подробная документация:** `docs/OPENROUTER_METRICS.md`
+
+### OpenAi
+
+```php
+use App\Component\OpenAi;
+
+$config = [
+    'api_key' => 'sk-proj-your-api-key',
+    'organization' => 'org-123456', // Опционально
+    'timeout' => 60,
+    'retries' => 3,
+];
+$openAi = new OpenAi($config, $logger);
+
+// Text to Text - текстовая генерация (GPT-4o, GPT-4o-mini)
+$response = $openAi->text2text(
+    prompt: 'Объясни квантовую физику простым языком',
+    model: 'gpt-4o-mini',
+    options: [
+        'temperature' => 0.7,
+        'max_tokens' => 500,
+        'system' => 'Ты - опытный преподаватель физики',
+    ]
+);
+
+// Text to Image - генерация изображений (DALL-E 3)
+$imageUrl = $openAi->text2image(
+    prompt: 'Футуристический город на закате',
+    model: 'dall-e-3',
+    options: [
+        'size' => '1024x1024',
+        'quality' => 'hd',
+        'style' => 'vivid',
+    ]
+);
+
+// Image to Text - анализ изображений (GPT-4 Vision)
+$description = $openAi->image2text(
+    imageUrl: 'https://example.com/image.jpg',
+    question: 'Что изображено на этой фотографии?',
+    model: 'gpt-4o',
+    options: ['detail' => 'high']
+);
+
+// Audio to Text - транскрипция аудио (Whisper)
+$transcript = $openAi->audio2text(
+    audioUrl: 'https://example.com/audio.mp3',
+    options: [
+        'language' => 'ru',
+        'prompt' => 'Это интервью о технологиях',
+    ]
+);
+
+// Streaming - потоковая передача текста
+$openAi->textStream(
+    prompt: 'Напиши стихотворение о весне',
+    callback: function (string $chunk): void {
+        echo $chunk;
+        flush();
+    }
+);
+
+// Embeddings - создание эмбеддингов для текста
+$embeddings = $openAi->embeddings(
+    input: 'Текст для создания эмбеддингов',
+    model: 'text-embedding-3-small',
+    options: ['dimensions' => 512]
+);
+
+// Moderation - проверка контента на нарушения
+$result = $openAi->moderation('Текст для проверки');
+if ($result['flagged']) {
+    echo "Найдены нарушения правил модерации";
+}
+```
+
+📖 **Подробная документация:** `OPENAI_README.md` и `examples/openai_example.php`
 
 ### Telegram
 

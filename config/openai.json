@@ -1,0 +1,6 @@
+{
+    "api_key": "sk-proj-your-openai-api-key-here",
+    "organization": "",
+    "timeout": 60,
+    "retries": 3
+}
