@@ -21,7 +21,7 @@
 - PHP 8.1 или выше
 - MySQL 5.5.62 или выше (рекомендуется MySQL 5.7+ или MySQL 8.0+)
 - MariaDB 10.0+ также поддерживается
-- Расширения: `json`, `libxml`, `curl`, `pdo`, `pdo_mysql`
+- Расширения: `ext-json`, `ext-curl`, `ext-pdo`, `ext-pdo_mysql`
 - Composer (для установки зависимостей: Guzzle, SimplePie)
 
 ## Установка
