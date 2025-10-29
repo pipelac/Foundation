@@ -41,7 +41,8 @@
                 "ext-curl": "Расширение cURL — используется для HTTP-запросов к внешним сервисам.",
                 "ext-pdo": "Расширение PDO — обеспечивает унифицированный доступ к базам данных.",
                 "ext-pdo_mysql": "Драйвер PDO для MySQL — подключение к MySQL через PDO.",
-                "guzzlehttp/guzzle": "Guzzle HTTP клиент — библиотека для удобной работы с HTTP (REST) API."
+                "guzzlehttp/guzzle": "Guzzle HTTP клиент — библиотека для удобной работы с HTTP (REST) API.",
+                "simplepie/simplepie": "SimplePie — библиотека для парсинга и обработки RSS/Atom фидов."
             },
             "autoload": "Автозагрузка классов через classmap: Composer проиндексирует файлы в директории src/."
         }
