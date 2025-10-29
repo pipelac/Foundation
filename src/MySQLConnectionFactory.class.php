@@ -15,6 +15,19 @@ use App\Component\Exception\MySQLException;
  * - Ленивая инициализация: соединение создается только при первом обращении
  * - Потокобезопасность: использует статический кеш для переиспользования соединений
  * - Строгая типизация PHP 8.1+ с полной документацией
+ * - Автоматическая проверка версии MySQL для обеспечения совместимости
+ * 
+ * Системные требования:
+ * - PHP 8.1 или выше
+ * - MySQL 5.5.62 или выше (рекомендуется MySQL 5.7+ или MySQL 8.0+)
+ * - PDO расширение с драйвером MySQL
+ * 
+ * Поддержка версий MySQL:
+ * - MySQL 5.5.62+ - полная поддержка
+ * - MySQL 5.6+ - рекомендуется
+ * - MySQL 5.7+ - оптимально
+ * - MySQL 8.0+ - все возможности
+ * - MariaDB 10.0+ - совместимость
  * 
  * @example
  * ```php
@@ -269,6 +282,65 @@ class MySQLConnectionFactory
     public function getActiveDatabases(): array
     {
         return array_keys(self::$connectionCache);
+    }
+
+    /**
+     * Возвращает информацию о версиях MySQL для всех активных соединений
+     * 
+     * Полезно для мониторинга и проверки совместимости версий в кластере БД.
+     * 
+     * @return array<string, array{
+     *     version: string,
+     *     major: int,
+     *     minor: int,
+     *     patch: int,
+     *     is_supported: bool,
+     *     is_recommended: bool
+     * }> Массив версий MySQL для каждого активного соединения
+     */
+    public function getMySQLVersions(): array
+    {
+        $versions = [];
+        
+        foreach (self::$connectionCache as $dbName => $connection) {
+            $versions[$dbName] = $connection->getMySQLVersion();
+        }
+        
+        return $versions;
+    }
+
+    /**
+     * Проверяет, что все активные соединения используют поддерживаемые версии MySQL
+     * 
+     * @return bool True, если все соединения поддерживаются, иначе false
+     */
+    public function areAllVersionsSupported(): bool
+    {
+        foreach (self::$connectionCache as $connection) {
+            $versionInfo = $connection->getMySQLVersion();
+            if (!$versionInfo['is_supported']) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Проверяет, что все активные соединения используют рекомендованные версии MySQL
+     * 
+     * @return bool True, если все соединения используют рекомендованные версии, иначе false
+     */
+    public function areAllVersionsRecommended(): bool
+    {
+        foreach (self::$connectionCache as $connection) {
+            $versionInfo = $connection->getMySQLVersion();
+            if (!$versionInfo['is_recommended']) {
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     /**
