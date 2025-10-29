@@ -15,10 +15,14 @@ use JsonException;
  * 
  * Предоставляет методы для взаимодействия с различными AI моделями через OpenRouter API:
  * - Текстовая генерация (text2text)
+ * - Генерация изображений (text2image)
  * - Распознавание изображений (image2text)
+ * - Работа с PDF документами (pdf2text)
+ * - Работа с аудио (audio2text)
  * - Потоковая передача текста (textStream)
  * 
  * @link https://openrouter.ai/docs/quickstart Официальная документация OpenRouter API
+ * @link https://openrouter.ai/docs/features/multimodal Multimodal функции
  */
 class OpenRouter
 {
@@ -102,6 +106,39 @@ class OpenRouter
     }
 
     /**
+     * Генерирует изображение на основе текстового описания (text2image)
+     *
+     * @param string $model Модель генерации изображений (например, "openai/dall-e-3", "stability-ai/stable-diffusion-xl")
+     * @param string $prompt Текстовое описание изображения для генерации
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - size (string): Размер изображения (например, "1024x1024")
+     *                                      - quality (string): Качество изображения ("standard", "hd")
+     *                                      - n (int): Количество изображений для генерации
+     * @return string URL сгенерированного изображения
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула URL изображения
+     */
+    public function text2image(string $model, string $prompt, array $options = []): string
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($prompt, 'prompt');
+
+        $payload = array_merge([
+            'model' => $model,
+            'prompt' => $prompt,
+        ], $options);
+
+        $response = $this->sendRequest('/images/generations', $payload);
+
+        if (!isset($response['data'][0]['url'])) {
+            throw new OpenRouterException('Модель не вернула URL изображения.');
+        }
+
+        return (string)$response['data'][0]['url'];
+    }
+
+    /**
      * Отправляет изображение и получает текстовое описание (image2text)
      *
      * @param string $model Модель распознавания изображений (например, "openai/gpt-4-vision-preview")
@@ -142,6 +179,111 @@ class OpenRouter
 
         if (!isset($response['choices'][0]['message']['content'])) {
             throw new OpenRouterException('Модель не вернула текстовый ответ.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Извлекает текст из PDF документа (pdf2text)
+     *
+     * @param string $model Модель для анализа PDF (например, "openai/gpt-4-vision-preview", "anthropic/claude-3-opus")
+     * @param string $pdfUrl URL PDF документа для анализа
+     * @param string $instruction Инструкция для обработки документа
+     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @return string Извлеченный текст или результат анализа
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
+     */
+    public function pdf2text(
+        string $model,
+        string $pdfUrl,
+        string $instruction = 'Извлеки весь текст из этого PDF документа',
+        array $options = []
+    ): string {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($pdfUrl, 'pdfUrl');
+        $this->validateNotEmpty($instruction, 'instruction');
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'text', 'text' => $instruction],
+                    [
+                        'type' => 'image_url',
+                        'image_url' => [
+                            'url' => $pdfUrl,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Преобразует аудио в текст (audio2text)
+     *
+     * @param string $model Модель распознавания речи (например, "openai/whisper-1")
+     * @param string $audioUrl URL аудиофайла для распознавания
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - language (string): Код языка (например, "ru", "en")
+     *                                      - prompt (string): Подсказка для улучшения точности
+     * @return string Распознанный текст
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула транскрипцию
+     */
+    public function audio2text(string $model, string $audioUrl, array $options = []): string
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($audioUrl, 'audioUrl');
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    [
+                        'type' => 'audio_url',
+                        'audio_url' => [
+                            'url' => $audioUrl,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        if (isset($options['prompt'])) {
+            array_unshift($messages[0]['content'], [
+                'type' => 'text',
+                'text' => $options['prompt'],
+            ]);
+            unset($options['prompt']);
+        }
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула транскрипцию.');
         }
 
         return (string)$response['choices'][0]['message']['content'];

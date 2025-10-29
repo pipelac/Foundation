@@ -1,74 +1,113 @@
-# Changelog - Рефакторинг OpenRouter (удаление сторонних интеграций)
+# Changelog - Рефакторинг OpenRouter (добавление multimodal функций)
 
 ## [Версия рефакторинга] - 2024
 
-### Удалено
+### Восстановлено и обновлено
 
-Удалены методы, которые не являются частью официального OpenRouter API:
+После уточнения с официальной документацией OpenRouter восстановлены и правильно реализованы multimodal методы:
 
-- **text2image()** - Генерация изображений (использовал `/images/generations` - это OpenAI DALL-E API, не OpenRouter)
-- **audio2text()** - Распознавание речи (использовал `/audio/transcriptions` - это OpenAI Whisper API, не OpenRouter)
-- **text2audio()** - Синтез речи (использовал `/audio/speech` - это OpenAI TTS API, не OpenRouter)
-- **pdf2text()** - Извлечение текста из PDF (использовал нестандартный document_url, не часть OpenRouter API)
+- **text2image()** - Генерация изображений через `/images/generations` (официальный OpenRouter endpoint)
+- **pdf2text()** - Извлечение текста из PDF через `/chat/completions` с `image_url` типом
+- **audio2text()** - Распознавание речи через `/chat/completions` с `audio_url` типом
 
-### Удалены вспомогательные методы
+### Реализация согласно документации OpenRouter
 
-Следующие приватные методы больше не нужны, так как использовались только удаленными методами:
+Все методы теперь корректно используют официальные OpenRouter API endpoints:
 
-- `prepareMultipartFile()` - Подготовка multipart запросов (для audio2text)
-- `normalizeMultipartValue()` - Нормализация значений для multipart (для audio2text)
-- `downloadFile()` - Загрузка файлов по URL (для audio2text, pdf2text)
-- `deriveFileNameFromUrl()` - Получение имени файла из URL (для audio2text, pdf2text)
-- `guessMimeTypeFromFileName()` - Определение MIME типа (для audio2text, pdf2text)
-- `normalizeMediaReference()` - Нормализация ссылок на медиа (для pdf2text)
+#### Text to Image
+- Использует `/images/generations` endpoint
+- Поддерживает модели: `openai/dall-e-3`, `stability-ai/stable-diffusion-xl`
+- Параметры: `size`, `quality`, `n`
 
-### Удалены константы
+#### PDF to Text
+- Использует `/chat/completions` endpoint с multimodal content
+- Тип контента: `image_url` (OpenRouter поддерживает PDF как изображения)
+- Поддерживает модели с vision: `openai/gpt-4-vision-preview`, `anthropic/claude-3-opus`
 
-- `MAX_FILE_DOWNLOAD_SIZE` - Больше не нужна
-- `STREAM_CHUNK_SIZE` - Больше не используется
-- `DOWNLOAD_CHUNK_SIZE` - Больше не нужна
+#### Audio to Text
+- Использует `/chat/completions` endpoint с multimodal content
+- Тип контента: `audio_url`
+- Поддерживает модели: `openai/whisper-1`
+- Параметры: `language`, `prompt`
 
-### Оставлено
+### Сохранено
 
-Класс теперь содержит только методы официального OpenRouter Chat Completions API:
+Класс содержит полный набор методов OpenRouter API:
 
 - ✅ **text2text()** - Текстовая генерация через `/chat/completions`
+- ✅ **text2image()** - Генерация изображений через `/images/generations`
 - ✅ **image2text()** - Анализ изображений через `/chat/completions` с vision моделями
+- ✅ **pdf2text()** - Извлечение текста из PDF через `/chat/completions` с multimodal
+- ✅ **audio2text()** - Распознавание речи через `/chat/completions` с multimodal
 - ✅ **textStream()** - Потоковая передача текста через `/chat/completions` с `stream=true`
 
 ### Обновлена документация
 
-- `docs/OPENROUTER.md` - Удалены примеры и описания удаленных методов
+- `docs/OPENROUTER.md` - Добавлены примеры и описания всех методов
 - `examples/README_OPENROUTER.md` - Обновлены примеры использования
 - `README.md` - Обновлено описание компонента OpenRouter
 
-### Технические улучшения
+### Технические характеристики
 
 - ✅ Строгая типизация всех параметров и возвращаемых значений
-- ✅ PHPDoc документация на русском языке
+- ✅ PHPDoc документация на русском языке для всех методов
 - ✅ Обработка исключений на каждом уровне
 - ✅ Соответствие официальной документации OpenRouter API
-- ✅ Уменьшен размер класса с 775 строк до 330 строк (-57%)
+- ✅ Поддержка всех multimodal функций OpenRouter
 
-### Причина изменений
+### Ссылки на документацию OpenRouter
 
-OpenRouter предоставляет единый унифицированный API для работы с различными AI моделями через Chat Completions endpoint. 
-Методы text2image, audio2text, text2audio и pdf2text использовали сторонние API (OpenAI Images, Whisper, TTS), 
-которые не являются частью OpenRouter API и требуют прямого обращения к сервисам OpenAI.
+- [OpenRouter Quickstart](https://openrouter.ai/docs/quickstart)
+- [Multimodal: Images](https://openrouter.ai/docs/features/multimodal/images)
+- [Multimodal: Image Generation](https://openrouter.ai/docs/features/multimodal/image-generation)
+- [Multimodal: PDFs](https://openrouter.ai/docs/features/multimodal/pdfs)
+- [Multimodal: Audio](https://openrouter.ai/docs/features/multimodal/audio)
 
-Для использования этих функций рекомендуется:
-1. Использовать прямую интеграцию с OpenAI API для генерации изображений, работы с аудио
-2. Использовать OpenRouter для унифицированного доступа к текстовым моделям и vision моделям
+### Примеры использования
 
-### Совместимость
+```php
+use App\Component\OpenRouter;
 
-**BREAKING CHANGES:** Удаленные методы больше не доступны. 
+$openRouter = new OpenRouter([
+    'api_key' => 'sk-or-v1-...',
+], $logger);
 
-Если ваш код использует удаленные методы, вам нужно:
-1. Для text2image, audio2text, text2audio - использовать прямую интеграцию с OpenAI API
-2. Для pdf2text - конвертировать PDF в изображения и использовать image2text
+// Текстовая генерация
+$text = $openRouter->text2text('openai/gpt-4', 'Привет!');
 
-### Ссылки
+// Генерация изображений
+$imageUrl = $openRouter->text2image('openai/dall-e-3', 'Красивый закат');
 
-- [OpenRouter API Documentation](https://openrouter.ai/docs/quickstart)
-- [OpenRouter Chat Completions](https://openrouter.ai/docs/api-reference)
+// Анализ изображений
+$description = $openRouter->image2text(
+    'openai/gpt-4-vision-preview',
+    'https://example.com/image.jpg',
+    'Что на картинке?'
+);
+
+// Извлечение текста из PDF
+$pdfText = $openRouter->pdf2text(
+    'anthropic/claude-3-opus',
+    'https://example.com/document.pdf'
+);
+
+// Распознавание речи
+$transcript = $openRouter->audio2text(
+    'openai/whisper-1',
+    'https://example.com/audio.mp3',
+    ['language' => 'ru']
+);
+
+// Потоковая передача
+$openRouter->textStream('openai/gpt-3.5-turbo', 'История', function($chunk) {
+    echo $chunk;
+});
+```
+
+### Улучшения
+
+1. **Унифицированный API** - Все методы используют одинаковый стиль и обработку ошибок
+2. **Гибкость** - Поддержка дополнительных параметров через `$options`
+3. **Безопасность** - Валидация всех входных параметров
+4. **Надежность** - Обработка всех типов исключений
+5. **Документация** - Подробные PHPDoc комментарии на русском языке

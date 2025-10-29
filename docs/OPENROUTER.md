@@ -2,12 +2,15 @@
 
 ## Описание
 
-`OpenRouter` - класс для работы с OpenRouter API, предоставляющий доступ к различным AI моделям через единый интерфейс. Реализует официальный Chat Completions API с поддержкой текстовой генерации, vision моделей и потоковой передачи данных.
+`OpenRouter` - класс для работы с OpenRouter API, предоставляющий доступ к различным AI моделям через единый интерфейс. Поддерживает текстовую генерацию, работу с изображениями, PDF документами, аудио и потоковую передачу данных.
 
 ## Возможности
 
 - ✅ **text2text** - Текстовая генерация (ChatGPT, Claude, Gemini и др.)
+- ✅ **text2image** - Генерация изображений (DALL-E, Stable Diffusion)
 - ✅ **image2text** - Распознавание и описание изображений (GPT-4 Vision)
+- ✅ **pdf2text** - Извлечение текста из PDF документов
+- ✅ **audio2text** - Распознавание речи из аудио
 - ✅ **textStream** - Потоковая передача текста
 - ✅ Строгая типизация и валидация
 - ✅ Поддержка всех моделей OpenRouter
@@ -105,6 +108,30 @@ foreach ($models as $model) {
 }
 ```
 
+### Text to Image (Генерация изображений)
+
+```php
+// Простая генерация изображения
+$imageUrl = $openRouter->text2image(
+    'openai/dall-e-3',
+    'Красивый закат над океаном, фотореалистично'
+);
+echo "Изображение: {$imageUrl}\n";
+
+// Сохранить изображение
+file_put_contents('sunset.jpg', file_get_contents($imageUrl));
+
+// С дополнительными параметрами
+$imageUrl = $openRouter->text2image(
+    'stability-ai/stable-diffusion-xl',
+    'Футуристический город в стиле киберпанк',
+    [
+        'size' => '1024x1024',
+        'quality' => 'hd',
+    ]
+);
+```
+
 ### Image to Text (Распознавание изображений)
 
 ```php
@@ -128,6 +155,52 @@ $result = $openRouter->image2text(
     'openai/gpt-4-vision-preview',
     'https://example.com/photo.jpg',
     'Есть ли на изображении люди? Ответь да или нет'
+);
+```
+
+### PDF to Text (Извлечение текста из PDF)
+
+```php
+// Извлечь весь текст из PDF
+$text = $openRouter->pdf2text(
+    'anthropic/claude-3-opus',
+    'https://example.com/document.pdf'
+);
+echo $text;
+
+// Анализ документа с инструкцией
+$summary = $openRouter->pdf2text(
+    'openai/gpt-4-vision-preview',
+    'https://example.com/report.pdf',
+    'Создай краткое резюме этого документа'
+);
+
+// Извлечение конкретной информации
+$data = $openRouter->pdf2text(
+    'anthropic/claude-3-sonnet',
+    'https://example.com/invoice.pdf',
+    'Извлеки номер счета, дату и общую сумму'
+);
+```
+
+### Audio to Text (Распознавание речи)
+
+```php
+// Простая транскрибация
+$transcript = $openRouter->audio2text(
+    'openai/whisper-1',
+    'https://example.com/audio.mp3'
+);
+echo "Транскрипция: {$transcript}\n";
+
+// С указанием языка и подсказкой
+$transcript = $openRouter->audio2text(
+    'openai/whisper-1',
+    'https://example.com/meeting.mp3',
+    [
+        'language' => 'ru',
+        'prompt' => 'Это запись совещания о проекте разработки',
+    ]
 );
 ```
 
@@ -282,6 +355,26 @@ public function text2text(string $model, string $prompt, array $options = []): s
 - `frequency_penalty` (float) - Штраф за частоту
 - `presence_penalty` (float) - Штраф за присутствие
 
+### text2image()
+
+```php
+public function text2image(string $model, string $prompt, array $options = []): string
+```
+
+Генерация изображений на основе текстового описания.
+
+**Параметры:**
+- `$model` (string) - Модель генерации (например, "openai/dall-e-3", "stability-ai/stable-diffusion-xl")
+- `$prompt` (string) - Текстовое описание изображения
+- `$options` (array) - Дополнительные параметры
+
+**Опции:**
+- `size` (string) - Размер изображения (например, "1024x1024")
+- `quality` (string) - Качество ("standard", "hd")
+- `n` (int) - Количество изображений
+
+**Возвращает:** URL сгенерированного изображения
+
 ### image2text()
 
 ```php
@@ -295,6 +388,41 @@ public function image2text(string $model, string $imageUrl, string $question = '
 - `$imageUrl` (string) - URL изображения для анализа
 - `$question` (string) - Вопрос к изображению (по умолчанию: "Опиши это изображение")
 - `$options` (array) - Дополнительные параметры запроса
+
+### pdf2text()
+
+```php
+public function pdf2text(string $model, string $pdfUrl, string $instruction = 'Извлеки весь текст из этого PDF документа', array $options = []): string
+```
+
+Извлечение текста и анализ PDF документов.
+
+**Параметры:**
+- `$model` (string) - Модель с поддержкой vision (например, "openai/gpt-4-vision-preview", "anthropic/claude-3-opus")
+- `$pdfUrl` (string) - URL PDF документа
+- `$instruction` (string) - Инструкция для обработки (по умолчанию: "Извлеки весь текст из этого PDF документа")
+- `$options` (array) - Дополнительные параметры запроса
+
+**Возвращает:** Извлеченный текст или результат анализа
+
+### audio2text()
+
+```php
+public function audio2text(string $model, string $audioUrl, array $options = []): string
+```
+
+Распознавание речи из аудиофайлов.
+
+**Параметры:**
+- `$model` (string) - Модель распознавания речи (например, "openai/whisper-1")
+- `$audioUrl` (string) - URL аудиофайла
+- `$options` (array) - Дополнительные параметры
+
+**Опции:**
+- `language` (string) - Код языка (например, "ru", "en")
+- `prompt` (string) - Подсказка для улучшения точности
+
+**Возвращает:** Распознанный текст
 
 ### textStream()
 
@@ -337,7 +465,9 @@ try {
    - GPT-3.5-turbo - быстрые, простые задачи
    - GPT-4 - сложные задачи, анализ
    - Claude - длинные тексты, анализ документов
-   - GPT-4 Vision - анализ изображений
+   - GPT-4 Vision - анализ изображений и PDF
+   - DALL-E 3 - генерация изображений
+   - Whisper - распознавание речи
 
 2. **Настраивайте temperature**:
    - 0.0-0.3 - точные, детерминированные ответы
@@ -373,10 +503,20 @@ try {
 - `google/gemini-pro` - Модель Google
 - `meta-llama/llama-3-70b-instruct` - Open-source модель
 
-### Vision модели
+### Модели для изображений
 
-- `openai/gpt-4-vision-preview` - Анализ изображений OpenAI
+**Генерация:**
+- `openai/dall-e-3` - Высококачественная генерация изображений
+- `stability-ai/stable-diffusion-xl` - Альтернатива с гибкими настройками
+
+**Анализ (Vision):**
+- `openai/gpt-4-vision-preview` - Анализ изображений и PDF
 - `anthropic/claude-3-opus` - Claude с поддержкой vision
+- `anthropic/claude-3-sonnet` - Более быстрый анализ
+
+### Модели для аудио
+
+- `openai/whisper-1` - Распознавание речи с высокой точностью
 
 ## См. также
 
