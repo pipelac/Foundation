@@ -17,6 +17,7 @@
 - **Logger** — структурированное логирование с ротацией файлов + email уведомления администратору (v2.1)
 - **Http** — унифицированный HTTP клиент на базе Guzzle
 - **ProxyPool** 🔄 — легковесный менеджер пула прокси-серверов с ротацией, health-check и автоматическим retry
+- **htmlWebProxyList** 🌐 — получение списка прокси-серверов с htmlweb.ru API для использования в ProxyPool
 
 ## Требования
 
@@ -487,6 +488,38 @@ $proxy = $proxyPool->getRandomProxy(); // Случайный
 
 📖 **Подробная документация:** `PROXYPOOL_README.md` и `examples/proxypool_example.php`
 
+### htmlWebProxyList
+
+Получение списка прокси-серверов с htmlweb.ru API для автоматической загрузки в ProxyPool.
+
+```php
+use App\Component\htmlWebProxyList;
+use App\Component\ProxyPool;
+
+// Создаем источник прокси
+$htmlWebProxy = new htmlWebProxyList([
+    'country' => 'US',
+    'work' => 'yes',
+    'perpage' => 50,
+    'type' => 'http',
+    'speed_max' => 2000,
+], $logger);
+
+// Получаем список прокси
+$proxies = $htmlWebProxy->getProxies();
+echo "Получено прокси: " . count($proxies);
+
+// Или загружаем напрямую в ProxyPool
+$proxyPool = new ProxyPool([
+    'rotation_strategy' => ProxyPool::ROTATION_ROUND_ROBIN,
+]);
+
+$added = $htmlWebProxy->loadIntoProxyPool($proxyPool);
+echo "Добавлено в пул: {$added}";
+```
+
+📖 **Подробная документация:** `HTMLWEB_PROXYLIST_README.md` и `examples/htmlweb_proxylist_example.php`
+
 ## Пример запуска
 
 ```bash
@@ -523,14 +556,18 @@ php bin/test_autoload.php
 │   ├── Exception/
 │   │   ├── MySQLException.php
 │   │   ├── MySQLConnectionException.php
-│   │   └── MySQLTransactionException.php
+│   │   ├── MySQLTransactionException.php
+│   │   ├── HtmlWebProxyListException.php
+│   │   └── HtmlWebProxyListValidationException.php
 │   ├── Email.class.php
 │   ├── Http.class.php
+│   ├── htmlWebProxyList.class.php          # Новое
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
-│   ├── MySQLConnectionFactory.class.php    # Новое
+│   ├── MySQLConnectionFactory.class.php
 │   ├── OpenRouter.class.php
 │   ├── OpenRouterMetrics.class.php
+│   ├── ProxyPool.class.php
 │   ├── Rss.class.php
 │   └── Telegram.class.php
 ├── .gitignore
