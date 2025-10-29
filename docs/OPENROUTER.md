@@ -2,17 +2,13 @@
 
 ## Описание
 
-`OpenRouter` - класс для работы с OpenRouter API, предоставляющий доступ к различным AI моделям через единый интерфейс. Поддерживает текстовую генерацию, работу с изображениями, аудио, PDF и потоковую передачу данных.
+`OpenRouter` - класс для работы с OpenRouter API, предоставляющий доступ к различным AI моделям через единый интерфейс. Реализует официальный Chat Completions API с поддержкой текстовой генерации, vision моделей и потоковой передачи данных.
 
 ## Возможности
 
 - ✅ **text2text** - Текстовая генерация (ChatGPT, Claude, Gemini и др.)
-- ✅ **text2image** - Генерация изображений (DALL-E, Stable Diffusion)
 - ✅ **image2text** - Распознавание и описание изображений (GPT-4 Vision)
-- ✅ **audio2text** - Распознавание речи (Whisper)
-- ✅ **text2audio** - Синтез речи (TTS)
-- ✅ **pdf2text** - Извлечение текста из PDF
-- ✅ **Streaming** - Потоковая передача текста
+- ✅ **textStream** - Потоковая передача текста
 - ✅ Строгая типизация и валидация
 - ✅ Поддержка всех моделей OpenRouter
 - ✅ Автоматическая обработка ошибок
@@ -109,30 +105,6 @@ foreach ($models as $model) {
 }
 ```
 
-### Text to Image (Генерация изображений)
-
-```php
-// Генерация изображения
-$imageUrl = $openRouter->text2image(
-    'openai/dall-e-3',
-    'Красивый закат над океаном, фотореалистично'
-);
-
-// Сохранить изображение
-file_put_contents('sunset.png', file_get_contents($imageUrl));
-
-// С параметрами качества
-$imageUrl = $openRouter->text2image(
-    'stability-ai/stable-diffusion-xl',
-    'Футуристический город, киберпанк стиль',
-    [
-        'size' => '1024x1024',
-        'quality' => 'hd',
-        'style' => 'vivid',
-    ]
-);
-```
-
 ### Image to Text (Распознавание изображений)
 
 ```php
@@ -156,86 +128,6 @@ $result = $openRouter->image2text(
     'openai/gpt-4-vision-preview',
     'https://example.com/photo.jpg',
     'Есть ли на изображении люди? Ответь да или нет'
-);
-```
-
-### Audio to Text (Распознавание речи)
-
-```php
-// Транскрибация аудио файла
-$transcript = $openRouter->audio2text(
-    'openai/whisper-1',
-    'https://example.com/audio.mp3'
-);
-echo "Транскрипция: {$transcript}\n";
-
-// С указанием языка
-$transcript = $openRouter->audio2text(
-    'openai/whisper-1',
-    '/path/to/local/audio.mp3',
-    [
-        'language' => 'ru',
-        'temperature' => 0.2,
-    ]
-);
-
-// С подсказкой для модели
-$transcript = $openRouter->audio2text(
-    'openai/whisper-1',
-    'https://example.com/meeting.mp3',
-    [
-        'prompt' => 'Это запись совещания о проекте',
-    ]
-);
-```
-
-### Text to Audio (Синтез речи)
-
-```php
-// Генерация речи
-$audioData = $openRouter->text2audio(
-    'openai/tts-1',
-    'Привет! Это синтезированная речь.',
-    'alloy' // Голос
-);
-
-// Сохранить аудио
-file_put_contents('speech.mp3', $audioData);
-
-// Разные голоса
-$voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
-
-foreach ($voices as $voice) {
-    $audio = $openRouter->text2audio(
-        'openai/tts-1-hd',
-        'Тестирование голоса',
-        $voice
-    );
-    file_put_contents("voice_{$voice}.mp3", $audio);
-}
-```
-
-### PDF to Text (Извлечение текста из PDF)
-
-```php
-// Извлечь текст из PDF
-$text = $openRouter->pdf2text(
-    'anthropic/claude-3-haiku',
-    'https://example.com/document.pdf'
-);
-echo $text;
-
-// С локальным файлом
-$text = $openRouter->pdf2text(
-    'anthropic/claude-3-sonnet',
-    '/path/to/document.pdf'
-);
-
-// Анализ документа
-$summary = $openRouter->pdf2text(
-    'anthropic/claude-3-opus',
-    'https://example.com/report.pdf',
-    ['prompt' => 'Составь краткое резюме этого документа']
 );
 ```
 
@@ -363,106 +255,6 @@ foreach ($images as $image) {
 file_put_contents('descriptions.json', json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 ```
 
-### Генератор контента
-
-```php
-class ContentGenerator
-{
-    private OpenRouter $ai;
-    
-    public function __construct(OpenRouter $ai)
-    {
-        $this->ai = $ai;
-    }
-    
-    public function generateArticle(string $topic, int $words = 500): array
-    {
-        // Генерация статьи
-        $content = $this->ai->text2text(
-            'anthropic/claude-3-opus',
-            "Напиши статью на тему '{$topic}' примерно на {$words} слов",
-            ['max_tokens' => $words * 2]
-        );
-        
-        // Генерация изображения
-        $imageUrl = $this->ai->text2image(
-            'openai/dall-e-3',
-            "Иллюстрация для статьи: {$topic}"
-        );
-        
-        // Генерация аудио версии (первый абзац)
-        $firstParagraph = explode("\n\n", $content)[0];
-        $audio = $this->ai->text2audio(
-            'openai/tts-1',
-            $firstParagraph,
-            'nova'
-        );
-        
-        return [
-            'title' => $topic,
-            'content' => $content,
-            'image_url' => $imageUrl,
-            'audio_data' => $audio,
-        ];
-    }
-}
-
-// Использование
-$generator = new ContentGenerator($openRouter);
-$article = $generator->generateArticle('Будущее искусственного интеллекта');
-
-file_put_contents('article.txt', $article['content']);
-file_put_contents('article.mp3', $article['audio_data']);
-```
-
-### Анализ документов
-
-```php
-class DocumentAnalyzer
-{
-    private OpenRouter $ai;
-    
-    public function __construct(OpenRouter $ai)
-    {
-        $this->ai = $ai;
-    }
-    
-    public function analyze(string $pdfPath): array
-    {
-        // Извлечь текст
-        $text = $this->ai->pdf2text(
-            'anthropic/claude-3-sonnet',
-            $pdfPath
-        );
-        
-        // Создать резюме
-        $summary = $this->ai->text2text(
-            'openai/gpt-4',
-            "Создай краткое резюме этого текста:\n\n{$text}"
-        );
-        
-        // Извлечь ключевые слова
-        $keywords = $this->ai->text2text(
-            'openai/gpt-3.5-turbo',
-            "Извлеки 10 ключевых слов из текста (через запятую):\n\n{$text}"
-        );
-        
-        return [
-            'full_text' => $text,
-            'summary' => $summary,
-            'keywords' => array_map('trim', explode(',', $keywords)),
-            'word_count' => str_word_count($text),
-        ];
-    }
-}
-
-// Использование
-$analyzer = new DocumentAnalyzer($openRouter);
-$result = $analyzer->analyze('https://example.com/document.pdf');
-
-print_r($result);
-```
-
 ## API Reference
 
 ### Конструктор
@@ -490,57 +282,19 @@ public function text2text(string $model, string $prompt, array $options = []): s
 - `frequency_penalty` (float) - Штраф за частоту
 - `presence_penalty` (float) - Штраф за присутствие
 
-### text2image()
-
-```php
-public function text2image(string $model, string $prompt, array $options = []): string
-```
-
-Генерация изображения. Возвращает URL изображения.
-
-**Опции:**
-- `size` (string) - Размер изображения
-- `quality` (string) - Качество (standard, hd)
-- `style` (string) - Стиль (vivid, natural)
-
 ### image2text()
 
 ```php
 public function image2text(string $model, string $imageUrl, string $question = 'Опиши это изображение', array $options = []): string
 ```
 
-Распознавание изображения.
+Распознавание изображения с использованием vision моделей.
 
-### audio2text()
-
-```php
-public function audio2text(string $model, string $audioSource, array $options = []): string
-```
-
-Транскрибация аудио.
-
-**Опции:**
-- `language` (string) - Код языка (ISO-639-1)
-- `temperature` (float) - Температура
-- `prompt` (string) - Подсказка для модели
-
-### text2audio()
-
-```php
-public function text2audio(string $model, string $text, string $voice = 'alloy', array $options = []): string
-```
-
-Синтез речи. Возвращает бинарные данные MP3.
-
-**Голоса:** alloy, echo, fable, onyx, nova, shimmer
-
-### pdf2text()
-
-```php
-public function pdf2text(string $model, string $pdfSource, array $options = []): string
-```
-
-Извлечение текста из PDF.
+**Параметры:**
+- `$model` (string) - Модель с поддержкой vision (например, "openai/gpt-4-vision-preview")
+- `$imageUrl` (string) - URL изображения для анализа
+- `$question` (string) - Вопрос к изображению (по умолчанию: "Опиши это изображение")
+- `$options` (array) - Дополнительные параметры запроса
 
 ### textStream()
 
@@ -583,7 +337,7 @@ try {
    - GPT-3.5-turbo - быстрые, простые задачи
    - GPT-4 - сложные задачи, анализ
    - Claude - длинные тексты, анализ документов
-   - Whisper - распознавание речи
+   - GPT-4 Vision - анализ изображений
 
 2. **Настраивайте temperature**:
    - 0.0-0.3 - точные, детерминированные ответы
@@ -619,15 +373,10 @@ try {
 - `google/gemini-pro` - Модель Google
 - `meta-llama/llama-3-70b-instruct` - Open-source модель
 
-### Модели изображений
+### Vision модели
 
-- `openai/dall-e-3` - Генерация изображений OpenAI
-- `stability-ai/stable-diffusion-xl` - Open-source генерация
-
-### Модели распознавания
-
-- `openai/gpt-4-vision-preview` - Анализ изображений
-- `openai/whisper-1` - Распознавание речи
+- `openai/gpt-4-vision-preview` - Анализ изображений OpenAI
+- `anthropic/claude-3-opus` - Claude с поддержкой vision
 
 ## См. также
 
