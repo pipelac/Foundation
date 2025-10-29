@@ -197,21 +197,36 @@ $data = $openRouter->pdf2text(
 
 ### Audio to Text (Распознавание речи)
 
+**Поддерживаемые модели:**
+- `openai/gpt-4o-audio-preview` - Высококачественное распознавание от OpenAI
+- `google/gemini-2.5-flash` - Быстрое распознавание от Google
+- `google/gemini-2.5-pro-preview` - Продвинутая модель Google
+- `google/gemini-2.0-flash-001` - Оптимизированная версия
+
 ```php
 // Простая транскрибация
 $transcript = $openRouter->audio2text(
-    'openai/whisper-1',
+    'openai/gpt-4o-audio-preview',
     'https://example.com/audio.mp3'
 );
 echo "Транскрипция: {$transcript}\n";
 
 // С указанием языка и подсказкой
 $transcript = $openRouter->audio2text(
-    'openai/whisper-1',
+    'google/gemini-2.5-flash',
     'https://example.com/meeting.mp3',
     [
         'language' => 'ru',
         'prompt' => 'Это запись совещания о проекте разработки',
+    ]
+);
+
+// Высокое качество с OpenAI
+$transcript = $openRouter->audio2text(
+    'openai/gpt-4o-audio-preview',
+    'https://example.com/interview.mp3',
+    [
+        'prompt' => 'Интервью с экспертом по технологиям',
     ]
 );
 ```
@@ -432,9 +447,17 @@ public function audio2text(string $model, string $audioUrl, array $options = [])
 Распознавание речи из аудиофайлов.
 
 **Параметры:**
-- `$model` (string) - Модель распознавания речи (например, "openai/whisper-1")
+- `$model` (string) - Модель распознавания речи (например, "openai/gpt-4o-audio-preview", "google/gemini-2.5-flash")
 - `$audioUrl` (string) - URL аудиофайла
 - `$options` (array) - Дополнительные параметры
+
+**Поддерживаемые модели:**
+- `openai/gpt-4o-audio-preview` - Высококачественное распознавание от OpenAI
+- `google/gemini-2.5-flash` - Быстрое распознавание от Google
+- `google/gemini-2.5-flash-lite` - Облегченная версия
+- `google/gemini-2.5-pro-preview` - Продвинутая модель Google
+- `google/gemini-2.0-flash-001` - Оптимизированная версия 2.0
+- И другие Gemini модели (см. полный список в документации)
 
 **Опции:**
 - `language` (string) - Код языка (например, "ru", "en")
@@ -536,12 +559,19 @@ try {
 
 ### Модели для аудио
 
-- `openai/whisper-1` - Распознавание речи с высокой точностью
+**Распознавание речи (Audio to Text):**
+- `openai/gpt-4o-audio-preview` - Высококачественное распознавание от OpenAI
+- `google/gemini-2.5-flash` - Быстрое распознавание от Google
+- `google/gemini-2.5-flash-lite` - Облегченная версия для быстрой обработки
+- `google/gemini-2.5-pro-preview` - Продвинутая модель Google
+- `google/gemini-2.0-flash-001` - Оптимизированная версия 2.0
+- `google/gemini-2.0-flash-lite-001` - Lite версия 2.0
 
 ## См. также
 
 - [OpenRouterMetrics документация](OPENROUTER_METRICS.md) - мониторинг использования и стоимости
 - [Поддерживаемые модели для генерации изображений](OPENROUTER_IMAGE_MODELS.md) - детальное описание моделей text2image
+- [Поддерживаемые модели для распознавания речи](OPENROUTER_AUDIO_MODELS.md) - детальное описание моделей audio2text
 - [Http документация](HTTP.md) - HTTP клиент
 - [Logger документация](LOGGER.md) - логирование запросов
-- [OpenRouter Image Generation](https://openrouter.ai/docs/features/multimodal/image-generation) - официальная документация
+- [OpenRouter Multimodal Features](https://openrouter.ai/docs/features/multimodal) - официальная документация

@@ -31,7 +31,14 @@
 #### Audio to Text
 - Использует `/chat/completions` endpoint с multimodal content
 - Тип контента: `audio_url`
-- Поддерживает модели: `openai/whisper-1`
+- Поддерживает модели:
+  - `openai/gpt-4o-audio-preview` - Высококачественное распознавание от OpenAI
+  - `google/gemini-2.5-flash` - Быстрое распознавание от Google
+  - `google/gemini-2.5-flash-lite` - Облегченная версия
+  - `google/gemini-2.5-pro-preview` - Продвинутая модель Google
+  - `google/gemini-2.0-flash-001` - Оптимизированная версия 2.0
+  - `google/gemini-2.0-flash-lite-001` - Lite версия 2.0
+  - И другие Gemini preview модели
 - Параметры: `language`, `prompt`
 
 ### Сохранено
@@ -97,7 +104,7 @@ $pdfText = $openRouter->pdf2text(
 
 // Распознавание речи
 $transcript = $openRouter->audio2text(
-    'openai/whisper-1',
+    'openai/gpt-4o-audio-preview',
     'https://example.com/audio.mp3',
     ['language' => 'ru']
 );

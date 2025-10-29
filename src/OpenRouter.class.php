@@ -238,7 +238,7 @@ class OpenRouter
     /**
      * Преобразует аудио в текст (audio2text)
      *
-     * @param string $model Модель распознавания речи (например, "openai/whisper-1")
+     * @param string $model Модель распознавания речи (например, "openai/gpt-4o-audio-preview", "google/gemini-2.5-flash")
      * @param string $audioUrl URL аудиофайла для распознавания
      * @param array<string, mixed> $options Дополнительные параметры запроса:
      *                                      - language (string): Код языка (например, "ru", "en")

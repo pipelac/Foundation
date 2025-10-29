@@ -245,7 +245,7 @@ $pdfText = $openRouter->pdf2text(
 
 // Audio to Text - распознавание речи
 $transcript = $openRouter->audio2text(
-    'openai/whisper-1',
+    'openai/gpt-4o-audio-preview',
     'https://example.com/audio.mp3'
 );
 

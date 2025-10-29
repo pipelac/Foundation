@@ -37,7 +37,12 @@
 ### 5. audio2text() - Распознавание речи ✅
 - **Endpoint:** `/chat/completions` (с multimodal content)
 - **Тип контента:** `audio_url`
-- **Модели:** `openai/whisper-1`
+- **Модели:**
+  - `openai/gpt-4o-audio-preview` - Высококачественное распознавание от OpenAI
+  - `google/gemini-2.5-flash` - Быстрое распознавание от Google
+  - `google/gemini-2.5-flash-lite` - Облегченная версия
+  - `google/gemini-2.5-pro-preview` - Продвинутая модель Google
+  - `google/gemini-2.0-flash-001`, `google/gemini-2.0-flash-lite-001`
 - **Параметры:** `language`, `prompt`
 - **Возвращает:** Распознанный текст
 
@@ -118,10 +123,24 @@ $text = $openRouter->pdf2text(
 
 ### Распознавание речи
 ```php
+// Высокое качество от OpenAI
 $transcript = $openRouter->audio2text(
-    'openai/whisper-1',
+    'openai/gpt-4o-audio-preview',
     'https://example.com/audio.mp3',
+    ['language' => 'ru', 'prompt' => 'Интервью о технологиях']
+);
+
+// Быстрая обработка через Google
+$transcript = $openRouter->audio2text(
+    'google/gemini-2.5-flash',
+    'https://example.com/meeting.mp3',
     ['language' => 'ru', 'prompt' => 'Совещание о проекте']
+);
+
+// Массовая обработка с lite версией
+$transcript = $openRouter->audio2text(
+    'google/gemini-2.5-flash-lite',
+    'https://example.com/voice-message.mp3'
 );
 ```
 
