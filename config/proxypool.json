@@ -1,0 +1,32 @@
+{
+    "proxies": [
+        "http://proxy1.example.com:8080",
+        "http://user:pass@proxy2.example.com:3128",
+        "socks5://proxy3.example.com:1080"
+    ],
+    "rotation_strategy": "round_robin",
+    "health_check_url": "https://www.google.com",
+    "health_check_timeout": 5,
+    "health_check_interval": 300,
+    "auto_health_check": true,
+    "max_retries": 3,
+    "http_config": {
+        "timeout": 30,
+        "connect_timeout": 10,
+        "verify": false
+    },
+    "_comment": [
+        "Конфигурация менеджера пула прокси-серверов.",
+        "Используется для управления списком прокси, автоматической ротацией и health-check."
+    ],
+    "_fields": {
+        "proxies": "Массив прокси URL в формате: protocol://[user:pass@]host:port. Поддерживаются протоколы: http, https, socks4, socks5",
+        "rotation_strategy": "Стратегия ротации прокси: 'round_robin' (по очереди) или 'random' (случайный выбор)",
+        "health_check_url": "URL для проверки доступности прокси. Используется для определения живых/мёртвых прокси",
+        "health_check_timeout": "Таймаут в секундах для health-check запросов. Рекомендуется 5-10 секунд",
+        "health_check_interval": "Минимальный интервал в секундах между повторными проверками одного прокси. По умолчанию 300 (5 минут)",
+        "auto_health_check": "Автоматически проверять все прокси при инициализации пула (true/false)",
+        "max_retries": "Максимальное количество попыток при неудачном запросе через прокси. При каждой попытке используется новый прокси",
+        "http_config": "Конфигурация для HTTP клиента (таймауты, verify SSL и т.д.). Применяется к запросам через прокси"
+    }
+}

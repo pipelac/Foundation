@@ -16,6 +16,7 @@
 - **Email** — отправка электронных писем с поддержкой вложений
 - **Logger** — структурированное логирование с ротацией файлов + email уведомления администратору (v2.1)
 - **Http** — унифицированный HTTP клиент на базе Guzzle
+- **ProxyPool** 🔄 — легковесный менеджер пула прокси-серверов с ротацией, health-check и автоматическим retry
 
 ## Требования
 
@@ -43,6 +44,7 @@ composer install
 - `config/openrouter.json` — API ключ OpenRouter
 - `config/telegram.json` — токен Telegram бота
 - `config/email.json` — параметры отправки почты
+- `config/proxypool.json` — конфигурация пула прокси-серверов
 
 ## Использование
 
@@ -440,6 +442,50 @@ $http->requestStream('GET', 'https://example.com/stream', function (string $chun
     echo $chunk;
 }, ['headers' => ['Accept' => 'text/event-stream']]);
 ```
+
+### ProxyPool
+
+```php
+use App\Component\ProxyPool;
+
+// Инициализация с конфигурацией
+$config = [
+    'proxies' => [
+        'http://proxy1.example.com:8080',
+        'http://user:pass@proxy2.example.com:3128',
+        'socks5://proxy3.example.com:1080',
+    ],
+    'rotation_strategy' => ProxyPool::ROTATION_ROUND_ROBIN, // или ROTATION_RANDOM
+    'health_check_url' => 'https://httpbin.org/ip',
+    'health_check_timeout' => 5,
+    'auto_health_check' => true,
+    'max_retries' => 3,
+];
+$proxyPool = new ProxyPool($config, $logger);
+
+// HTTP запросы через прокси с автоматическим retry
+$response = $proxyPool->get('https://api.example.com/data');
+$response = $proxyPool->post('https://api.example.com/create', [
+    'json' => ['name' => 'John Doe']
+]);
+
+// Управление прокси
+$proxyPool->addProxy('http://new-proxy.example.com:8080');
+$proxyPool->removeProxy('http://old-proxy.example.com:8080');
+
+// Health-check и статистика
+$proxyPool->checkAllProxies();
+$stats = $proxyPool->getStatistics();
+echo "Живых прокси: {$stats['alive_proxies']}\n";
+echo "Мёртвых прокси: {$stats['dead_proxies']}\n";
+echo "Успешность запросов: {$stats['success_rate']}%\n";
+
+// Получение прокси вручную
+$proxy = $proxyPool->getNextProxy(); // По стратегии ротации
+$proxy = $proxyPool->getRandomProxy(); // Случайный
+```
+
+📖 **Подробная документация:** `PROXYPOOL_README.md` и `examples/proxypool_example.php`
 
 ## Пример запуска
 
