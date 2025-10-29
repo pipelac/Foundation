@@ -17,18 +17,17 @@ use JsonException;
  * - Текстовая генерация (text2text)
  * - Генерация изображений (text2image)
  * - Распознавание изображений (image2text)
- * - Распознавание речи (audio2text)
- * - Синтез речи (text2audio)
- * - Извлечение текста из PDF (pdf2text)
+ * - Работа с PDF документами (pdf2text)
+ * - Работа с аудио (audio2text)
  * - Потоковая передача текста (textStream)
+ * 
+ * @link https://openrouter.ai/docs/quickstart Официальная документация OpenRouter API
+ * @link https://openrouter.ai/docs/features/multimodal Multimodal функции
  */
 class OpenRouter
 {
     private const BASE_URL = 'https://openrouter.ai/api/v1';
     private const DEFAULT_TIMEOUT = 60;
-    private const MAX_FILE_DOWNLOAD_SIZE = 52428800; // 50 МБ
-    private const STREAM_CHUNK_SIZE = 8192;
-    private const DOWNLOAD_CHUNK_SIZE = 8192;
 
     private string $apiKey;
     private string $appName;
@@ -107,14 +106,14 @@ class OpenRouter
     }
 
     /**
-     * Отправляет текстовый запрос и получает изображение (text2image)
+     * Генерирует изображение на основе текстового описания (text2image)
      *
-     * @param string $model Модель генерации изображений (например, "openai/dall-e-3")
-     * @param string $prompt Описание изображения для генерации
+     * @param string $model Модель генерации изображений (например, "openai/gpt-5-image", "google/gemini-2.5-flash-image")
+     * @param string $prompt Текстовое описание изображения для генерации
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - size (string): Размер изображения
-     *                                      - quality (string): Качество изображения
-     *                                      - style (string): Стиль изображения
+     *                                      - size (string): Размер изображения (например, "1024x1024")
+     *                                      - quality (string): Качество изображения ("standard", "hd")
+     *                                      - n (int): Количество изображений для генерации
      * @return string URL сгенерированного изображения
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
@@ -186,143 +185,15 @@ class OpenRouter
     }
 
     /**
-     * Преобразует аудио в текст (audio2text)
-     *
-     * @param string $model Модель распознавания речи (например, "openai/whisper-1")
-     * @param string $audioSource URL аудиофайла или путь к локальному файлу
-     * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - language (string): Код языка (ISO-639-1)
-     *                                      - temperature (float): Температура генерации
-     *                                      - prompt (string): Подсказка для модели
-     * @return string Распознанный текст
-     * @throws OpenRouterValidationException Если параметры невалидны
-     * @throws OpenRouterApiException Если API вернул ошибку
-     * @throws OpenRouterNetworkException Если файл не удалось загрузить
-     * @throws OpenRouterException Если модель не вернула текстовую транскрипцию
-     * @throws JsonException Если не удалось декодировать ответ API
-     */
-    public function audio2text(string $model, string $audioSource, array $options = []): string
-    {
-        $this->validateNotEmpty($model, 'model');
-        $this->validateNotEmpty($audioSource, 'audioSource');
-
-        $multipart = [
-            [
-                'name' => 'model',
-                'contents' => $model,
-            ],
-            $this->prepareMultipartFile('file', $audioSource, 'audio/mpeg'),
-        ];
-
-        foreach ($options as $key => $value) {
-            $multipart[] = [
-                'name' => (string)$key,
-                'contents' => $this->normalizeMultipartValue($value),
-            ];
-        }
-
-        $response = $this->http->request('POST', '/audio/transcriptions', [
-            'multipart' => $multipart,
-            'headers' => $this->buildHeaders(),
-        ]);
-
-        $statusCode = $response->getStatusCode();
-        $body = (string)$response->getBody();
-
-        if ($statusCode >= 400) {
-            $this->logError('Сервер OpenRouter вернул ошибку при транскрибации аудио', [
-                'status_code' => $statusCode,
-                'response' => $body,
-            ]);
-
-            throw new OpenRouterApiException(
-                'Сервер вернул код ошибки при транскрибации аудио',
-                $statusCode,
-                $body
-            );
-        }
-
-        $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-
-        if (isset($decoded['text'])) {
-            return (string)$decoded['text'];
-        }
-
-        if (isset($decoded['data'][0]['text'])) {
-            return (string)$decoded['data'][0]['text'];
-        }
-
-        throw new OpenRouterException('Модель не вернула текстовую транскрипцию.');
-    }
-
-    /**
-     * Преобразует текст в речь (text2audio)
-     *
-     * @param string $model Модель синтеза речи (например, "openai/tts-1" или "openai/tts-1-hd")
-     * @param string $text Текст для преобразования в речь
-     * @param string $voice Голос для синтеза (например, "alloy", "echo", "fable", "onyx", "nova", "shimmer")
-     * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - speed (float): Скорость речи (0.25 - 4.0)
-     *                                      - response_format (string): Формат аудио (mp3, opus, aac, flac)
-     * @return string Бинарное содержимое аудиофайла
-     * @throws OpenRouterValidationException Если параметры невалидны
-     * @throws OpenRouterApiException Если API вернул ошибку
-     * @throws OpenRouterException Если не удалось получить аудиоданные
-     */
-    public function text2audio(string $model, string $text, string $voice, array $options = []): string
-    {
-        $this->validateNotEmpty($model, 'model');
-        $this->validateNotEmpty($text, 'text');
-        $this->validateNotEmpty($voice, 'voice');
-
-        $payload = array_merge([
-            'model' => $model,
-            'input' => $text,
-            'voice' => $voice,
-        ], $options);
-
-        $headers = $this->buildHeaders();
-        $headers['Content-Type'] = 'application/json';
-
-        $response = $this->http->request('POST', '/audio/speech', [
-            'json' => $payload,
-            'headers' => $headers,
-        ]);
-
-        $statusCode = $response->getStatusCode();
-        $body = (string)$response->getBody();
-
-        if ($statusCode >= 400) {
-            $this->logError('Сервер OpenRouter вернул ошибку при синтезе речи', [
-                'status_code' => $statusCode,
-                'response' => $body,
-            ]);
-
-            throw new OpenRouterApiException(
-                'Сервер вернул код ошибки при синтезе речи',
-                $statusCode,
-                $body
-            );
-        }
-
-        if ($body === '') {
-            throw new OpenRouterException('Модель не вернула аудиоданные.');
-        }
-
-        return $body;
-    }
-
-    /**
      * Извлекает текст из PDF документа (pdf2text)
      *
-     * @param string $model Модель анализа документов (например, "openai/gpt-4-vision" или "anthropic/claude-3")
-     * @param string $pdfUrl URL PDF файла или путь к локальному файлу
+     * @param string $model Модель для анализа PDF (например, "openai/gpt-4-vision-preview", "anthropic/claude-3-opus")
+     * @param string $pdfUrl URL PDF документа для анализа
      * @param string $instruction Инструкция для обработки документа
      * @param array<string, mixed> $options Дополнительные параметры запроса
-     * @return string Извлеченный текст
+     * @return string Извлеченный текст или результат анализа
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
-     * @throws OpenRouterNetworkException Если файл не удалось загрузить
      * @throws OpenRouterException Если модель не вернула текстовый ответ
      */
     public function pdf2text(
@@ -335,14 +206,17 @@ class OpenRouter
         $this->validateNotEmpty($pdfUrl, 'pdfUrl');
         $this->validateNotEmpty($instruction, 'instruction');
 
-        $pdfResource = $this->normalizeMediaReference($pdfUrl, 'application/pdf');
-
         $messages = [
             [
                 'role' => 'user',
                 'content' => [
                     ['type' => 'text', 'text' => $instruction],
-                    ['type' => 'document_url', 'document_url' => ['url' => $pdfResource]],
+                    [
+                        'type' => 'image_url',
+                        'image_url' => [
+                            'url' => $pdfUrl,
+                        ],
+                    ],
                 ],
             ],
         ];
@@ -356,6 +230,60 @@ class OpenRouter
 
         if (!isset($response['choices'][0]['message']['content'])) {
             throw new OpenRouterException('Модель не вернула текстовый ответ.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Преобразует аудио в текст (audio2text)
+     *
+     * @param string $model Модель распознавания речи (например, "openai/gpt-4o-audio-preview", "google/gemini-2.5-flash")
+     * @param string $audioUrl URL аудиофайла для распознавания
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - language (string): Код языка (например, "ru", "en")
+     *                                      - prompt (string): Подсказка для улучшения точности
+     * @return string Распознанный текст
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула транскрипцию
+     */
+    public function audio2text(string $model, string $audioUrl, array $options = []): string
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($audioUrl, 'audioUrl');
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    [
+                        'type' => 'audio_url',
+                        'audio_url' => [
+                            'url' => $audioUrl,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        if (isset($options['prompt'])) {
+            array_unshift($messages[0]['content'], [
+                'type' => 'text',
+                'text' => $options['prompt'],
+            ]);
+            unset($options['prompt']);
+        }
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула транскрипцию.');
         }
 
         return (string)$response['choices'][0]['message']['content'];
@@ -526,237 +454,6 @@ class OpenRouter
             'json' => $payload,
             'headers' => $headers,
         ]);
-    }
-
-    /**
-     * Подготавливает часть multipart-запроса с файлом
-     *
-     * @param string $fieldName Имя поля в multipart запросе
-     * @param string $reference URL или путь к локальному файлу
-     * @param string $defaultMimeType MIME тип по умолчанию
-     * @return array<string, mixed> Массив для multipart запроса
-     * @throws OpenRouterValidationException Если файл не найден или не доступен
-     * @throws OpenRouterNetworkException Если не удалось загрузить файл по URL
-     */
-    private function prepareMultipartFile(string $fieldName, string $reference, string $defaultMimeType): array
-    {
-        if (filter_var($reference, FILTER_VALIDATE_URL) !== false) {
-            $contents = $this->downloadFile($reference);
-            $filename = $this->deriveFileNameFromUrl($reference);
-            $mimeType = $this->guessMimeTypeFromFileName($filename, $defaultMimeType);
-        } else {
-            if (!is_file($reference)) {
-                throw new OpenRouterValidationException('Файл не найден: ' . $reference);
-            }
-
-            if (!is_readable($reference)) {
-                throw new OpenRouterValidationException('Файл не доступен для чтения: ' . $reference);
-            }
-
-            $contents = file_get_contents($reference);
-
-            if ($contents === false) {
-                throw new OpenRouterNetworkException('Не удалось прочитать файл: ' . $reference);
-            }
-
-            $filename = basename($reference);
-
-            if ($filename === '' || $filename === '.' || $filename === DIRECTORY_SEPARATOR) {
-                $filename = 'file-' . md5($reference) . '.bin';
-            }
-
-            $mimeType = mime_content_type($reference);
-
-            if ($mimeType === false) {
-                $mimeType = $defaultMimeType;
-            }
-        }
-
-        return [
-            'name' => $fieldName,
-            'contents' => $contents,
-            'filename' => $filename,
-            'headers' => [
-                'Content-Type' => $mimeType,
-            ],
-        ];
-    }
-
-    /**
-     * Преобразует значение опции в строку для multipart-запроса
-     *
-     * @param mixed $value Значение опции для преобразования
-     * @return string Строковое представление значения
-     * @throws OpenRouterException Если не удалось сериализовать значение
-     */
-    private function normalizeMultipartValue(mixed $value): string
-    {
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if (is_scalar($value) || $value === null) {
-            return (string)$value;
-        }
-
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        } catch (JsonException $exception) {
-            throw new OpenRouterException(
-                'Не удалось сериализовать параметр multipart запроса: ' . $exception->getMessage(),
-                0,
-                $exception
-            );
-        }
-    }
-
-    /**
-     * Загружает файл по URL с ограничением размера и проверкой безопасности
-     *
-     * @param string $url URL файла для загрузки
-     * @return string Содержимое файла
-     * @throws OpenRouterNetworkException Если не удалось загрузить файл или размер превышен
-     */
-    private function downloadFile(string $url): string
-    {
-        $context = stream_context_create([
-            'http' => [
-                'timeout' => $this->timeout,
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'user_agent' => $this->appName,
-            ],
-        ]);
-
-        $stream = @fopen($url, 'rb', false, $context);
-
-        if ($stream === false) {
-            throw new OpenRouterNetworkException('Не удалось открыть поток для загрузки файла по URL: ' . $url);
-        }
-
-        $contents = '';
-        $downloadedSize = 0;
-
-        try {
-            while (!feof($stream)) {
-                $chunk = fread($stream, self::DOWNLOAD_CHUNK_SIZE);
-
-                if ($chunk === false) {
-                    throw new OpenRouterNetworkException('Ошибка при чтении данных из потока: ' . $url);
-                }
-
-                $contents .= $chunk;
-                $downloadedSize += strlen($chunk);
-
-                if ($downloadedSize > self::MAX_FILE_DOWNLOAD_SIZE) {
-                    throw new OpenRouterNetworkException(
-                        sprintf(
-                            'Размер загружаемого файла превышает максимально допустимый (%d МБ): %s',
-                            self::MAX_FILE_DOWNLOAD_SIZE / 1048576,
-                            $url
-                        )
-                    );
-                }
-            }
-        } finally {
-            fclose($stream);
-        }
-
-        if ($contents === '') {
-            throw new OpenRouterNetworkException('Загруженный файл пустой: ' . $url);
-        }
-
-        return $contents;
-    }
-
-    /**
-     * Определяет имя файла на основе URL
-     *
-     * @param string $url URL файла
-     * @return string Имя файла
-     */
-    private function deriveFileNameFromUrl(string $url): string
-    {
-        $path = parse_url($url, PHP_URL_PATH);
-
-        if (is_string($path) && $path !== '') {
-            $basename = basename($path);
-
-            if ($basename !== '' && $basename !== '.' && $basename !== DIRECTORY_SEPARATOR) {
-                return $basename;
-            }
-        }
-
-        return 'file-' . md5($url) . '.bin';
-    }
-
-    /**
-     * Определяет MIME-тип файла по его расширению
-     *
-     * @param string $filename Имя файла
-     * @param string $defaultMimeType MIME тип по умолчанию
-     * @return string MIME тип файла
-     */
-    private function guessMimeTypeFromFileName(string $filename, string $defaultMimeType): string
-    {
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        return match ($extension) {
-            'mp3', 'mpeg3' => 'audio/mpeg',
-            'm4a', 'mp4' => 'audio/mp4',
-            'wav' => 'audio/wav',
-            'webm' => 'audio/webm',
-            'ogg', 'oga' => 'audio/ogg',
-            'opus' => 'audio/opus',
-            'flac' => 'audio/flac',
-            'aac' => 'audio/aac',
-            'pdf' => 'application/pdf',
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-            default => $defaultMimeType,
-        };
-    }
-
-    /**
-     * Нормализует ссылку на медиафайл (URL или локальный путь преобразуется в data URI)
-     *
-     * @param string $reference URL или путь к файлу
-     * @param string $defaultMimeType MIME тип по умолчанию
-     * @return string URL или data URI
-     * @throws OpenRouterValidationException Если файл не найден
-     * @throws OpenRouterNetworkException Если не удалось прочитать содержимое файла
-     */
-    private function normalizeMediaReference(string $reference, string $defaultMimeType): string
-    {
-        if (filter_var($reference, FILTER_VALIDATE_URL) !== false) {
-            return $reference;
-        }
-
-        if (!is_file($reference)) {
-            throw new OpenRouterValidationException('Файл не найден: ' . $reference);
-        }
-
-        if (!is_readable($reference)) {
-            throw new OpenRouterValidationException('Файл не доступен для чтения: ' . $reference);
-        }
-
-        $content = file_get_contents($reference);
-
-        if ($content === false) {
-            throw new OpenRouterNetworkException('Не удалось прочитать файл: ' . $reference);
-        }
-
-        $mimeType = mime_content_type($reference);
-
-        if ($mimeType === false) {
-            $mimeType = $defaultMimeType;
-        }
-
-        $encoded = base64_encode($content);
-
-        return 'data:' . $mimeType . ';base64,' . $encoded;
     }
 
     /**

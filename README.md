@@ -9,7 +9,7 @@
 - **Rss** — парсинг RSS/Atom лент на базе SimplePie (v3.0) с кешированием и санитизацией
 - **MySQL** — работа с БД через PDO с строгой типизацией
 - **MySQLConnectionFactory** ⚡ — фабрика соединений с кешированием для работы с несколькими БД одновременно
-- **OpenRouter** — интеграция с ИИ моделями (text2text, text2image, image2text, audio2text, text2audio, pdf2text, streaming)
+- **OpenRouter** — интеграция с ИИ моделями через OpenRouter API (text2text, text2image, image2text, pdf2text, audio2text, streaming)
 - **OpenRouterMetrics** — мониторинг метрик OpenRouter (баланс, токены, стоимость, модели)
 - **Telegram** — отправка сообщений и медиафайлов
 - **Email** — отправка электронных писем с поддержкой вложений
@@ -224,30 +224,38 @@ use App\Component\OpenRouter;
 $config = ConfigLoader::load(__DIR__ . '/config/openrouter.json');
 $openRouter = new OpenRouter($config, $logger);
 
-// Text to Text
+// Text to Text - текстовая генерация
 $response = $openRouter->text2text('openai/gpt-3.5-turbo', 'Привет, как дела?');
 
-// Text to Image
-$imageUrl = $openRouter->text2image('stability-ai/stable-diffusion-xl', 'Beautiful landscape');
+// Text to Image - генерация изображений
+$imageUrl = $openRouter->text2image('openai/gpt-5-image', 'Красивый закат над океаном');
 
-// Image to Text
-$description = $openRouter->image2text('openai/gpt-4-vision', 'https://example.com/image.jpg', 'Что на изображении?');
+// Image to Text - анализ изображений
+$description = $openRouter->image2text(
+    'openai/gpt-4-vision-preview',
+    'https://example.com/image.jpg',
+    'Что на изображении?'
+);
 
-// Audio to Text
-$transcript = $openRouter->audio2text('openai/whisper-1', 'https://example.com/audio.mp3');
+// PDF to Text - извлечение текста из PDF
+$pdfText = $openRouter->pdf2text(
+    'anthropic/claude-3-opus',
+    'https://example.com/document.pdf'
+);
 
-// Text to Audio
-$audioData = $openRouter->text2audio('openai/tts-1', 'Привет! Это синтез речи.', 'alloy');
-file_put_contents('output.mp3', $audioData);
+// Audio to Text - распознавание речи
+$transcript = $openRouter->audio2text(
+    'openai/gpt-4o-audio-preview',
+    'https://example.com/audio.mp3'
+);
 
-// PDF to Text
-$pdfText = $openRouter->pdf2text('anthropic/claude-3-haiku', 'https://example.com/document.pdf');
-
-// Streaming
+// Streaming - потоковая передача текста
 $openRouter->textStream('openai/gpt-3.5-turbo', 'Расскажи историю', function (string $chunk) {
     echo $chunk;
 });
 ```
+
+📖 **Подробная документация:** `docs/OPENROUTER.md`
 
 ### OpenRouterMetrics
 
