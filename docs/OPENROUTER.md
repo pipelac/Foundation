@@ -110,10 +110,16 @@ foreach ($models as $model) {
 
 ### Text to Image (Генерация изображений)
 
+**Поддерживаемые модели:**
+- `openai/gpt-5-image` - Полнофункциональная модель с высоким качеством
+- `openai/gpt-5-image-mini` - Оптимизированная версия для быстрой генерации
+- `google/gemini-2.5-flash-image` - Генерация изображений от Google
+- `google/gemini-2.5-flash-image-preview` - Preview версия Gemini
+
 ```php
 // Простая генерация изображения
 $imageUrl = $openRouter->text2image(
-    'openai/dall-e-3',
+    'openai/gpt-5-image',
     'Красивый закат над океаном, фотореалистично'
 );
 echo "Изображение: {$imageUrl}\n";
@@ -123,12 +129,18 @@ file_put_contents('sunset.jpg', file_get_contents($imageUrl));
 
 // С дополнительными параметрами
 $imageUrl = $openRouter->text2image(
-    'stability-ai/stable-diffusion-xl',
+    'google/gemini-2.5-flash-image',
     'Футуристический город в стиле киберпанк',
     [
         'size' => '1024x1024',
         'quality' => 'hd',
     ]
+);
+
+// Быстрая генерация с mini моделью
+$imageUrl = $openRouter->text2image(
+    'openai/gpt-5-image-mini',
+    'Логотип для стартапа'
 );
 ```
 
@@ -364,9 +376,15 @@ public function text2image(string $model, string $prompt, array $options = []): 
 Генерация изображений на основе текстового описания.
 
 **Параметры:**
-- `$model` (string) - Модель генерации (например, "openai/dall-e-3", "stability-ai/stable-diffusion-xl")
+- `$model` (string) - Модель генерации (например, "openai/gpt-5-image", "google/gemini-2.5-flash-image")
 - `$prompt` (string) - Текстовое описание изображения
 - `$options` (array) - Дополнительные параметры
+
+**Поддерживаемые модели:**
+- `openai/gpt-5-image` - Высококачественная генерация изображений
+- `openai/gpt-5-image-mini` - Быстрая генерация с оптимизированной стоимостью
+- `google/gemini-2.5-flash-image` - Генерация изображений от Google
+- `google/gemini-2.5-flash-image-preview` - Preview версия Gemini
 
 **Опции:**
 - `size` (string) - Размер изображения (например, "1024x1024")
@@ -505,9 +523,11 @@ try {
 
 ### Модели для изображений
 
-**Генерация:**
-- `openai/dall-e-3` - Высококачественная генерация изображений
-- `stability-ai/stable-diffusion-xl` - Альтернатива с гибкими настройками
+**Генерация (Image Generation):**
+- `openai/gpt-5-image` - Высококачественная генерация изображений
+- `openai/gpt-5-image-mini` - Быстрая генерация с оптимизированной стоимостью
+- `google/gemini-2.5-flash-image` - Генерация изображений от Google
+- `google/gemini-2.5-flash-image-preview` - Preview версия Gemini
 
 **Анализ (Vision):**
 - `openai/gpt-4-vision-preview` - Анализ изображений и PDF
@@ -521,5 +541,7 @@ try {
 ## См. также
 
 - [OpenRouterMetrics документация](OPENROUTER_METRICS.md) - мониторинг использования и стоимости
+- [Поддерживаемые модели для генерации изображений](OPENROUTER_IMAGE_MODELS.md) - детальное описание моделей text2image
 - [Http документация](HTTP.md) - HTTP клиент
 - [Logger документация](LOGGER.md) - логирование запросов
+- [OpenRouter Image Generation](https://openrouter.ai/docs/features/multimodal/image-generation) - официальная документация

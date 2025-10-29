@@ -228,7 +228,7 @@ $openRouter = new OpenRouter($config, $logger);
 $response = $openRouter->text2text('openai/gpt-3.5-turbo', 'Привет, как дела?');
 
 // Text to Image - генерация изображений
-$imageUrl = $openRouter->text2image('openai/dall-e-3', 'Красивый закат над океаном');
+$imageUrl = $openRouter->text2image('openai/gpt-5-image', 'Красивый закат над океаном');
 
 // Image to Text - анализ изображений
 $description = $openRouter->image2text(

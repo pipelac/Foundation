@@ -13,7 +13,11 @@
 
 ### 2. text2image() - Генерация изображений ✅
 - **Endpoint:** `/images/generations`
-- **Модели:** `openai/dall-e-3`, `stability-ai/stable-diffusion-xl`
+- **Модели:**
+  - `openai/gpt-5-image` - Высококачественная генерация
+  - `openai/gpt-5-image-mini` - Быстрая генерация с оптимизированной стоимостью
+  - `google/gemini-2.5-flash-image` - Генерация от Google
+  - `google/gemini-2.5-flash-image-preview` - Preview версия
 - **Параметры:** `size`, `quality`, `n`
 - **Возвращает:** URL изображения
 
@@ -83,10 +87,23 @@ public function audio2text(string $model, string $audioUrl, array $options = [])
 
 ### Генерация изображения
 ```php
+// Высококачественная генерация
 $imageUrl = $openRouter->text2image(
-    'openai/dall-e-3',
+    'openai/gpt-5-image',
     'Красивый закат над океаном',
     ['size' => '1024x1024', 'quality' => 'hd']
+);
+
+// Быстрая генерация
+$imageUrl = $openRouter->text2image(
+    'openai/gpt-5-image-mini',
+    'Логотип для компании'
+);
+
+// Генерация через Google Gemini
+$imageUrl = $openRouter->text2image(
+    'google/gemini-2.5-flash-image',
+    'Абстрактное искусство'
 );
 ```
 

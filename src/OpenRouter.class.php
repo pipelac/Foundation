@@ -108,7 +108,7 @@ class OpenRouter
     /**
      * Генерирует изображение на основе текстового описания (text2image)
      *
-     * @param string $model Модель генерации изображений (например, "openai/dall-e-3", "stability-ai/stable-diffusion-xl")
+     * @param string $model Модель генерации изображений (например, "openai/gpt-5-image", "google/gemini-2.5-flash-image")
      * @param string $prompt Текстовое описание изображения для генерации
      * @param array<string, mixed> $options Дополнительные параметры запроса:
      *                                      - size (string): Размер изображения (например, "1024x1024")

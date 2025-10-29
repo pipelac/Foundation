@@ -16,7 +16,11 @@
 
 #### Text to Image
 - Использует `/images/generations` endpoint
-- Поддерживает модели: `openai/dall-e-3`, `stability-ai/stable-diffusion-xl`
+- Поддерживает модели:
+  - `openai/gpt-5-image` - Высококачественная генерация
+  - `openai/gpt-5-image-mini` - Быстрая генерация с оптимизированной стоимостью
+  - `google/gemini-2.5-flash-image` - Генерация от Google
+  - `google/gemini-2.5-flash-image-preview` - Preview версия
 - Параметры: `size`, `quality`, `n`
 
 #### PDF to Text
@@ -76,7 +80,7 @@ $openRouter = new OpenRouter([
 $text = $openRouter->text2text('openai/gpt-4', 'Привет!');
 
 // Генерация изображений
-$imageUrl = $openRouter->text2image('openai/dall-e-3', 'Красивый закат');
+$imageUrl = $openRouter->text2image('openai/gpt-5-image', 'Красивый закат');
 
 // Анализ изображений
 $description = $openRouter->image2text(
