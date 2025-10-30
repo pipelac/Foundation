@@ -1,0 +1,94 @@
+2025-10-30T18:50:48+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:50:48+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:50:48+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":393}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:50:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":393}
+2025-10-30T18:50:55+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:50:55+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:50:55+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":393}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:50:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":393}
+2025-10-30T18:52:03+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:52:03+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:52:03+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":939}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":5746}
+2025-10-30T18:52:03+00:00 DEBUG Начало парсинга HTML {"url":"http://example.com/page","html_size":5746}
+2025-10-30T18:52:10+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:52:10+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:52:10+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":939}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:52:10+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":5746}
+2025-10-30T18:52:11+00:00 DEBUG Начало парсинга HTML {"url":"http://example.com/page","html_size":5746}
+2025-10-30T18:53:21+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:53:21+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:53:21+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":939}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":5746}
+2025-10-30T18:53:21+00:00 DEBUG Начало парсинга HTML {"url":"http://example.com/page","html_size":5746}
+2025-10-30T18:54:48+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:54:48+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:54:48+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"not-a-url","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"ftp://example.com","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент не может быть пустым"}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":939}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:54:48+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com/empty","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":5746}
+2025-10-30T18:54:48+00:00 DEBUG Начало парсинга HTML {"url":"http://example.com/page","html_size":5746}
+2025-10-30T18:56:50+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:56:50+00:00 INFO WebtExtractor инициализирован {"timeout":20,"connect_timeout":5,"max_size":5242880,"retries":2,"proxy_enabled":false}
+2025-10-30T18:56:50+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/articles/test","html_size":5746}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/ru","html_size":5746}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/en","html_size":590}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"not-a-url","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"ftp://example.com","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент не может быть пустым"}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/minimal","html_size":939}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":5746}
+2025-10-30T18:56:50+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com/empty","error":"HTML контент слишком короткий (минимум 100 байт)"}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/long","html_size":64588}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/encoding","html_size":5746}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com/page","html_size":5746}
+2025-10-30T18:56:50+00:00 DEBUG Начало парсинга HTML {"url":"http://example.com/page","html_size":5746}

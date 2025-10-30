@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 /**
+ * Подключаем Composer autoloader для сторонних библиотек
+ */
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require __DIR__ . '/vendor/autoload.php';
+}
+
+/**
  * Простой автозагрузчик классов с поддержкой *.class.php
  */
 spl_autoload_register(static function (string $class): void {
