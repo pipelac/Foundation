@@ -108,34 +108,47 @@ class OpenRouter
     /**
      * Генерирует изображение на основе текстового описания (text2image)
      *
-     * @param string $model Модель генерации изображений (например, "openai/gpt-5-image", "google/gemini-2.5-flash-image")
+     * @param string $model Модель генерации изображений (например, "google/gemini-2.5-flash-image")
      * @param string $prompt Текстовое описание изображения для генерации
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - size (string): Размер изображения (например, "1024x1024")
-     *                                      - quality (string): Качество изображения ("standard", "hd")
-     *                                      - n (int): Количество изображений для генерации
-     * @return string URL сгенерированного изображения
+     *                                      - max_tokens (int): Максимальное количество токенов
+     * @return string Base64-encoded изображение или URL (в зависимости от модели)
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
-     * @throws OpenRouterException Если модель не вернула URL изображения
+     * @throws OpenRouterException Если модель не вернула изображение
      */
     public function text2image(string $model, string $prompt, array $options = []): string
     {
         $this->validateNotEmpty($model, 'model');
         $this->validateNotEmpty($prompt, 'prompt');
 
+        $messages = [
+            ['role' => 'user', 'content' => $prompt],
+        ];
+
         $payload = array_merge([
             'model' => $model,
-            'prompt' => $prompt,
+            'messages' => $messages,
         ], $options);
 
-        $response = $this->sendRequest('/images/generations', $payload);
+        $response = $this->sendRequest('/chat/completions', $payload);
 
-        if (!isset($response['data'][0]['url'])) {
-            throw new OpenRouterException('Модель не вернула URL изображения.');
+        // Проверяем наличие изображения в base64
+        if (isset($response['choices'][0]['message']['content'])) {
+            $content = $response['choices'][0]['message']['content'];
+            
+            // Если это массив с изображением
+            if (is_array($content) && isset($content[0]['image'])) {
+                return (string)$content[0]['image'];
+            }
+            
+            // Если это строка с base64
+            if (is_string($content)) {
+                return $content;
+            }
         }
 
-        return (string)$response['data'][0]['url'];
+        throw new OpenRouterException('Модель не вернула изображение.');
     }
 
     /**
