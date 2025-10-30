@@ -244,9 +244,6 @@ class Rss
      */
     private function configureSimplePie(SimplePie $feed): void
     {
-        // Отключаем встроенную загрузку - используем свой HTTP клиент
-        $feed->set_file_class(File::class);
-        
         // Настройка кеширования
         if ($this->enableCache && $this->cacheDirectory !== null) {
             $feed->set_cache_location($this->cacheDirectory);
@@ -256,14 +253,17 @@ class Rss
             $feed->enable_cache(false);
         }
 
-        // Настройка санитизации
-        $feed->enable_sanitizer($this->enableSanitization);
+        // Настройка санитизации HTML контента
+        // В SimplePie санитизация включена по умолчанию через объект Sanitize
+        // Если нужно отключить - можно использовать strip_htmltags с пустым массивом
+        if (!$this->enableSanitization) {
+            // Отключаем удаление потенциально опасных тегов
+            $feed->strip_htmltags([]);
+            $feed->strip_attributes([]);
+        }
         
         // Настройка обработки порядка элементов
         $feed->enable_order_by_date(true);
-        
-        // Отключаем автоматическое определение кодировки (будем доверять SimplePie)
-        $feed->set_autodiscovery_level(SIMPLEPIE_LOCATOR_ALL);
         
         // Таймаут (SimplePie использует внутренний File class)
         $feed->set_timeout($this->timeout);
@@ -272,7 +272,13 @@ class Rss
         $feed->set_useragent($this->userAgent);
         
         // Максимальная глубина проверки ссылок
-        $feed->set_autodiscovery_level(SIMPLEPIE_LOCATOR_AUTODISCOVERY | SIMPLEPIE_LOCATOR_LOCAL_EXTENSION);
+        $feed->set_autodiscovery_level(SimplePie::LOCATOR_AUTODISCOVERY | SimplePie::LOCATOR_LOCAL_EXTENSION);
+        
+        $this->logInfo('SimplePie настроен', [
+            'cache_enabled' => $this->enableCache,
+            'sanitization_enabled' => $this->enableSanitization,
+            'timeout' => $this->timeout,
+        ]);
     }
 
     /**
@@ -406,16 +412,26 @@ class Rss
      */
     private function normalizeFeed(SimplePie $feed): array
     {
+        $feedType = $this->determineFeedType($feed);
+        $title = $this->safeGetString($feed->get_title());
+        $items = $this->extractItems($feed);
+        
+        $this->logInfo('Нормализация данных ленты', [
+            'type' => $feedType,
+            'title' => $title,
+            'items_count' => count($items),
+        ]);
+        
         return [
-            'type' => $this->determineFeedType($feed),
-            'title' => $this->safeGetString($feed->get_title()),
+            'type' => $feedType,
+            'title' => $title,
             'description' => $this->safeGetString($feed->get_description()),
             'link' => $this->safeGetString($feed->get_link()),
             'language' => $this->safeGetString($feed->get_language()),
             'image' => $this->extractImageUrl($feed),
             'copyright' => $this->safeGetString($feed->get_copyright()),
-            'generator' => $this->safeGetString($feed->get_generator()),
-            'items' => $this->extractItems($feed),
+            'generator' => '', // SimplePie не предоставляет get_generator() в текущей версии
+            'items' => $items,
         ];
     }
 
@@ -434,11 +450,11 @@ class Rss
         }
         
         // SimplePie возвращает битовую маску типов
-        if ($type & SIMPLEPIE_TYPE_RSS_ALL) {
+        if ($type & SimplePie::TYPE_RSS_ALL) {
             return self::FEED_TYPE_RSS;
         }
         
-        if ($type & SIMPLEPIE_TYPE_ATOM_ALL) {
+        if ($type & SimplePie::TYPE_ATOM_ALL) {
             return self::FEED_TYPE_ATOM;
         }
         

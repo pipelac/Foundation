@@ -1,0 +1,102 @@
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":15,"max_size":5242880,"cache_enabled":true}
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":false}
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":1024,"cache_enabled":true}
+2025-10-30T19:37:19+00:00 INFO RSS клиент инициализирован {"timeout":20,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:19+00:00 INFO Начало загрузки RSS ленты {"url":"https://habr.com/ru/rss/all/all/"}
+2025-10-30T19:37:19+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:37:20+00:00 INFO HTTP запрос выполнен [GET https://habr.com/ru/rss/all/all/] код 200 {"method":"GET","uri":"https://habr.com/ru/rss/all/all/","status_code":200,"duration":1.043,"body_size":83419,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:37:20+00:00 INFO Нормализация данных ленты {"type":"rss","title":"Все публикации подряд на Хабре","items_count":40}
+2025-10-30T19:37:20+00:00 INFO RSS лента успешно загружена {"url":"https://habr.com/ru/rss/all/all/","type":"rss","items_count":40}
+2025-10-30T19:37:21+00:00 INFO Начало загрузки RSS ленты {"url":"http://feeds.bbci.co.uk/news/rss.xml"}
+2025-10-30T19:37:21+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:37:21+00:00 INFO HTTP запрос выполнен [GET http://feeds.bbci.co.uk/news/rss.xml] код 200 {"method":"GET","uri":"http://feeds.bbci.co.uk/news/rss.xml","status_code":200,"duration":0.337,"body_size":22928,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:37:21+00:00 INFO Нормализация данных ленты {"type":"rss","title":"BBC News","items_count":30}
+2025-10-30T19:37:21+00:00 INFO RSS лента успешно загружена {"url":"http://feeds.bbci.co.uk/news/rss.xml","type":"rss","items_count":30}
+2025-10-30T19:37:22+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:37:22+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:37:22+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.087,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:37:22+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:37:22+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:37:23+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:37:23+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:37:23+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.019,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:37:23+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:37:23+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:37:23+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:23+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:37:23+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:37:23+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.101,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:37:23+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:37:23+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:37:23+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:37:23+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:37:23+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.02,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:37:23+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:37:23+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:37:23+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:23+00:00 INFO Начало загрузки RSS ленты {"url":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml"}
+2025-10-30T19:37:23+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:37:23+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","exception":"cURL error 6: Could not resolve host: this-domain-definitely-does-not-exist-12345678.com (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","code":0,"duration":0.055}
+2025-10-30T19:37:23+00:00 ERROR Ошибка загрузки ленты {"url":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET http://this-domain-definitely-does-not-exist-12345678.com/feed.xml]: cURL error 6: Could not resolve host: this-domain-definitely-does-not-exist-12345678.com (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","code":0}
+2025-10-30T19:37:23+00:00 INFO Начало загрузки RSS ленты {"url":"https://httpstat.us/404"}
+2025-10-30T19:37:23+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:37:24+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"https://httpstat.us/404","exception":"cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/404","code":0,"duration":0.232}
+2025-10-30T19:37:24+00:00 ERROR Ошибка загрузки ленты {"url":"https://httpstat.us/404","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET https://httpstat.us/404]: cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/404","code":0}
+2025-10-30T19:37:24+00:00 INFO RSS клиент инициализирован {"timeout":1,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:37:24+00:00 INFO Начало загрузки RSS ленты {"url":"https://httpstat.us/200?sleep=5000"}
+2025-10-30T19:37:24+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":1}
+2025-10-30T19:37:24+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"https://httpstat.us/200?sleep=5000","exception":"cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/200?sleep=5000","code":0,"duration":0.242}
+2025-10-30T19:37:24+00:00 ERROR Ошибка загрузки ленты {"url":"https://httpstat.us/200?sleep=5000","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET https://httpstat.us/200?sleep=5000]: cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/200?sleep=5000","code":0}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":15,"max_size":5242880,"cache_enabled":true}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":false}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":1024,"cache_enabled":true}
+2025-10-30T19:39:52+00:00 INFO RSS клиент инициализирован {"timeout":20,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:52+00:00 INFO Начало загрузки RSS ленты {"url":"https://habr.com/ru/rss/all/all/"}
+2025-10-30T19:39:52+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:39:53+00:00 INFO HTTP запрос выполнен [GET https://habr.com/ru/rss/all/all/] код 200 {"method":"GET","uri":"https://habr.com/ru/rss/all/all/","status_code":200,"duration":1.062,"body_size":83419,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:39:53+00:00 INFO Нормализация данных ленты {"type":"rss","title":"Все публикации подряд на Хабре","items_count":40}
+2025-10-30T19:39:53+00:00 INFO RSS лента успешно загружена {"url":"https://habr.com/ru/rss/all/all/","type":"rss","items_count":40}
+2025-10-30T19:39:54+00:00 INFO Начало загрузки RSS ленты {"url":"http://feeds.bbci.co.uk/news/rss.xml"}
+2025-10-30T19:39:54+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:39:54+00:00 INFO HTTP запрос выполнен [GET http://feeds.bbci.co.uk/news/rss.xml] код 200 {"method":"GET","uri":"http://feeds.bbci.co.uk/news/rss.xml","status_code":200,"duration":0.221,"body_size":22928,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:39:54+00:00 INFO Нормализация данных ленты {"type":"rss","title":"BBC News","items_count":30}
+2025-10-30T19:39:54+00:00 INFO RSS лента успешно загружена {"url":"http://feeds.bbci.co.uk/news/rss.xml","type":"rss","items_count":30}
+2025-10-30T19:39:55+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:39:55+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:39:55+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.097,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:39:55+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:39:55+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:39:56+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:39:56+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:39:57+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.019,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:39:57+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:39:57+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:39:57+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:57+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:39:57+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:39:57+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.098,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:39:57+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:39:57+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:39:57+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:39:57+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:39:57+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.02,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:39:57+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:39:57+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:39:57+00:00 INFO RSS клиент инициализирован {"timeout":10,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:57+00:00 INFO Начало загрузки RSS ленты {"url":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml"}
+2025-10-30T19:39:57+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:39:57+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","exception":"cURL error 6: Could not resolve host: this-domain-definitely-does-not-exist-12345678.com (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","code":0,"duration":0.037}
+2025-10-30T19:39:57+00:00 ERROR Ошибка загрузки ленты {"url":"http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET http://this-domain-definitely-does-not-exist-12345678.com/feed.xml]: cURL error 6: Could not resolve host: this-domain-definitely-does-not-exist-12345678.com (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for http://this-domain-definitely-does-not-exist-12345678.com/feed.xml","code":0}
+2025-10-30T19:39:57+00:00 INFO Начало загрузки RSS ленты {"url":"https://httpstat.us/404"}
+2025-10-30T19:39:57+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":10}
+2025-10-30T19:39:57+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"https://httpstat.us/404","exception":"cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/404","code":0,"duration":0.235}
+2025-10-30T19:39:57+00:00 ERROR Ошибка загрузки ленты {"url":"https://httpstat.us/404","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET https://httpstat.us/404]: cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/404","code":0}
+2025-10-30T19:39:57+00:00 INFO RSS клиент инициализирован {"timeout":1,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:39:57+00:00 INFO Начало загрузки RSS ленты {"url":"https://httpstat.us/200?sleep=5000"}
+2025-10-30T19:39:57+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":1}
+2025-10-30T19:39:57+00:00 ERROR Ошибка HTTP запроса {"method":"GET","uri":"https://httpstat.us/200?sleep=5000","exception":"cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/200?sleep=5000","code":0,"duration":0.203}
+2025-10-30T19:39:57+00:00 ERROR Ошибка загрузки ленты {"url":"https://httpstat.us/200?sleep=5000","error":"Ошибка загрузки контента: Ошибка HTTP запроса [GET https://httpstat.us/200?sleep=5000]: cURL error 52: Empty reply from server (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://httpstat.us/200?sleep=5000","code":0}
