@@ -95,8 +95,8 @@ class Telegram
      */
     public function __construct(array $config, ?Logger $logger = null)
     {
-        $this->validateAndInitializeConfig($config);
         $this->logger = $logger;
+        $this->validateAndInitializeConfig($config);
 
         $httpConfig = [
             'base_uri' => self::BASE_URL . $this->token . '/',
@@ -153,7 +153,7 @@ class Telegram
      */
     private function isValidToken(string $token): bool
     {
-        return (bool)preg_match('/^\d+:[A-Za-z0-9_-]{35}$/', $token);
+        return (bool)preg_match('/^\d{7,}:[A-Za-z0-9_-]{30,}$/', $token);
     }
 
     /**
