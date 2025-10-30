@@ -145,16 +145,24 @@ class MySQL
      */
     private function validateConfig(array $config): void
     {
-        if (!isset($config['database']) || trim((string)$config['database']) === '') {
-            throw new MySQLException('Не указано имя базы данных в конфигурации');
+        if (!isset($config['database'])) {
+            throw new MySQLException('Параметр "database" обязателен');
+        }
+        
+        if (trim((string)$config['database']) === '') {
+            throw new MySQLException('Параметр "database" не может быть пустым');
         }
 
         if (!isset($config['username'])) {
-            throw new MySQLException('Не указано имя пользователя БД в конфигурации');
+            throw new MySQLException('Параметр "username" обязателен');
+        }
+        
+        if (trim((string)$config['username']) === '') {
+            throw new MySQLException('Параметр "username" не может быть пустым');
         }
 
         if (!isset($config['password'])) {
-            throw new MySQLException('Не указан пароль для подключения к БД в конфигурации');
+            throw new MySQLException('Параметр "password" обязателен');
         }
     }
 
