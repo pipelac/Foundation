@@ -230,7 +230,14 @@ class WebtExtractor
 
             return $result;
             
-        } catch (WebtExtractorValidationException | WebtExtractorException $e) {
+        } catch (WebtExtractorValidationException $e) {
+            $this->logError('Ошибка валидации URL', [
+                'url' => $url, 
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+            throw $e;
+        } catch (WebtExtractorException $e) {
             $this->logError('Ошибка извлечения контента', [
                 'url' => $url, 
                 'error' => $e->getMessage(),
@@ -312,7 +319,17 @@ class WebtExtractor
                 'error' => $e->getMessage(),
             ]);
             throw new WebtExtractorException('Ошибка парсинга контента: ' . $e->getMessage(), 0, $e);
-        } catch (WebtExtractorValidationException | WebtExtractorException $e) {
+        } catch (WebtExtractorValidationException $e) {
+            $this->logError('Ошибка валидации параметров', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        } catch (WebtExtractorException $e) {
+            $this->logError('Ошибка извлечения контента', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         } catch (Exception $e) {
             $this->logError('Критическая ошибка парсинга HTML', [
@@ -432,7 +449,12 @@ class WebtExtractor
             'language' => $this->detectLanguage($textContent),
             'images' => [], // Заполняется позже если требуется
             'links' => [], // Заполняется позже если требуется
-            'metadata' => [], // Заполняется позже если требуется
+            'metadata' => [
+                'open_graph' => [],
+                'twitter_card' => [],
+                'meta' => [],
+                'json_ld' => [],
+            ], // Заполняется позже если требуется
             'word_count' => $wordCount,
             'read_time' => $this->calculateReadTime($wordCount),
             'extracted_at' => date('Y-m-d H:i:s'),
