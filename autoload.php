@@ -7,6 +7,7 @@ declare(strict_types=1);
  */
 spl_autoload_register(static function (string $class): void {
     $prefixes = [
+        'App\\Component\\' => __DIR__ . '/src/',
         'App\\' => __DIR__ . '/src/',
         'Cache\\' => __DIR__ . '/src/Cache/',
     ];
