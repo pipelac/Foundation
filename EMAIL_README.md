@@ -11,6 +11,7 @@
 - **Вложений** с автоопределением MIME типов
 - **Множественных получателей** (to, cc, bcc)
 - **Гибкой конфигурации** через файл или конструктор
+- **Интеграции с testmail.app** для тестирования отправки писем
 
 ## Установка и использование
 
@@ -489,6 +490,29 @@ php examples/email_example.php
 ```php
 'charset' => 'UTF-8', // Для поддержки кириллицы
 ```
+
+## Тестирование с testmail.app
+
+Для детального тестирования отправки электронных писем рекомендуется использовать сервис [testmail.app](https://testmail.app/).
+
+### Быстрый старт
+
+```bash
+# 1. Настройте креденшиалы testmail.app
+./bin/setup-testmail.sh
+
+# 2. Запустите интеграционные тесты
+vendor/bin/phpunit tests/Integration/EmailTestmailTest.php
+
+# 3. Запустите пример отправки
+php examples/email_testmail_example.php
+```
+
+### Документация по тестированию
+
+- **Детальное руководство:** [docs/EMAIL_TESTMAIL_TESTING.md](docs/EMAIL_TESTMAIL_TESTING.md)
+- **Интеграционные тесты:** [tests/Integration/EmailTestmailTest.php](tests/Integration/EmailTestmailTest.php)
+- **Пример использования:** [examples/email_testmail_example.php](examples/email_testmail_example.php)
 
 ## Поддержка
 

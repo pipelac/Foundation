@@ -69,7 +69,7 @@ class EmailTest extends TestCase
     public function testThrowsExceptionWhenFromEmailMissing(): void
     {
         $this->expectException(EmailValidationException::class);
-        $this->expectExceptionMessageMatches('/from_email/');
+        $this->expectExceptionMessageMatches('/адрес.*отправителя/i');
         
         new Email([]);
     }
