@@ -120,7 +120,8 @@ class Logger
      */
     private function initializeConfiguration(array $config): void
     {
-        $this->fileName = (string)($config['file_name'] ?? 'app.log');
+        $fileName = (string)($config['file_name'] ?? 'app.log');
+        $this->fileName = $fileName !== '' ? $fileName : 'app.log';
         $this->maxFiles = max(1, (int)($config['max_files'] ?? 5));
         
         $maxFileSizeMb = (int)($config['max_file_size'] ?? 1);
