@@ -47,13 +47,18 @@ class FileCacheConfig
 
     public function __construct(array $config = [])
     {
+        // Проверяем пустую директорию ДО установки значения по умолчанию
+        if (isset($config['cacheDirectory']) && $config['cacheDirectory'] === '') {
+            throw new InvalidArgumentException('Директория кэша не может быть пустой строкой.');
+        }
+
         foreach ($config as $property => $value) {
             if (property_exists($this, $property)) {
                 $this->$property = $value;
             }
         }
 
-        if (!isset($config['cacheDirectory']) || $config['cacheDirectory'] === '') {
+        if (!isset($config['cacheDirectory'])) {
             $this->cacheDirectory = sys_get_temp_dir() . '/file_cache';
         }
 

@@ -1846,12 +1846,18 @@ class FileCache
     /**
      * Декодирует JSON-строку
      * 
+     * ВАЖНО: JSON сериализатор преобразует объекты PHP в ассоциативные массивы,
+     * так как это единственный способ корректно работать со структурой данных кэша.
+     * Это ограничение формата JSON. Для сохранения типов объектов используйте
+     * сериализатор 'native', 'igbinary' или 'msgpack'.
+     * 
      * @param string $data JSON-строка
      * @return mixed Декодированное значение
      * @throws RuntimeException Если не удается декодировать JSON
      */
     private function decodeJson(string $data): mixed
     {
+        // Используем true (ассоциативный массив) для совместимости со структурой данных кэша
         $decoded = json_decode($data, true, 512, $this->config->jsonOptions);
         if ($decoded === null && $data !== 'null' && ($this->config->jsonOptions & JSON_THROW_ON_ERROR) === 0) {
             throw new RuntimeException('Не удалось декодировать JSON: ' . json_last_error_msg());
