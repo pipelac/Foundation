@@ -16,43 +16,40 @@ use App\Component\Exception\HttpException;
  * API документация: https://htmlweb.ru/analiz/proxy_list.php#api
  * 
  * Поддерживаемые параметры:
- * - country: Код страны (RU, US и т.д.)
- * - country_not: Исключить страны
- * - perpage: Количество прокси на странице (макс 50)
- * - work: Тип работы (yes, maybe, no)
- * - type: Тип прокси (http, https, socks4, socks5)
- * - speed_max: Максимальная скорость в мс
- * - page: Номер страницы
- * - short: Краткий формат вывода (only_ip)
+ * - api_key: API ключ из профиля (обязательный)
+ * - country: Код страны (RU, US и т.д.) или список через запятую
+ * - country_not: Исключить страны, через запятую
+ * - perpage: Количество прокси на странице (по умолчанию 20, за каждые 20 списывается 1 запрос)
+ * - work: Работоспособность из России (1 - работает, 0 - не работает)
+ * - type: Тип прокси (HTTP, HTTPS, SOCKS4, SOCKS5)
+ * - p: Номер страницы (с какого прокси начинать выдачу)
+ * - short: Краткий формат вывода (пустое, 2, 4)
  */
 class htmlWebProxyList
 {
     /**
      * URL API для получения списка прокси
      */
-    private const API_URL = 'https://htmlweb.ru/analiz/proxy_list.php';
+    private const API_URL = 'http://htmlweb.ru/json/proxy/get';
     
     /**
      * Значения по умолчанию
      */
     private const DEFAULT_TIMEOUT = 10;
-    private const DEFAULT_PERPAGE = 50;
-    private const DEFAULT_PAGE = 1;
-    private const DEFAULT_TYPE = 'http';
+    private const DEFAULT_PERPAGE = 20;
     
     /**
      * Максимальные значения для валидации
      */
-    private const MAX_PERPAGE = 50;
-    private const MAX_SPEED = 10000;
+    private const MAX_SPEED = 100000;
     private const MIN_SPEED = 0;
     
     /**
      * Допустимые значения параметров
      */
-    private const ALLOWED_WORK_VALUES = ['yes', 'maybe', 'no'];
-    private const ALLOWED_TYPE_VALUES = ['http', 'https', 'socks4', 'socks5'];
-    private const ALLOWED_SHORT_VALUES = ['only_ip'];
+    private const ALLOWED_WORK_VALUES = [0, 1];
+    private const ALLOWED_TYPE_VALUES = ['HTTP', 'HTTPS', 'SOCKS4', 'SOCKS5'];
+    private const ALLOWED_SHORT_VALUES = ['', '2', '4', 2, 4];
     
     /**
      * HTTP клиент для выполнения запросов
@@ -74,25 +71,42 @@ class htmlWebProxyList
      * @var array<string, mixed>
      */
     private array $params;
+    
+    /**
+     * API ключ для доступа к htmlweb.ru
+     */
+    private string $apiKey;
+    
+    /**
+     * Остаток доступных запросов из последнего ответа API
+     */
+    private ?int $remainingLimit = null;
 
     /**
      * Конструктор класса HtmlWebProxyList
      * 
+     * @param string $apiKey API ключ из профиля htmlweb.ru (обязательный)
      * @param array<string, mixed> $config Конфигурация для получения прокси:
-     *   - country: Код страны (например: RU, US, GB) (string)
-     *   - country_not: Исключить страны, через запятую (string)
-     *   - perpage: Количество прокси на странице, максимум 50 (int)
-     *   - work: Фильтр по работоспособности: yes, maybe, no (string)
-     *   - type: Тип прокси: http, https, socks4, socks5 (string)
-     *   - speed_max: Максимальная скорость прокси в миллисекундах (int)
-     *   - page: Номер страницы (int)
-     *   - short: Краткий формат вывода: only_ip (string)
+     *   - country: Код страны (например: RU, US, GB) или список через запятую (string|array)
+     *   - country_not: Исключить страны, через запятую (string|array)
+     *   - perpage: Количество прокси на странице (int, по умолчанию 20)
+     *   - work: Фильтр по работоспособности из России: 1 (работает), 0 (не работает) (int)
+     *   - type: Тип прокси: HTTP, HTTPS, SOCKS4, SOCKS5 (string)
+     *   - p: Номер страницы (int)
+     *   - short: Краткий формат вывода: пустое, 2 (с протоколами), 4 (текстовый список) (int|string)
      *   - timeout: Таймаут HTTP запроса в секундах (int)
      * @param Logger|null $logger Инстанс логгера для записи событий
      * @throws HtmlWebProxyListValidationException Если конфигурация некорректна
      */
-    public function __construct(array $config = [], ?Logger $logger = null)
+    public function __construct(string $apiKey, array $config = [], ?Logger $logger = null)
     {
+        if (empty($apiKey)) {
+            throw new HtmlWebProxyListValidationException(
+                'API ключ (api_key) является обязательным параметром'
+            );
+        }
+        
+        $this->apiKey = $apiKey;
         $this->logger = $logger;
         $this->timeout = max(1, (int)($config['timeout'] ?? self::DEFAULT_TIMEOUT));
         
@@ -105,7 +119,7 @@ class htmlWebProxyList
             'allow_redirects' => true,
             'headers' => [
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept' => 'application/json,text/html,*/*',
             ],
         ], $logger);
         
@@ -126,42 +140,55 @@ class htmlWebProxyList
     {
         $params = [];
         
+        // Параметр country - код страны или список через запятую
         if (isset($config['country'])) {
-            $country = trim((string)$config['country']);
+            if (is_array($config['country'])) {
+                $country = implode(',', array_map('strtoupper', $config['country']));
+            } else {
+                $country = trim((string)$config['country']);
+            }
             if ($country !== '') {
                 $params['country'] = strtoupper($country);
             }
         }
         
+        // Параметр country_not - исключить страны
         if (isset($config['country_not'])) {
-            $countryNot = trim((string)$config['country_not']);
+            if (is_array($config['country_not'])) {
+                $countryNot = implode(',', array_map('strtoupper', $config['country_not']));
+            } else {
+                $countryNot = trim((string)$config['country_not']);
+            }
             if ($countryNot !== '') {
                 $params['country_not'] = strtoupper($countryNot);
             }
         }
         
+        // Параметр perpage - количество прокси на странице
         if (isset($config['perpage'])) {
             $perpage = (int)$config['perpage'];
-            if ($perpage < 1 || $perpage > self::MAX_PERPAGE) {
+            if ($perpage < 1) {
                 throw new HtmlWebProxyListValidationException(
-                    "Параметр perpage должен быть от 1 до " . self::MAX_PERPAGE . ", указано: {$perpage}"
+                    "Параметр perpage должен быть больше 0, указано: {$perpage}"
                 );
             }
             $params['perpage'] = $perpage;
         }
         
+        // Параметр work - работоспособность из России (1 - работает, 0 - не работает)
         if (isset($config['work'])) {
-            $work = trim(strtolower((string)$config['work']));
+            $work = (int)$config['work'];
             if (!in_array($work, self::ALLOWED_WORK_VALUES, true)) {
                 throw new HtmlWebProxyListValidationException(
-                    "Параметр work должен быть одним из: " . implode(', ', self::ALLOWED_WORK_VALUES) . ", указано: {$work}"
+                    "Параметр work должен быть 1 (работает из России) или 0 (не работает), указано: {$work}"
                 );
             }
             $params['work'] = $work;
         }
         
+        // Параметр type - тип прокси (HTTP, HTTPS, SOCKS4, SOCKS5)
         if (isset($config['type'])) {
-            $type = trim(strtolower((string)$config['type']));
+            $type = strtoupper(trim((string)$config['type']));
             if (!in_array($type, self::ALLOWED_TYPE_VALUES, true)) {
                 throw new HtmlWebProxyListValidationException(
                     "Параметр type должен быть одним из: " . implode(', ', self::ALLOWED_TYPE_VALUES) . ", указано: {$type}"
@@ -170,34 +197,28 @@ class htmlWebProxyList
             $params['type'] = $type;
         }
         
-        if (isset($config['speed_max'])) {
-            $speedMax = (int)$config['speed_max'];
-            if ($speedMax < self::MIN_SPEED || $speedMax > self::MAX_SPEED) {
-                throw new HtmlWebProxyListValidationException(
-                    "Параметр speed_max должен быть от " . self::MIN_SPEED . " до " . self::MAX_SPEED . ", указано: {$speedMax}"
-                );
-            }
-            $params['speed_max'] = $speedMax;
-        }
-        
-        if (isset($config['page'])) {
-            $page = (int)$config['page'];
+        // Параметр p - номер страницы
+        if (isset($config['p'])) {
+            $page = (int)$config['p'];
             if ($page < 1) {
                 throw new HtmlWebProxyListValidationException(
-                    "Параметр page должен быть больше 0, указано: {$page}"
+                    "Параметр p (номер страницы) должен быть больше 0, указано: {$page}"
                 );
             }
-            $params['page'] = $page;
+            $params['p'] = $page;
         }
         
+        // Параметр short - краткий формат вывода (пустое, 2, 4)
         if (isset($config['short'])) {
-            $short = trim(strtolower((string)$config['short']));
-            if ($short !== '' && !in_array($short, self::ALLOWED_SHORT_VALUES, true)) {
+            $short = $config['short'];
+            // Приводим к строке для проверки
+            $shortStr = (string)$short;
+            if ($shortStr !== '' && !in_array($short, self::ALLOWED_SHORT_VALUES, true)) {
                 throw new HtmlWebProxyListValidationException(
-                    "Параметр short должен быть одним из: " . implode(', ', self::ALLOWED_SHORT_VALUES) . ", указано: {$short}"
+                    "Параметр short должен быть пустым, 2 или 4, указано: {$short}"
                 );
             }
-            if ($short !== '') {
+            if ($shortStr !== '') {
                 $params['short'] = $short;
             }
         }
@@ -214,12 +235,15 @@ class htmlWebProxyList
     public function getProxies(): array
     {
         try {
+            // Добавляем api_key к параметрам запроса
+            $queryParams = array_merge($this->params, ['api_key' => $this->apiKey]);
+            
             $this->logInfo('Запрос списка прокси с htmlweb.ru', [
                 'params' => $this->params,
             ]);
             
             $response = $this->http->get(self::API_URL, [
-                'query' => $this->params,
+                'query' => $queryParams,
             ]);
             
             $statusCode = $response->getStatusCode();
@@ -241,6 +265,7 @@ class htmlWebProxyList
             
             $this->logInfo('Получен список прокси', [
                 'count' => count($proxies),
+                'remaining_limit' => $this->remainingLimit,
             ]);
             
             return $proxies;
@@ -262,8 +287,10 @@ class htmlWebProxyList
      * Парсит ответ API и извлекает список прокси
      * 
      * API может возвращать данные в разных форматах:
-     * - HTML таблица с прокси
-     * - Текстовый список (при использовании short=only_ip)
+     * - JSON с полной информацией о прокси (по умолчанию)
+     * - JSON со списком прокси (short)
+     * - JSON со списком прокси с протоколами (short=2)
+     * - Текстовый список IP:PORT (short=4)
      * 
      * @param string $body Тело ответа от API
      * @return array<int, string> Массив URL прокси серверов
@@ -273,10 +300,12 @@ class htmlWebProxyList
     {
         $proxies = [];
         
-        if (isset($this->params['short']) && $this->params['short'] === 'only_ip') {
-            $proxies = $this->parseShortFormat($body);
+        // Проверяем формат short=4 (текстовый список)
+        if (isset($this->params['short']) && (int)$this->params['short'] === 4) {
+            $proxies = $this->parseTextFormat($body);
         } else {
-            $proxies = $this->parseHtmlFormat($body);
+            // JSON формат (по умолчанию, short или short=2)
+            $proxies = $this->parseJsonFormat($body);
         }
         
         if (empty($proxies)) {
@@ -287,7 +316,77 @@ class htmlWebProxyList
     }
 
     /**
-     * Парсит краткий формат вывода (short=only_ip)
+     * Парсит JSON формат ответа API
+     * 
+     * Форматы ответа:
+     * 1. По умолчанию: {"0":{"name":"IP:PORT","work":1,"type":"HTTP","speed":94,...},"limit":9323}
+     * 2. short: {"0":"IP:PORT","1":"IP:PORT",...,"limit":18}
+     * 3. short=2: {"0":"protocol://IP:PORT","1":"protocol://IP:PORT",...,"limit":18}
+     * 
+     * @param string $body Тело ответа в JSON формате
+     * @return array<int, string> Массив URL прокси
+     * @throws HtmlWebProxyListException Если не удалось декодировать JSON
+     */
+    private function parseJsonFormat(string $body): array
+    {
+        $proxies = [];
+        
+        // Декодируем JSON
+        $data = json_decode($body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new HtmlWebProxyListException(
+                'Ошибка парсинга JSON ответа от API: ' . json_last_error_msg()
+            );
+        }
+        
+        if (!is_array($data)) {
+            throw new HtmlWebProxyListException(
+                'API вернул некорректный формат данных'
+            );
+        }
+        
+        // Извлекаем поле limit (остаток запросов)
+        if (isset($data['limit'])) {
+            $this->remainingLimit = (int)$data['limit'];
+            unset($data['limit']);
+        }
+        
+        // Проверяем на ошибки в ответе
+        if (isset($data['error'])) {
+            throw new HtmlWebProxyListException(
+                'API вернул ошибку: ' . $data['error']
+            );
+        }
+        
+        // Парсим прокси в зависимости от формата
+        $shortFormat = $this->params['short'] ?? null;
+        
+        foreach ($data as $key => $value) {
+            // Пропускаем не числовые ключи
+            if (!is_numeric($key)) {
+                continue;
+            }
+            
+            if ($shortFormat === 2 || $shortFormat === '2') {
+                // short=2: прокси уже с протоколом (protocol://IP:PORT)
+                $proxies[] = $this->normalizeProxyUrl((string)$value);
+            } elseif ($shortFormat !== null && $shortFormat !== '') {
+                // short (без значения): только IP:PORT
+                $proxies[] = $this->buildProxyUrl((string)$value);
+            } elseif (is_array($value) && isset($value['name'])) {
+                // Полный формат: извлекаем name и type
+                $proxyAddress = (string)$value['name'];
+                $proxyType = isset($value['type']) ? strtolower((string)$value['type']) : 'http';
+                $proxies[] = "{$proxyType}://{$proxyAddress}";
+            }
+        }
+        
+        return $proxies;
+    }
+
+    /**
+     * Парсит текстовый формат вывода (short=4)
      * 
      * Формат: IP:PORT на каждой строке
      * Пример:
@@ -297,12 +396,10 @@ class htmlWebProxyList
      * @param string $body Тело ответа
      * @return array<int, string> Массив URL прокси
      */
-    private function parseShortFormat(string $body): array
+    private function parseTextFormat(string $body): array
     {
         $proxies = [];
         $lines = explode("\n", $body);
-        
-        $type = $this->params['type'] ?? self::DEFAULT_TYPE;
         
         foreach ($lines as $line) {
             $line = trim($line);
@@ -316,44 +413,41 @@ class htmlWebProxyList
                 $port = $matches[2];
                 
                 if ($this->validateIpAddress($ip) && $this->validatePort((int)$port)) {
-                    $proxies[] = "{$type}://{$ip}:{$port}";
+                    $proxies[] = $this->buildProxyUrl("{$ip}:{$port}");
                 }
             }
         }
         
         return $proxies;
     }
-
+    
     /**
-     * Парсит HTML формат вывода
+     * Строит URL прокси с протоколом
      * 
-     * Извлекает прокси из HTML таблицы
-     * 
-     * @param string $body Тело ответа в HTML формате
-     * @return array<int, string> Массив URL прокси
+     * @param string $address Адрес прокси в формате IP:PORT
+     * @return string URL прокси с протоколом
      */
-    private function parseHtmlFormat(string $body): array
+    private function buildProxyUrl(string $address): string
     {
-        $proxies = [];
-        
-        $type = $this->params['type'] ?? self::DEFAULT_TYPE;
-        
-        if (preg_match_all('/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)/', $body, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $ip = $match[1];
-                $port = $match[2];
-                
-                if ($this->validateIpAddress($ip) && $this->validatePort((int)$port)) {
-                    $proxyUrl = "{$type}://{$ip}:{$port}";
-                    
-                    if (!in_array($proxyUrl, $proxies, true)) {
-                        $proxies[] = $proxyUrl;
-                    }
-                }
-            }
+        $type = strtolower($this->params['type'] ?? 'http');
+        return "{$type}://{$address}";
+    }
+    
+    /**
+     * Нормализует URL прокси (добавляет протокол если отсутствует)
+     * 
+     * @param string $url URL прокси
+     * @return string Нормализованный URL
+     */
+    private function normalizeProxyUrl(string $url): string
+    {
+        // Если URL уже содержит протокол, возвращаем как есть
+        if (preg_match('/^[a-z0-9]+:\/\//i', $url)) {
+            return $url;
         }
         
-        return $proxies;
+        // Иначе добавляем протокол по умолчанию
+        return $this->buildProxyUrl($url);
     }
 
     /**
@@ -422,6 +516,16 @@ class htmlWebProxyList
         $this->params = [];
         
         $this->logInfo('Параметры сброшены к значениям по умолчанию');
+    }
+    
+    /**
+     * Возвращает остаток доступных запросов из последнего ответа API
+     * 
+     * @return int|null Остаток запросов или null если запросы еще не выполнялись
+     */
+    public function getRemainingLimit(): ?int
+    {
+        return $this->remainingLimit;
     }
 
     /**

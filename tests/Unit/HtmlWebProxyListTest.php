@@ -23,6 +23,7 @@ use PHPUnit\Framework\TestCase;
 class HtmlWebProxyListTest extends TestCase
 {
     private string $testLogDirectory;
+    private string $testApiKey = 'test_api_key_12345';
     
     /**
      * Настройка окружения перед каждым тестом
@@ -69,9 +70,20 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testSuccessfulInitializationWithMinimalConfig(): void
     {
-        $htmlWebProxy = new htmlWebProxyList();
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey);
         
         $this->assertInstanceOf(htmlWebProxyList::class, $htmlWebProxy);
+    }
+    
+    /**
+     * Тест: Валидация - пустой API ключ
+     */
+    public function testValidationEmptyApiKey(): void
+    {
+        $this->expectException(HtmlWebProxyListValidationException::class);
+        $this->expectExceptionMessage('API ключ (api_key) является обязательным параметром');
+        
+        new htmlWebProxyList('');
     }
     
     /**
@@ -79,13 +91,12 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testInitializationWithFullConfig(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'country' => 'US',
             'perpage' => 30,
-            'work' => 'yes',
-            'type' => 'http',
-            'speed_max' => 1000,
-            'page' => 1,
+            'work' => 1,
+            'type' => 'HTTP',
+            'p' => 1,
             'timeout' => 15,
         ]);
         
@@ -94,10 +105,9 @@ class HtmlWebProxyListTest extends TestCase
         $params = $htmlWebProxy->getParams();
         $this->assertEquals('US', $params['country']);
         $this->assertEquals(30, $params['perpage']);
-        $this->assertEquals('yes', $params['work']);
-        $this->assertEquals('http', $params['type']);
-        $this->assertEquals(1000, $params['speed_max']);
-        $this->assertEquals(1, $params['page']);
+        $this->assertEquals(1, $params['work']);
+        $this->assertEquals('HTTP', $params['type']);
+        $this->assertEquals(1, $params['p']);
     }
     
     /**
@@ -111,24 +121,11 @@ class HtmlWebProxyListTest extends TestCase
             'enabled' => true,
         ]);
         
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'perpage' => 10,
         ], $logger);
         
         $this->assertInstanceOf(htmlWebProxyList::class, $htmlWebProxy);
-    }
-    
-    /**
-     * Тест: Валидация - некорректное значение perpage (слишком большое)
-     */
-    public function testValidationInvalidPerPageTooLarge(): void
-    {
-        $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр perpage должен быть от 1 до 50');
-        
-        new htmlWebProxyList([
-            'perpage' => 100,
-        ]);
     }
     
     /**
@@ -137,9 +134,9 @@ class HtmlWebProxyListTest extends TestCase
     public function testValidationInvalidPerPageTooSmall(): void
     {
         $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр perpage должен быть от 1 до 50');
+        $this->expectExceptionMessage('Параметр perpage должен быть больше 0');
         
-        new htmlWebProxyList([
+        new htmlWebProxyList($this->testApiKey, [
             'perpage' => 0,
         ]);
     }
@@ -150,10 +147,10 @@ class HtmlWebProxyListTest extends TestCase
     public function testValidationInvalidWork(): void
     {
         $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр work должен быть одним из: yes, maybe, no');
+        $this->expectExceptionMessage('Параметр work должен быть 1 (работает из России) или 0 (не работает)');
         
-        new htmlWebProxyList([
-            'work' => 'invalid',
+        new htmlWebProxyList($this->testApiKey, [
+            'work' => 5,
         ]);
     }
     
@@ -163,49 +160,23 @@ class HtmlWebProxyListTest extends TestCase
     public function testValidationInvalidType(): void
     {
         $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр type должен быть одним из: http, https, socks4, socks5');
+        $this->expectExceptionMessage('Параметр type должен быть одним из: HTTP, HTTPS, SOCKS4, SOCKS5');
         
-        new htmlWebProxyList([
+        new htmlWebProxyList($this->testApiKey, [
             'type' => 'invalid_type',
         ]);
     }
     
     /**
-     * Тест: Валидация - некорректное значение speed_max (слишком большое)
-     */
-    public function testValidationInvalidSpeedMaxTooLarge(): void
-    {
-        $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр speed_max должен быть от 0 до 10000');
-        
-        new htmlWebProxyList([
-            'speed_max' => 20000,
-        ]);
-    }
-    
-    /**
-     * Тест: Валидация - некорректное значение speed_max (отрицательное)
-     */
-    public function testValidationInvalidSpeedMaxNegative(): void
-    {
-        $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр speed_max должен быть от 0 до 10000');
-        
-        new htmlWebProxyList([
-            'speed_max' => -100,
-        ]);
-    }
-    
-    /**
-     * Тест: Валидация - некорректное значение page
+     * Тест: Валидация - некорректное значение p (номер страницы)
      */
     public function testValidationInvalidPage(): void
     {
         $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр page должен быть больше 0');
+        $this->expectExceptionMessage('Параметр p (номер страницы) должен быть больше 0');
         
-        new htmlWebProxyList([
-            'page' => 0,
+        new htmlWebProxyList($this->testApiKey, [
+            'p' => 0,
         ]);
     }
     
@@ -215,9 +186,9 @@ class HtmlWebProxyListTest extends TestCase
     public function testValidationInvalidShort(): void
     {
         $this->expectException(HtmlWebProxyListValidationException::class);
-        $this->expectExceptionMessage('Параметр short должен быть одним из: only_ip');
+        $this->expectExceptionMessage('Параметр short должен быть пустым, 2 или 4');
         
-        new htmlWebProxyList([
+        new htmlWebProxyList($this->testApiKey, [
             'short' => 'invalid_format',
         ]);
     }
@@ -230,16 +201,16 @@ class HtmlWebProxyListTest extends TestCase
         $config = [
             'country' => 'RU',
             'perpage' => 25,
-            'type' => 'https',
+            'type' => 'HTTPS',
         ];
         
-        $htmlWebProxy = new htmlWebProxyList($config);
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, $config);
         $params = $htmlWebProxy->getParams();
         
         $this->assertIsArray($params);
         $this->assertEquals('RU', $params['country']);
         $this->assertEquals(25, $params['perpage']);
-        $this->assertEquals('https', $params['type']);
+        $this->assertEquals('HTTPS', $params['type']);
     }
     
     /**
@@ -247,22 +218,20 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testUpdateParams(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
-            'type' => 'http',
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'type' => 'HTTP',
         ]);
         
         $initialParams = $htmlWebProxy->getParams();
-        $this->assertEquals('http', $initialParams['type']);
+        $this->assertEquals('HTTP', $initialParams['type']);
         
         $htmlWebProxy->updateParams([
             'country' => 'US',
-            'speed_max' => 500,
         ]);
         
         $updatedParams = $htmlWebProxy->getParams();
-        $this->assertEquals('http', $updatedParams['type']);
+        $this->assertEquals('HTTP', $updatedParams['type']);
         $this->assertEquals('US', $updatedParams['country']);
-        $this->assertEquals(500, $updatedParams['speed_max']);
     }
     
     /**
@@ -270,10 +239,9 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testResetParams(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'country' => 'US',
             'perpage' => 30,
-            'speed_max' => 1000,
         ]);
         
         $params = $htmlWebProxy->getParams();
@@ -290,7 +258,7 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testParamNormalizationCountry(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'country' => 'ru',
         ]);
         
@@ -299,29 +267,16 @@ class HtmlWebProxyListTest extends TestCase
     }
     
     /**
-     * Тест: Нормализация параметров (преобразование в нижний регистр для work)
-     */
-    public function testParamNormalizationWork(): void
-    {
-        $htmlWebProxy = new htmlWebProxyList([
-            'work' => 'YES',
-        ]);
-        
-        $params = $htmlWebProxy->getParams();
-        $this->assertEquals('yes', $params['work']);
-    }
-    
-    /**
-     * Тест: Нормализация параметров (преобразование в нижний регистр для type)
+     * Тест: Нормализация параметров (преобразование в верхний регистр для type)
      */
     public function testParamNormalizationType(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
-            'type' => 'HTTP',
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'type' => 'http',
         ]);
         
         $params = $htmlWebProxy->getParams();
-        $this->assertEquals('http', $params['type']);
+        $this->assertEquals('HTTP', $params['type']);
     }
     
     /**
@@ -333,7 +288,7 @@ class HtmlWebProxyListTest extends TestCase
             'auto_health_check' => false,
         ]);
         
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'perpage' => 10,
         ]);
         
@@ -346,10 +301,10 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testDifferentProxyTypes(): void
     {
-        $types = ['http', 'https', 'socks4', 'socks5'];
+        $types = ['HTTP', 'HTTPS', 'SOCKS4', 'SOCKS5'];
         
         foreach ($types as $type) {
-            $htmlWebProxy = new htmlWebProxyList([
+            $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
                 'type' => $type,
             ]);
             
@@ -363,7 +318,7 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testCountryNotParameter(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'country_not' => 'cn,ru',
         ]);
         
@@ -376,7 +331,7 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testEmptyParametersIgnored(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'country' => '',
             'country_not' => '',
         ]);
@@ -387,16 +342,29 @@ class HtmlWebProxyListTest extends TestCase
     }
     
     /**
-     * Тест: Краткий формат only_ip
+     * Тест: Краткий формат short=2
      */
-    public function testShortFormatOnlyIp(): void
+    public function testShortFormat2(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
-            'short' => 'only_ip',
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'short' => 2,
         ]);
         
         $params = $htmlWebProxy->getParams();
-        $this->assertEquals('only_ip', $params['short']);
+        $this->assertEquals(2, $params['short']);
+    }
+    
+    /**
+     * Тест: Краткий формат short=4
+     */
+    public function testShortFormat4(): void
+    {
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'short' => 4,
+        ]);
+        
+        $params = $htmlWebProxy->getParams();
+        $this->assertEquals(4, $params['short']);
     }
     
     /**
@@ -404,7 +372,7 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testTimeoutConfiguration(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'timeout' => 20,
         ]);
         
@@ -416,10 +384,47 @@ class HtmlWebProxyListTest extends TestCase
      */
     public function testMinimumTimeout(): void
     {
-        $htmlWebProxy = new htmlWebProxyList([
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
             'timeout' => 0,
         ]);
         
         $this->assertInstanceOf(htmlWebProxyList::class, $htmlWebProxy);
+    }
+    
+    /**
+     * Тест: Получение остатка лимита запросов
+     */
+    public function testGetRemainingLimit(): void
+    {
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey);
+        
+        // До выполнения запроса лимит должен быть null
+        $this->assertNull($htmlWebProxy->getRemainingLimit());
+    }
+    
+    /**
+     * Тест: Параметр country как массив
+     */
+    public function testCountryAsArray(): void
+    {
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'country' => ['RU', 'US', 'GB'],
+        ]);
+        
+        $params = $htmlWebProxy->getParams();
+        $this->assertEquals('RU,US,GB', $params['country']);
+    }
+    
+    /**
+     * Тест: Параметр country_not как массив
+     */
+    public function testCountryNotAsArray(): void
+    {
+        $htmlWebProxy = new htmlWebProxyList($this->testApiKey, [
+            'country_not' => ['CN', 'RU'],
+        ]);
+        
+        $params = $htmlWebProxy->getParams();
+        $this->assertEquals('CN,RU', $params['country_not']);
     }
 }
