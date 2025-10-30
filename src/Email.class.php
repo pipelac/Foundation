@@ -184,7 +184,7 @@ class Email
     private function validateAndSetBasicConfig(array $config): void
     {
         $fromEmail = (string)($config['from_email'] ?? '');
-        if ($fromEmail === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+        if ($fromEmail === '' || !$this->isValidEmail($fromEmail)) {
             throw new EmailValidationException('Не указан корректный адрес отправителя.');
         }
         $this->fromEmail = $this->sanitizeEmail($fromEmail);
@@ -194,7 +194,7 @@ class Email
 
         $replyTo = isset($config['reply_to']) ? (string)$config['reply_to'] : null;
         if ($replyTo !== null && $replyTo !== '') {
-            if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+            if (!$this->isValidEmail($replyTo)) {
                 throw new EmailValidationException('Некорректный адрес reply-to.');
             }
             $this->replyTo = $this->sanitizeEmail($replyTo);
@@ -207,7 +207,7 @@ class Email
 
         $returnPath = isset($config['return_path']) ? (string)$config['return_path'] : $this->fromEmail;
         if ($returnPath !== '') {
-            if (!filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
+            if (!$this->isValidEmail($returnPath)) {
                 throw new EmailValidationException('Некорректный адрес return-path.');
             }
             $this->returnPath = $this->sanitizeEmail($returnPath);
@@ -662,7 +662,7 @@ class Email
                 continue;
             }
 
-            if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            if (!$this->isValidEmail($value)) {
                 throw new EmailValidationException('Некорректный адрес получателя: ' . $recipient);
             }
 
@@ -717,7 +717,7 @@ class Email
             return $this->replyTo;
         }
 
-        if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+        if (!$this->isValidEmail($replyTo)) {
             throw new EmailValidationException('Некорректный адрес reply-to.');
         }
 
@@ -746,7 +746,7 @@ class Email
             return $this->returnPath;
         }
 
-        if (!filter_var($returnPath, FILTER_VALIDATE_EMAIL)) {
+        if (!$this->isValidEmail($returnPath)) {
             throw new EmailValidationException('Некорректный адрес return-path.');
         }
 
@@ -1066,5 +1066,38 @@ class Email
         if ($this->logger !== null) {
             $this->logger->info($message, $context);
         }
+    }
+
+    /**
+     * Проверяет валидность email адреса с поддержкой IDN доменов
+     *
+     * @param string $email Email адрес для проверки
+     * @return bool True если адрес валиден, иначе false
+     */
+    private function isValidEmail(string $email): bool
+    {
+        // Базовая проверка через filter_var
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return true;
+        }
+
+        // Попытка обработать IDN домен (кириллические домены)
+        if (function_exists('idn_to_ascii')) {
+            // Разбиваем email на локальную часть и домен
+            $parts = explode('@', $email);
+            if (count($parts) === 2) {
+                [$local, $domain] = $parts;
+                
+                // Конвертируем домен в ASCII (Punycode)
+                $asciiDomain = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+                
+                if ($asciiDomain !== false) {
+                    $asciiEmail = $local . '@' . $asciiDomain;
+                    return filter_var($asciiEmail, FILTER_VALIDATE_EMAIL) !== false;
+                }
+            }
+        }
+
+        return false;
     }
 }

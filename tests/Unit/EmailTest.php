@@ -69,7 +69,7 @@ class EmailTest extends TestCase
     public function testThrowsExceptionWhenFromEmailMissing(): void
     {
         $this->expectException(EmailValidationException::class);
-        $this->expectExceptionMessageMatches('/from_email/');
+        $this->expectExceptionMessageMatches('/корректный адрес отправителя/i');
         
         new Email([]);
     }
@@ -144,11 +144,13 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'smtp_host' => 'smtp.example.com',
-            'smtp_port' => 587,
-            'smtp_encryption' => 'tls',
-            'smtp_username' => 'username',
-            'smtp_password' => 'password',
+            'smtp' => [
+                'host' => 'smtp.example.com',
+                'port' => 587,
+                'encryption' => 'tls',
+                'username' => 'username',
+                'password' => 'password',
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
@@ -190,8 +192,10 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'retry_attempts' => 5,
-            'retry_delay' => 10,
+            'delivery' => [
+                'retry_attempts' => 5,
+                'retry_delay' => 10,
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
@@ -204,7 +208,9 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'timeout' => 60,
+            'delivery' => [
+                'timeout' => 60,
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
@@ -243,11 +249,13 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'smtp_host' => 'smtp.example.com',
-            'smtp_port' => 465,
-            'smtp_encryption' => 'ssl',
-            'smtp_username' => 'username',
-            'smtp_password' => 'password',
+            'smtp' => [
+                'host' => 'smtp.example.com',
+                'port' => 465,
+                'encryption' => 'ssl',
+                'username' => 'username',
+                'password' => 'password',
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
@@ -260,25 +268,28 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'retry_attempts' => 1,
-            'retry_delay' => 1,
+            'delivery' => [
+                'retry_attempts' => 1,
+                'retry_delay' => 1,
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
     }
     
     /**
-     * Тест: Отрицательные значения retry преобразуются в положительные
+     * Тест: Отрицательные значения retry должны вызывать исключение
      */
-    public function testNegativeRetryValuesHandled(): void
+    public function testNegativeRetryValuesThrowException(): void
     {
-        $email = new Email([
-            'from_email' => 'sender@example.com',
-            'retry_attempts' => -1,
-            'retry_delay' => -1,
-        ]);
+        $this->expectException(\App\Component\Exception\EmailValidationException::class);
         
-        $this->assertInstanceOf(Email::class, $email);
+        new Email([
+            'from_email' => 'sender@example.com',
+            'delivery' => [
+                'retry_attempts' => -1,
+            ],
+        ]);
     }
     
     /**
@@ -315,8 +326,10 @@ class EmailTest extends TestCase
     {
         $email = new Email([
             'from_email' => 'sender@example.com',
-            'smtp_host' => 'smtp.example.com',
-            'smtp_port' => 2525,
+            'smtp' => [
+                'host' => 'smtp.example.com',
+                'port' => 2525,
+            ],
         ]);
         
         $this->assertInstanceOf(Email::class, $email);
