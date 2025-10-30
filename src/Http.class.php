@@ -54,6 +54,7 @@ class Http
 
     private Client $client;
     private ?Logger $logger;
+    private bool $logSuccessfulRequests;
 
     /**
      * Конструктор HTTP клиента с настройкой всех параметров
@@ -68,11 +69,13 @@ class Http
      *   - allow_redirects: Настройки редиректов (bool|array)
      *   - retries: Количество повторных попыток (int)
      *   - options: Дополнительные опции для запросов (array)
+     *   - log_successful_requests: Логирование успешных запросов (bool, по умолчанию true)
      * @param Logger|null $logger Инстанс логгера для записи ошибок и отладочной информации
      */
     public function __construct(array $config = [], ?Logger $logger = null)
     {
         $this->logger = $logger;
+        $this->logSuccessfulRequests = $config['log_successful_requests'] ?? true;
         
         $clientConfig = [
             'http_errors' => false,
@@ -139,14 +142,24 @@ class Http
         $this->validateRequest($method, $uri);
         $options = $this->mergeOptions($options);
 
+        $startTime = microtime(true);
+
         try {
-            return $this->client->request($method, $uri, $options);
+            $response = $this->client->request($method, $uri, $options);
+            $duration = microtime(true) - $startTime;
+
+            $this->logSuccessfulRequest($method, $uri, $response, $duration);
+
+            return $response;
         } catch (GuzzleException $exception) {
+            $duration = microtime(true) - $startTime;
+
             $this->logError('Ошибка HTTP запроса', [
                 'method' => strtoupper($method),
                 'uri' => $uri,
                 'exception' => $exception->getMessage(),
                 'code' => $exception->getCode(),
+                'duration' => round($duration, 3),
             ]);
 
             throw new HttpException(
@@ -309,6 +322,9 @@ class Http
         $options = $this->mergeOptions($options);
         $options['stream'] = true;
 
+        $startTime = microtime(true);
+        $totalBytes = 0;
+
         try {
             $response = $this->client->request($method, $uri, $options);
             $statusCode = $response->getStatusCode();
@@ -319,11 +335,14 @@ class Http
                 $errorPreview = $body->read(1024);
                 $body->close();
                 
+                $duration = microtime(true) - $startTime;
+                
                 $this->logError('HTTP потоковый запрос завершился ошибкой', [
                     'method' => strtoupper($method),
                     'uri' => $uri,
                     'status_code' => $statusCode,
                     'response_preview' => $errorPreview,
+                    'duration' => round($duration, 3),
                 ]);
 
                 throw new HttpException(
@@ -342,17 +361,27 @@ class Http
             while (!$body->eof()) {
                 $chunk = $body->read(self::STREAM_CHUNK_SIZE);
                 if ($chunk !== '') {
+                    $totalBytes += strlen($chunk);
                     $callback($chunk);
                 }
             }
 
             $body->close();
+
+            $duration = microtime(true) - $startTime;
+
+            $this->logSuccessfulStreamRequest($method, $uri, $statusCode, $totalBytes, $duration);
+
         } catch (GuzzleException $exception) {
+            $duration = microtime(true) - $startTime;
+
             $this->logError('Ошибка потокового HTTP запроса', [
                 'method' => strtoupper($method),
                 'uri' => $uri,
                 'exception' => $exception->getMessage(),
                 'code' => $exception->getCode(),
+                'duration' => round($duration, 3),
+                'bytes_received' => $totalBytes,
             ]);
 
             throw new HttpException(
@@ -384,7 +413,7 @@ class Http
                 int $retriesAttempt,
                 RequestInterface $request,
                 ?ResponseInterface $response = null,
-                ?RequestException $exception = null
+                ?\Throwable $exception = null
             ) use ($maxAttempts): bool {
                 // Достигнут лимит попыток
                 if ($retriesAttempt >= $maxAttempts - 1) {
@@ -437,9 +466,9 @@ class Http
      *
      * @param int $attemptNumber Номер попытки (начиная с 1 для повторов)
      * @param RequestInterface $request HTTP запрос
-     * @param RequestException $exception Исключение, вызвавшее повтор
+     * @param \Throwable $exception Исключение, вызвавшее повтор
      */
-    private function logRetry(int $attemptNumber, RequestInterface $request, RequestException $exception): void
+    private function logRetry(int $attemptNumber, RequestInterface $request, \Throwable $exception): void
     {
         if ($this->logger === null) {
             return;
@@ -452,10 +481,12 @@ class Http
             'error' => $exception->getMessage(),
         ];
 
-        // Добавляем код ответа если есть
-        $response = $exception->getResponse();
-        if ($response !== null) {
-            $context['status_code'] = $response->getStatusCode();
+        // Добавляем код ответа если есть (для RequestException)
+        if ($exception instanceof RequestException) {
+            $response = $exception->getResponse();
+            if ($response !== null) {
+                $context['status_code'] = $response->getStatusCode();
+            }
         }
 
         $this->logger->warning('Повторная попытка HTTP запроса', $context);
@@ -472,5 +503,81 @@ class Http
         if ($this->logger !== null) {
             $this->logger->error($message, $context);
         }
+    }
+
+    /**
+     * Логирует успешный HTTP запрос
+     *
+     * @param string $method HTTP метод
+     * @param string $uri URI запроса
+     * @param ResponseInterface $response Ответ сервера
+     * @param float $duration Длительность выполнения запроса в секундах
+     */
+    private function logSuccessfulRequest(string $method, string $uri, ResponseInterface $response, float $duration): void
+    {
+        if ($this->logger === null || !$this->logSuccessfulRequests) {
+            return;
+        }
+
+        $statusCode = $response->getStatusCode();
+        $bodySize = $response->getBody()->getSize() ?? strlen((string)$response->getBody());
+
+        $context = [
+            'method' => strtoupper($method),
+            'uri' => $uri,
+            'status_code' => $statusCode,
+            'duration' => round($duration, 3),
+            'body_size' => $bodySize,
+        ];
+
+        // Добавляем Content-Type если есть
+        $contentType = $response->getHeader('Content-Type');
+        if (!empty($contentType)) {
+            $context['content_type'] = implode(', ', $contentType);
+        }
+
+        $logLevel = $statusCode >= 400 ? 'warning' : 'info';
+        $message = sprintf(
+            'HTTP запрос выполнен [%s %s] код %d',
+            strtoupper($method),
+            $uri,
+            $statusCode
+        );
+
+        $this->logger->log($logLevel, $message, $context);
+    }
+
+    /**
+     * Логирует успешный потоковый HTTP запрос
+     *
+     * @param string $method HTTP метод
+     * @param string $uri URI запроса
+     * @param int $statusCode Код ответа
+     * @param int $totalBytes Количество полученных байт
+     * @param float $duration Длительность выполнения запроса в секундах
+     */
+    private function logSuccessfulStreamRequest(string $method, string $uri, int $statusCode, int $totalBytes, float $duration): void
+    {
+        if ($this->logger === null || !$this->logSuccessfulRequests) {
+            return;
+        }
+
+        $context = [
+            'method' => strtoupper($method),
+            'uri' => $uri,
+            'status_code' => $statusCode,
+            'bytes_received' => $totalBytes,
+            'duration' => round($duration, 3),
+        ];
+
+        $message = sprintf(
+            'HTTP потоковый запрос выполнен [%s %s] код %d, получено %d байт',
+            strtoupper($method),
+            $uri,
+            $statusCode,
+            $totalBytes
+        );
+
+        $this->logger->info($message, $context);
     }
 }
