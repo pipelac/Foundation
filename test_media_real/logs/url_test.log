@@ -1,0 +1,1 @@
+2025-10-30T20:29:33+00:00 INFO HTTP запрос выполнен [POST sendPhoto] код 200 {"method":"POST","uri":"sendPhoto","status_code":200,"duration":0.529,"body_size":814,"content_type":"application/json"}
