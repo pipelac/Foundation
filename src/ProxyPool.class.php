@@ -264,6 +264,12 @@ class ProxyPool
         
         // Round-robin ротация
         $proxiesArray = array_values($aliveProxies);
+        
+        // Проверяем что индекс в пределах массива
+        if ($this->currentIndex >= count($proxiesArray)) {
+            $this->currentIndex = 0;
+        }
+        
         $proxy = $proxiesArray[$this->currentIndex]['url'];
         
         $this->currentIndex = ($this->currentIndex + 1) % count($proxiesArray);
