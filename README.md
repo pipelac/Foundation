@@ -450,10 +450,13 @@ $http->requestStream('GET', 'https://example.com/stream', function (string $chun
 use App\Component\ProxyPool;
 
 // Инициализация с конфигурацией
+// Поддержка протоколов: HTTP, HTTPS, SOCKS4, SOCKS5
 $config = [
     'proxies' => [
         'http://proxy1.example.com:8080',
         'http://user:pass@proxy2.example.com:3128',
+        'https://secure-proxy.example.com:8443',
+        'socks4://socks4-proxy.example.com:1080',
         'socks5://proxy3.example.com:1080',
     ],
     'rotation_strategy' => ProxyPool::ROTATION_ROUND_ROBIN, // или ROTATION_RANDOM

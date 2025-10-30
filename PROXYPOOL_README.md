@@ -53,6 +53,8 @@ $config = [
     'proxies' => [
         'http://proxy1.example.com:8080',
         'http://user:pass@proxy2.example.com:3128',
+        'https://secure-proxy.example.com:8443',
+        'socks4://socks4-proxy.example.com:1080',
         'socks5://proxy3.example.com:1080',
     ],
     'rotation_strategy' => ProxyPool::ROTATION_ROUND_ROBIN,
@@ -100,6 +102,9 @@ socks5://host:port
 http://username:password@host:port
 ```
 
+> 📖 **Подробная документация о поддержке протоколов:**  
+> См. [docs/PROXY_PROTOCOLS_SUPPORT.md](docs/PROXY_PROTOCOLS_SUPPORT.md) для детальной информации о всех поддерживаемых типах прокси, примерах и ограничениях.
+
 ### Пример конфигурационного файла
 
 Создайте файл `config/proxypool.json`:
@@ -108,7 +113,11 @@ http://username:password@host:port
 {
     "proxies": [
         "http://proxy1.example.com:8080",
-        "http://user:pass@proxy2.example.com:3128"
+        "http://user:pass@proxy2.example.com:3128",
+        "https://secure-proxy.example.com:8443",
+        "socks4://socks4-proxy.example.com:1080",
+        "socks5://proxy3.example.com:1080",
+        "socks5://admin:secret@socks5-auth.example.com:1080"
     ],
     "rotation_strategy": "round_robin",
     "health_check_url": "https://httpbin.org/ip",
