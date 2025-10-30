@@ -1,0 +1,21 @@
+2025-10-30T19:41:12+00:00 INFO RSS клиент инициализирован {"timeout":20,"max_size":10485760,"cache_enabled":true}
+2025-10-30T19:41:12+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:41:12+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:41:12+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.091,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:41:12+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:41:12+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:41:12+00:00 INFO Начало загрузки RSS ленты {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss"}
+2025-10-30T19:41:12+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:41:12+00:00 INFO HTTP запрос выполнен [GET https://www.nasa.gov/rss/dyn/breaking_news.rss] код 200 {"method":"GET","uri":"https://www.nasa.gov/rss/dyn/breaking_news.rss","status_code":200,"duration":0.019,"body_size":187609,"content_type":"application/rss+xml; charset=UTF-8"}
+2025-10-30T19:41:12+00:00 INFO Нормализация данных ленты {"type":"rss","title":"NASA","items_count":10}
+2025-10-30T19:41:12+00:00 INFO RSS лента успешно загружена {"url":"https://www.nasa.gov/rss/dyn/breaking_news.rss","type":"rss","items_count":10}
+2025-10-30T19:41:13+00:00 INFO Начало загрузки RSS ленты {"url":"https://habr.com/ru/rss/all/all/"}
+2025-10-30T19:41:13+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:41:14+00:00 INFO HTTP запрос выполнен [GET https://habr.com/ru/rss/all/all/] код 200 {"method":"GET","uri":"https://habr.com/ru/rss/all/all/","status_code":200,"duration":0.883,"body_size":83419,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:41:14+00:00 INFO Нормализация данных ленты {"type":"rss","title":"Все публикации подряд на Хабре","items_count":40}
+2025-10-30T19:41:14+00:00 INFO RSS лента успешно загружена {"url":"https://habr.com/ru/rss/all/all/","type":"rss","items_count":40}
+2025-10-30T19:41:14+00:00 INFO Начало загрузки RSS ленты {"url":"https://habr.com/ru/rss/all/all/"}
+2025-10-30T19:41:14+00:00 INFO SimplePie настроен {"cache_enabled":true,"sanitization_enabled":true,"timeout":20}
+2025-10-30T19:41:14+00:00 INFO HTTP запрос выполнен [GET https://habr.com/ru/rss/all/all/] код 200 {"method":"GET","uri":"https://habr.com/ru/rss/all/all/","status_code":200,"duration":0.637,"body_size":83419,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:41:14+00:00 INFO Нормализация данных ленты {"type":"rss","title":"Все публикации подряд на Хабре","items_count":40}
+2025-10-30T19:41:14+00:00 INFO RSS лента успешно загружена {"url":"https://habr.com/ru/rss/all/all/","type":"rss","items_count":40}

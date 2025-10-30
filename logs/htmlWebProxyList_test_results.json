@@ -1,0 +1,182 @@
+{
+    "timestamp": "2025-10-30 21:20:38",
+    "total_tests": 15,
+    "successful_tests": 15,
+    "failed_tests": 0,
+    "success_rate": 100,
+    "credits_used": 7,
+    "remaining_limit": 13,
+    "tests": [
+        {
+            "test": "Инициализация класса",
+            "success": true,
+            "message": "Класс успешно инициализирован",
+            "data": {
+                "api_key": "11d4e524d4..."
+            }
+        },
+        {
+            "test": "Получение списка прокси (perpage=5)",
+            "success": true,
+            "message": "Получено прокси: 5",
+            "data": {
+                "count": 5,
+                "remaining_limit": 19,
+                "credits_used": 1,
+                "sample_proxies": [
+                    "http:\/\/218.236.166.96:8888",
+                    "http:\/\/202.148.22.106:5678",
+                    "http:\/\/47.76.144.139:4145"
+                ]
+            }
+        },
+        {
+            "test": "Фильтр по стране US",
+            "success": true,
+            "message": "Получено прокси из US: 3",
+            "data": {
+                "country": "US",
+                "count": 3,
+                "remaining_limit": 18,
+                "credits_used": 2,
+                "proxies": [
+                    "http:\/\/68.71.243.14:4145",
+                    "socks4:\/\/198.177.253.13:4145",
+                    "http:\/\/166.62.121.102:45886"
+                ]
+            }
+        },
+        {
+            "test": "Фильтр по типу HTTP",
+            "success": true,
+            "message": "Получено HTTP прокси: 3",
+            "data": {
+                "type": "HTTP",
+                "count": 3,
+                "all_http_protocol": true,
+                "remaining_limit": 17,
+                "credits_used": 3,
+                "proxies": [
+                    "http:\/\/187.44.211.118:4153",
+                    "http:\/\/103.169.254.155:1080",
+                    "http:\/\/180.149.234.74:6214"
+                ]
+            }
+        },
+        {
+            "test": "Формат short=2",
+            "success": true,
+            "message": "Получено прокси: 3",
+            "data": {
+                "format": "short=2",
+                "count": 3,
+                "remaining_limit": 16,
+                "credits_used": 4,
+                "proxies": [
+                    "http:\/\/218.236.166.96:8888",
+                    "http:\/\/202.148.22.106:5678",
+                    "http:\/\/47.76.144.139:4145"
+                ]
+            }
+        },
+        {
+            "test": "Формат short=4",
+            "success": true,
+            "message": "Получено прокси: 3",
+            "data": {
+                "format": "short=4",
+                "count": 3,
+                "remaining_limit": 16,
+                "credits_used": 5,
+                "proxies": [
+                    "http:\/\/218.236.166.96:8888",
+                    "http:\/\/202.148.22.106:5678",
+                    "http:\/\/47.76.144.139:4145"
+                ]
+            }
+        },
+        {
+            "test": "Метод getRemainingLimit()",
+            "success": true,
+            "message": "Остаток лимита: 16",
+            "data": {
+                "remaining_limit": 16,
+                "credits_used_so_far": 5
+            }
+        },
+        {
+            "test": "Комбинированные фильтры",
+            "success": true,
+            "message": "Получено прокси: 2",
+            "data": {
+                "filters": {
+                    "country": "RU",
+                    "type": "HTTP",
+                    "work": 1
+                },
+                "count": 2,
+                "remaining_limit": 14,
+                "credits_used": 6,
+                "proxies": [
+                    "http:\/\/176.108.246.18:10801",
+                    "http:\/\/90.156.169.163:80"
+                ]
+            }
+        },
+        {
+            "test": "Интеграция с ProxyPool",
+            "success": true,
+            "message": "Добавлено прокси в пул: 3",
+            "data": {
+                "added_count": 3,
+                "pool_total": 3,
+                "remaining_limit": 13,
+                "credits_used": 7
+            }
+        },
+        {
+            "test": "Валидация: Негативный perpage",
+            "success": true,
+            "message": "Валидация корректно отклонила некорректные параметры: Параметр perpage должен быть больше 0, указано: -1",
+            "data": []
+        },
+        {
+            "test": "Валидация: Некорректный work",
+            "success": true,
+            "message": "Валидация корректно отклонила некорректные параметры: Параметр work должен быть 1 (работает из России) или 0 (не работает), указано: 5",
+            "data": []
+        },
+        {
+            "test": "Валидация: Некорректный type",
+            "success": true,
+            "message": "Валидация корректно отклонила некорректные параметры: Параметр type должен быть одним из: HTTP, HTTPS, SOCKS4, SOCKS5, указано: INVALID",
+            "data": []
+        },
+        {
+            "test": "Валидация: Некорректный short",
+            "success": true,
+            "message": "Валидация корректно отклонила некорректные параметры: Параметр short должен быть пустым, 2 или 4, указано: 99",
+            "data": []
+        },
+        {
+            "test": "Метод getParams()",
+            "success": true,
+            "message": "Параметры получены корректно",
+            "data": {
+                "params": {
+                    "country": "US",
+                    "perpage": 5,
+                    "type": "HTTP"
+                }
+            }
+        },
+        {
+            "test": "Метод resetParams()",
+            "success": true,
+            "message": "Параметры сброшены корректно",
+            "data": {
+                "params_after_reset": []
+            }
+        }
+    ]
+}

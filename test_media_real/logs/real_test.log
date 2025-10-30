@@ -1,0 +1,7 @@
+2025-10-30T20:28:41+00:00 INFO HTTP запрос выполнен [POST getMe] код 200 {"method":"POST","uri":"getMe","status_code":200,"duration":0.501,"body_size":256,"content_type":"application/json"}
+2025-10-30T20:28:41+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.192,"body_size":1087,"content_type":"application/json"}
+2025-10-30T20:28:41+00:00 INFO HTTP запрос выполнен [POST sendPhoto] код 200 {"method":"POST","uri":"sendPhoto","status_code":200,"duration":0.216,"body_size":631,"content_type":"application/json"}
+2025-10-30T20:28:41+00:00 WARNING HTTP запрос выполнен [POST sendPhoto] код 400 {"method":"POST","uri":"sendPhoto","status_code":400,"duration":0.503,"body_size":89,"content_type":"application/json"}
+2025-10-30T20:28:41+00:00 ERROR Telegram API вернул HTTP ошибку {"method":"sendPhoto","status_code":400,"body_preview":"{\"ok\":false,\"error_code\":400,\"description\":\"Bad Request: failed to get HTTP URL content\"}"}
+2025-10-30T20:28:42+00:00 INFO HTTP запрос выполнен [POST sendDocument] код 200 {"method":"POST","uri":"sendDocument","status_code":200,"duration":0.243,"body_size":684,"content_type":"application/json"}
+2025-10-30T20:28:42+00:00 INFO HTTP запрос выполнен [POST sendAudio] код 200 {"method":"POST","uri":"sendAudio","status_code":200,"duration":0.231,"body_size":592,"content_type":"application/json"}

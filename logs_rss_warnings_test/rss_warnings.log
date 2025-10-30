@@ -1,0 +1,6 @@
+2025-10-30T19:38:05+00:00 INFO RSS клиент инициализирован {"timeout":15,"max_size":10485760,"cache_enabled":false}
+2025-10-30T19:38:05+00:00 INFO Начало загрузки RSS ленты {"url":"https://habr.com/ru/rss/all/all/"}
+2025-10-30T19:38:05+00:00 INFO SimplePie настроен {"cache_enabled":false,"sanitization_enabled":true,"timeout":15}
+2025-10-30T19:38:07+00:00 INFO HTTP запрос выполнен [GET https://habr.com/ru/rss/all/all/] код 200 {"method":"GET","uri":"https://habr.com/ru/rss/all/all/","status_code":200,"duration":1.893,"body_size":83419,"content_type":"text/xml; charset=utf-8"}
+2025-10-30T19:38:07+00:00 INFO Нормализация данных ленты {"type":"rss","title":"Все публикации подряд на Хабре","items_count":40}
+2025-10-30T19:38:07+00:00 INFO RSS лента успешно загружена {"url":"https://habr.com/ru/rss/all/all/","type":"rss","items_count":40}
