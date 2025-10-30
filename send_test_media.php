@@ -49,16 +49,9 @@ class TelegramRealTest
 
     private function createTestMediaFiles(): void
     {
-        // Создаем тестовое изображение (100x100 PNG с градиентом)
-        $image = imagecreatetruecolor(100, 100);
-        for ($y = 0; $y < 100; $y++) {
-            for ($x = 0; $x < 100; $x++) {
-                $color = imagecolorallocate($image, $x * 2.55, $y * 2.55, 128);
-                imagesetpixel($image, $x, $y, $color);
-            }
-        }
-        imagepng($image, $this->testDir . '/test_image.png');
-        imagedestroy($image);
+        // Создаем тестовое изображение (минимальный 1x1 PNG)
+        $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+        file_put_contents($this->testDir . '/test_image.png', $pngData);
 
         // Создаем тестовый документ
         $docContent = "ТЕСТОВЫЙ ДОКУМЕНТ\n\n";
