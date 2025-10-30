@@ -7,6 +7,7 @@ namespace App\Component;
 use App\Component\Exception\HtmlWebProxyListException;
 use App\Component\Exception\HtmlWebProxyListValidationException;
 use App\Component\Exception\HttpException;
+use App\Config\ConfigLoader;
 
 /**
  * Класс для получения списка прокси-серверов с htmlweb.ru API
@@ -81,6 +82,42 @@ class htmlWebProxyList
      * Остаток доступных запросов из последнего ответа API
      */
     private ?int $remainingLimit = null;
+
+    /**
+     * Создает экземпляр класса из конфигурационного файла
+     * 
+     * @param string $configPath Путь к JSON конфигурационному файлу
+     * @param Logger|null $logger Инстанс логгера для записи событий
+     * @return self Экземпляр класса htmlWebProxyList
+     * @throws HtmlWebProxyListException Если не удалось загрузить конфигурацию
+     * @throws HtmlWebProxyListValidationException Если конфигурация некорректна
+     */
+    public static function fromConfig(string $configPath, ?Logger $logger = null): self
+    {
+        try {
+            $config = ConfigLoader::load($configPath);
+        } catch (\Exception $e) {
+            throw new HtmlWebProxyListException(
+                'Не удалось загрузить конфигурацию: ' . $e->getMessage(),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+        
+        // Извлекаем API ключ из конфигурации
+        if (!isset($config['api_key']) || empty($config['api_key'])) {
+            throw new HtmlWebProxyListValidationException(
+                'API ключ (api_key) не указан в конфигурационном файле'
+            );
+        }
+        
+        $apiKey = (string)$config['api_key'];
+        
+        // Удаляем служебные поля из конфигурации
+        unset($config['api_key'], $config['_comment'], $config['_fields']);
+        
+        return new self($apiKey, $config, $logger);
+    }
 
     /**
      * Конструктор класса HtmlWebProxyList

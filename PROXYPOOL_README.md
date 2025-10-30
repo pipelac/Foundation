@@ -24,6 +24,24 @@ use App\Component\Logger;
 
 ## Быстрый старт
 
+### Инициализация из конфигурационного файла
+
+```php
+use App\Component\ProxyPool;
+use App\Component\Logger;
+
+$logger = new Logger([
+    'directory' => __DIR__ . '/logs',
+    'file_name' => 'proxypool.log',
+]);
+
+// Загрузка из конфигурационного файла
+$proxyPool = ProxyPool::fromConfig(
+    __DIR__ . '/config/proxypool.json',
+    $logger
+);
+```
+
 ### Базовая инициализация
 
 ```php
