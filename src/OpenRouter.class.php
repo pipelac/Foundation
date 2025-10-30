@@ -26,7 +26,7 @@ use JsonException;
  */
 class OpenRouter
 {
-    private const BASE_URL = 'https://openrouter.ai/api/v1';
+    private const BASE_URL = 'https://openrouter.ai/api/v1/';
     private const DEFAULT_TIMEOUT = 60;
 
     private string $apiKey;
@@ -376,7 +376,7 @@ class OpenRouter
         $headers = $this->buildHeaders();
         $headers['Content-Type'] = 'application/json';
 
-        $response = $this->http->request('POST', $endpoint, [
+        $response = $this->http->request('POST', ltrim($endpoint, '/'), [
             'json' => $payload,
             'headers' => $headers,
         ]);
@@ -420,7 +420,7 @@ class OpenRouter
         $headers = $this->buildHeaders();
         $headers['Content-Type'] = 'application/json';
 
-        $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
+        $this->http->requestStream('POST', ltrim($endpoint, '/'), function (string $chunk) use (&$buffer, $callback): void {
             $buffer .= $chunk;
             $lines = explode("\n", $buffer);
             $buffer = array_pop($lines) ?? '';

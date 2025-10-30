@@ -21,7 +21,7 @@ use JsonException;
  */
 class OpenRouterMetrics
 {
-    private const BASE_URL = 'https://openrouter.ai/api/v1';
+    private const BASE_URL = 'https://openrouter.ai/api/v1/';
     private const DEFAULT_TIMEOUT = 30;
 
     private string $apiKey;
@@ -478,7 +478,7 @@ class OpenRouterMetrics
             $options['json'] = $payload;
         }
 
-        $response = $this->http->request($method, $endpoint, $options);
+        $response = $this->http->request($method, ltrim($endpoint, '/'), $options);
 
         $statusCode = $response->getStatusCode();
         $body = (string)$response->getBody();
