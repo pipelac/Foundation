@@ -200,10 +200,11 @@ class OpenRouter
     /**
      * Извлекает текст из PDF документа (pdf2text)
      *
-     * @param string $model Модель для анализа PDF (например, "openai/gpt-4-vision-preview", "anthropic/claude-3-opus")
+     * @param string $model Модель для анализа PDF (например, "openai/gpt-4o", "anthropic/claude-3.5-sonnet")
      * @param string $pdfUrl URL PDF документа для анализа
      * @param string $instruction Инструкция для обработки документа
-     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - plugins: настройки парсинга PDF (опционально)
      * @return string Извлеченный текст или результат анализа
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
@@ -219,15 +220,17 @@ class OpenRouter
         $this->validateNotEmpty($pdfUrl, 'pdfUrl');
         $this->validateNotEmpty($instruction, 'instruction');
 
+        // Формат согласно документации OpenRouter: https://openrouter.ai/docs/features/multimodal/pdfs
         $messages = [
             [
                 'role' => 'user',
                 'content' => [
                     ['type' => 'text', 'text' => $instruction],
                     [
-                        'type' => 'image_url',
-                        'image_url' => [
-                            'url' => $pdfUrl,
+                        'type' => 'file',
+                        'file' => [
+                            'filename' => basename($pdfUrl),
+                            'file_data' => $pdfUrl,
                         ],
                     ],
                 ],
@@ -251,42 +254,56 @@ class OpenRouter
     /**
      * Преобразует аудио в текст (audio2text)
      *
-     * @param string $model Модель распознавания речи (например, "openai/gpt-4o-audio-preview", "google/gemini-2.5-flash")
-     * @param string $audioUrl URL аудиофайла для распознавания
+     * @param string $model Модель распознавания речи (например, "google/gemini-2.5-flash")
+     * @param string $audioPath Путь к локальному аудиофайлу или base64-encoded данные
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - language (string): Код языка (например, "ru", "en")
-     *                                      - prompt (string): Подсказка для улучшения точности
+     *                                      - format (string): Формат аудио ("wav", "mp3"), по умолчанию "wav"
+     *                                      - prompt (string): Инструкция для транскрипции
      * @return string Распознанный текст
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
      * @throws OpenRouterException Если модель не вернула транскрипцию
      */
-    public function audio2text(string $model, string $audioUrl, array $options = []): string
+    public function audio2text(string $model, string $audioPath, array $options = []): string
     {
         $this->validateNotEmpty($model, 'model');
-        $this->validateNotEmpty($audioUrl, 'audioUrl');
+        $this->validateNotEmpty($audioPath, 'audioPath');
 
+        // Определяем, это файл или base64
+        $audioBase64 = $audioPath;
+        if (file_exists($audioPath)) {
+            $audioContent = file_get_contents($audioPath);
+            if ($audioContent === false) {
+                throw new OpenRouterException("Не удалось прочитать аудиофайл: {$audioPath}");
+            }
+            $audioBase64 = base64_encode($audioContent);
+        }
+
+        $format = $options['format'] ?? 'wav';
+        $prompt = $options['prompt'] ?? 'Please transcribe this audio file.';
+        
+        // Удаляем из options чтобы не передавать в payload
+        unset($options['format'], $options['prompt']);
+
+        // Формат согласно документации OpenRouter: https://openrouter.ai/docs/features/multimodal/audio
         $messages = [
             [
                 'role' => 'user',
                 'content' => [
                     [
-                        'type' => 'audio_url',
-                        'audio_url' => [
-                            'url' => $audioUrl,
+                        'type' => 'text',
+                        'text' => $prompt,
+                    ],
+                    [
+                        'type' => 'input_audio',
+                        'input_audio' => [
+                            'data' => $audioBase64,
+                            'format' => $format,
                         ],
                     ],
                 ],
             ],
         ];
-
-        if (isset($options['prompt'])) {
-            array_unshift($messages[0]['content'], [
-                'type' => 'text',
-                'text' => $options['prompt'],
-            ]);
-            unset($options['prompt']);
-        }
 
         $payload = array_merge([
             'model' => $model,

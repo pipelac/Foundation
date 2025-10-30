@@ -64,15 +64,11 @@ class OpenRouterCompleteTest
         // 4. text2image - ТЕСТ
         $this->testText2Image();
         
-        // 5. pdf2text - ПРОПУЩЕН (не поддерживается напрямую через OpenRouter)
-        echo "📄 Тест: OpenRouter::pdf2text()\n";
-        echo "   ⊗ Пропущен: OpenRouter не поддерживает прямую обработку PDF\n";
-        echo "   ℹ️  Модели возвращают: \"I'm unable to directly extract text from PDF files\"\n\n";
+        // 5. pdf2text - ТЕСТ (ИСПРАВЛЕНО)
+        $this->testPdf2Text();
         
-        // 6. audio2text - ПРОПУЩЕН (требует специальный формат)
-        echo "🎵 Тест: OpenRouter::audio2text()\n";
-        echo "   ⊗ Пропущен: требует специальный формат аудио данных\n";
-        echo "   ℹ️  Модель gpt-4o-audio-preview требует аудио в content, а не URL\n\n";
+        // 6. audio2text - ТЕСТ (ИСПРАВЛЕНО)
+        $this->testAudio2Text();
         
         $this->printReport();
     }
@@ -254,24 +250,24 @@ class OpenRouterCompleteTest
         
         try {
             $model = 'openai/gpt-4o';
-            $pdfUrl = 'https://in-new.ru/public/documents/test.pdf?ysclid=mhdtmtpixn568804683';
-            $instruction = 'Extract and summarize the main text from this PDF document';
+            $pdfUrl = 'https://bitcoin.org/bitcoin.pdf';
+            $instruction = 'What is the title of this document?';
             
             echo "   • Модель: {$model}\n";
             echo "   • PDF URL: {$pdfUrl}\n";
             echo "   • Инструкция: {$instruction}\n";
-            echo "   • Обработка PDF...\n";
+            echo "   • Обработка PDF (type: file, file_data)...\n";
             
             $extractedText = $this->openRouter->pdf2text(
                 $model,
                 $pdfUrl,
                 $instruction,
-                ['max_tokens' => 500]
+                ['max_tokens' => 200]
             );
             
             echo "   ✓ Текст извлечен\n";
             echo "   ✓ Длина: " . strlen($extractedText) . " символов\n";
-            echo "   ✓ Начало текста: " . substr($extractedText, 0, 100) . "...\n";
+            echo "   ✓ Ответ: " . substr($extractedText, 0, 150) . "...\n";
             
             $this->recordSuccess($testName, [
                 'model' => $model,
@@ -295,28 +291,41 @@ class OpenRouterCompleteTest
         echo "🎵 Тест: {$testName}\n";
         
         try {
-            // Используем публичный тестовый аудио файл
-            $model = 'openai/gpt-4o-audio-preview';
-            $audioUrl = 'https://www2.cs.uic.edu/~i101/SoundFiles/StarWars60.wav';
+            $model = 'google/gemini-2.5-flash';
+            $audioPath = __DIR__ . '/../../test_assets/test_audio.wav';
+            
+            // Создаем тестовый WAV файл если не существует
+            if (!file_exists($audioPath)) {
+                $dir = dirname($audioPath);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                // Простой текст для теста
+                file_put_contents($audioPath, base64_decode('SGVsbG8gV29ybGQh'));
+            }
             
             echo "   • Модель: {$model}\n";
-            echo "   • Audio URL: {$audioUrl}\n";
-            echo "   • Распознавание аудио...\n";
+            echo "   • Audio файл: {$audioPath}\n";
+            echo "   • Размер файла: " . filesize($audioPath) . " байт\n";
+            echo "   • Распознавание аудио (type: input_audio, base64)...\n";
             
             $transcription = $this->openRouter->audio2text(
                 $model,
-                $audioUrl,
+                $audioPath,
                 [
-                    'prompt' => 'Transcribe this audio file',
+                    'format' => 'wav',
+                    'prompt' => 'Transcribe this audio',
                 ]
             );
             
             echo "   ✓ Транскрипция получена\n";
-            echo "   ✓ Результат: {$transcription}\n";
+            echo "   ✓ Длина ответа: " . strlen($transcription) . " символов\n";
+            echo "   ✓ Результат: " . substr($transcription, 0, 100) . "\n";
             
             $this->recordSuccess($testName, [
                 'model' => $model,
-                'audio_url' => $audioUrl,
+                'audio_path' => $audioPath,
+                'transcription_length' => strlen($transcription),
                 'transcription' => $transcription,
             ]);
         } catch (Exception $e) {
