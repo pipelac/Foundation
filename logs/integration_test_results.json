@@ -1,0 +1,120 @@
+{
+    "timestamp": "2025-10-30 21:22:43",
+    "total_tests": 8,
+    "successful_tests": 7,
+    "failed_tests": 1,
+    "success_rate": 87.5,
+    "credits_used": 2,
+    "remaining_limit": 11,
+    "tests": [
+        {
+            "test": "Получение прокси через htmlWebProxyList",
+            "success": true,
+            "message": "Получено прокси: 10",
+            "data": {
+                "count": 10,
+                "remaining_limit": 12,
+                "credits_used": 1,
+                "sample_proxies": [
+                    "http:\/\/154.16.146.44:80",
+                    "http:\/\/94.154.127.165:8085",
+                    "http:\/\/46.214.153.223:5678"
+                ]
+            }
+        },
+        {
+            "test": "Загрузка прокси в ProxyPool",
+            "success": true,
+            "message": "Загружено прокси в пул: 10",
+            "data": {
+                "total_proxies": 10,
+                "alive_proxies": 10,
+                "dead_proxies": 0
+            }
+        },
+        {
+            "test": "Health check прокси",
+            "success": true,
+            "message": "Проверено: 5, Работает: 0",
+            "data": {
+                "checked": 5,
+                "alive": 0,
+                "dead": 5,
+                "total_in_pool": 10,
+                "alive_in_pool": 5
+            }
+        },
+        {
+            "test": "RSS парсинг без прокси",
+            "success": true,
+            "message": "Успешно загружено лент: 3 из 3",
+            "data": {
+                "results": {
+                    "https:\/\/lenta.ru\/rss": {
+                        "success": true,
+                        "items_count": 200,
+                        "time": 1.24,
+                        "title": "Lenta.ru : Новости"
+                    },
+                    "https:\/\/ria.ru\/export\/rss2\/archive\/index.xml": {
+                        "success": true,
+                        "items_count": 98,
+                        "time": 0.84,
+                        "title": "РИА Новости"
+                    },
+                    "https:\/\/www.vedomosti.ru\/rss\/news": {
+                        "success": true,
+                        "items_count": 200,
+                        "time": 1.05,
+                        "title": "\"Ведомости\". Ежедневная деловая газета"
+                    }
+                }
+            }
+        },
+        {
+            "test": "RSS парсинг через прокси",
+            "success": false,
+            "message": "Успешно загружено лент через прокси: 0 из 3",
+            "data": {
+                "results": {
+                    "https:\/\/lenta.ru\/rss": {
+                        "success": false,
+                        "attempts": 3,
+                        "error": "Ошибка загрузки контента: Ошибка HTTP запроса [GET https:\/\/lenta.ru\/rss]: cURL error 28: Connection timed out after 20002 milliseconds (see https:\/\/curl.haxx.se\/libcurl\/c\/libcurl-errors.html) for https:\/\/lenta.ru\/rss"
+                    }
+                }
+            }
+        },
+        {
+            "test": "Добавление дополнительных прокси",
+            "success": true,
+            "message": "Добавлено новых прокси: 5",
+            "data": {
+                "new_proxies": 5,
+                "added": 5,
+                "total_in_pool": 15,
+                "credits_used": 2
+            }
+        },
+        {
+            "test": "Ротация прокси (random)",
+            "success": true,
+            "message": "Получено уникальных прокси: 5 из 10 запросов",
+            "data": {
+                "total_requests": 10,
+                "unique_proxies": 5
+            }
+        },
+        {
+            "test": "Статистика ProxyPool",
+            "success": true,
+            "message": "Статистика собрана",
+            "data": {
+                "total_proxies": 15,
+                "alive_proxies": 5,
+                "total_requests": 0,
+                "success_rate": 0
+            }
+        }
+    ]
+}
