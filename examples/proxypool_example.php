@@ -7,6 +7,7 @@ require_once __DIR__ . '/../autoload.php';
 use App\Component\Logger;
 use App\Component\ProxyPool;
 use App\Component\Exception\ProxyPoolException;
+use App\Config\ConfigLoader;
 
 // Пример 1: Базовое использование ProxyPool с конфигурацией
 echo "=== Пример 1: Базовое использование ProxyPool ===\n\n";
@@ -221,19 +222,27 @@ try {
     $configPath = __DIR__ . '/../config/proxypool.json';
     
     if (file_exists($configPath)) {
-        $configJson = file_get_contents($configPath);
-        $config = json_decode($configJson, true);
+        $logger = new Logger([
+            'directory' => __DIR__ . '/../logs',
+            'file_name' => 'proxypool_from_config.log',
+            'enabled' => true,
+        ]);
         
-        // Удаляем комментарии из конфигурации
-        unset($config['_comment'], $config['_fields']);
+        // Способ 1: Использование статического метода fromConfig
+        $proxyPool = ProxyPool::fromConfig($configPath, $logger);
         
-        $proxyPool = new ProxyPool($config);
-        
-        echo "✓ ProxyPool загружен из конфигурационного файла\n";
+        echo "✓ ProxyPool загружен из конфигурационного файла через fromConfig()\n";
         
         $stats = $proxyPool->getStatistics();
         echo "Загружено прокси: {$stats['total_proxies']}\n";
-        echo "Стратегия ротации: {$stats['rotation_strategy']}\n\n";
+        echo "Стратегия ротации: {$stats['rotation_strategy']}\n";
+        
+        // Способ 2: Использование ConfigLoader напрямую
+        $config = ConfigLoader::load($configPath);
+        unset($config['_comment'], $config['_fields']);
+        
+        $proxyPool2 = new ProxyPool($config);
+        echo "✓ ProxyPool также может быть создан через ConfigLoader::load()\n\n";
     } else {
         echo "⚠ Конфигурационный файл не найден: {$configPath}\n\n";
     }

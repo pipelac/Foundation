@@ -427,4 +427,84 @@ class HtmlWebProxyListTest extends TestCase
         $params = $htmlWebProxy->getParams();
         $this->assertEquals('CN,RU', $params['country_not']);
     }
+    
+    /**
+     * Тест: Загрузка из конфигурационного файла через fromConfig()
+     */
+    public function testLoadFromConfigFile(): void
+    {
+        // Создаем временный конфигурационный файл
+        $configPath = $this->testLogDirectory . '/htmlwebproxylist.json';
+        $config = [
+            'api_key' => $this->testApiKey,
+            'country' => 'US',
+            'perpage' => 30,
+            'work' => 1,
+            'type' => 'HTTPS',
+            'timeout' => 15,
+            '_comment' => 'Test config',
+            '_fields' => ['test' => 'field'],
+        ];
+        
+        file_put_contents($configPath, json_encode($config));
+        
+        $htmlWebProxy = htmlWebProxyList::fromConfig($configPath);
+        
+        $this->assertInstanceOf(htmlWebProxyList::class, $htmlWebProxy);
+        
+        $params = $htmlWebProxy->getParams();
+        $this->assertEquals('US', $params['country']);
+        $this->assertEquals(30, $params['perpage']);
+        $this->assertEquals(1, $params['work']);
+        $this->assertEquals('HTTPS', $params['type']);
+    }
+    
+    /**
+     * Тест: Ошибка при загрузке несуществующего конфигурационного файла
+     */
+    public function testLoadFromNonExistentConfigFile(): void
+    {
+        $this->expectException(HtmlWebProxyListException::class);
+        $this->expectExceptionMessageMatches('/Не удалось загрузить конфигурацию/');
+        
+        htmlWebProxyList::fromConfig('/non/existent/config.json');
+    }
+    
+    /**
+     * Тест: Ошибка при отсутствии API ключа в конфигурации
+     */
+    public function testLoadFromConfigWithoutApiKey(): void
+    {
+        $this->expectException(HtmlWebProxyListValidationException::class);
+        $this->expectExceptionMessage('API ключ (api_key) не указан в конфигурационном файле');
+        
+        $configPath = $this->testLogDirectory . '/no_api_key.json';
+        $config = [
+            'country' => 'US',
+            'perpage' => 30,
+        ];
+        
+        file_put_contents($configPath, json_encode($config));
+        
+        htmlWebProxyList::fromConfig($configPath);
+    }
+    
+    /**
+     * Тест: Ошибка при пустом API ключе в конфигурации
+     */
+    public function testLoadFromConfigWithEmptyApiKey(): void
+    {
+        $this->expectException(HtmlWebProxyListValidationException::class);
+        $this->expectExceptionMessage('API ключ (api_key) не указан в конфигурационном файле');
+        
+        $configPath = $this->testLogDirectory . '/empty_api_key.json';
+        $config = [
+            'api_key' => '',
+            'country' => 'US',
+        ];
+        
+        file_put_contents($configPath, json_encode($config));
+        
+        htmlWebProxyList::fromConfig($configPath);
+    }
 }

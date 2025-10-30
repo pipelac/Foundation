@@ -7,6 +7,7 @@ namespace App\Component;
 use App\Component\Exception\HttpException;
 use App\Component\Exception\ProxyPoolException;
 use App\Component\Exception\ProxyPoolValidationException;
+use App\Config\ConfigLoader;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -101,6 +102,33 @@ class ProxyPool
         'failed_requests' => 0,
         'total_retries' => 0,
     ];
+
+    /**
+     * Создает экземпляр класса из конфигурационного файла
+     * 
+     * @param string $configPath Путь к JSON конфигурационному файлу
+     * @param Logger|null $logger Инстанс логгера для записи событий
+     * @return self Экземпляр класса ProxyPool
+     * @throws ProxyPoolException Если не удалось загрузить конфигурацию
+     * @throws ProxyPoolValidationException Если конфигурация некорректна
+     */
+    public static function fromConfig(string $configPath, ?Logger $logger = null): self
+    {
+        try {
+            $config = ConfigLoader::load($configPath);
+        } catch (\Exception $e) {
+            throw new ProxyPoolException(
+                'Не удалось загрузить конфигурацию: ' . $e->getMessage(),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+        
+        // Удаляем служебные поля из конфигурации
+        unset($config['_comment'], $config['_fields']);
+        
+        return new self($config, $logger);
+    }
 
     /**
      * Конструктор менеджера пула прокси

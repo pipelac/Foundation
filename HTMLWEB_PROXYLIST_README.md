@@ -24,19 +24,37 @@ use App\Component\Logger;
 
 ## Быстрый старт
 
+### Инициализация из конфигурационного файла
+
+```php
+use App\Component\htmlWebProxyList;
+use App\Component\Logger;
+
+// Создайте файл config/htmlwebproxylist.json и укажите ваш API ключ
+$logger = new Logger([
+    'directory' => __DIR__ . '/logs',
+    'file_name' => 'htmlweb.log',
+]);
+
+// Загрузка из конфигурационного файла
+$htmlWebProxy = htmlWebProxyList::fromConfig(
+    __DIR__ . '/config/htmlwebproxylist.json',
+    $logger
+);
+
+$proxies = $htmlWebProxy->getProxies();
+echo "Получено прокси: " . count($proxies);
+```
+
 ### Базовая инициализация
 
 ```php
-// Без конфигурации (значения по умолчанию)
-$htmlWebProxy = new htmlWebProxyList();
-$proxies = $htmlWebProxy->getProxies();
-
-// С конфигурацией
-$htmlWebProxy = new htmlWebProxyList([
+// Инициализация с прямой передачей параметров
+$htmlWebProxy = new htmlWebProxyList('YOUR_API_KEY', [
     'country' => 'RU',
     'perpage' => 30,
-    'type' => 'http',
-    'work' => 'yes',
+    'type' => 'HTTP',
+    'work' => 1,
 ]);
 
 $proxies = $htmlWebProxy->getProxies();
@@ -51,9 +69,9 @@ $logger = new Logger([
     'file_name' => 'htmlweb.log',
 ]);
 
-$htmlWebProxy = new htmlWebProxyList([
+$htmlWebProxy = new htmlWebProxyList('YOUR_API_KEY', [
     'perpage' => 50,
-    'type' => 'http',
+    'type' => 'HTTP',
 ], $logger);
 
 $proxies = $htmlWebProxy->getProxies();
@@ -61,18 +79,36 @@ $proxies = $htmlWebProxy->getProxies();
 
 ## Конфигурация
 
+### Конфигурационный файл
+
+Создайте файл `config/htmlwebproxylist.json`:
+
+```json
+{
+    "api_key": "YOUR_API_KEY_HERE",
+    "country": "",
+    "country_not": "",
+    "perpage": 20,
+    "work": 1,
+    "type": "HTTP",
+    "p": 1,
+    "short": "",
+    "timeout": 10
+}
+```
+
 ### Параметры конструктора
 
 | Параметр | Тип | По умолчанию | Описание |
 |----------|-----|--------------|----------|
-| `country` | `string` | - | Код страны (RU, US, GB и т.д.) |
-| `country_not` | `string` | - | Исключить страны (через запятую: RU,CN) |
-| `perpage` | `int` | `50` | Количество прокси на странице (макс. 50) |
-| `work` | `string` | - | Работоспособность: `yes`, `maybe`, `no` |
-| `type` | `string` | `http` | Тип прокси: `http`, `https`, `socks4`, `socks5` |
-| `speed_max` | `int` | - | Максимальная скорость в миллисекундах |
-| `page` | `int` | `1` | Номер страницы |
-| `short` | `string` | - | Краткий формат: `only_ip` |
+| `api_key` | `string` | - | **Обязательный**. API ключ из профиля htmlweb.ru |
+| `country` | `string\|array` | - | Код страны (RU, US, GB) или массив стран |
+| `country_not` | `string\|array` | - | Исключить страны (через запятую: RU,CN) |
+| `perpage` | `int` | `20` | Количество прокси на странице |
+| `work` | `int` | - | Работоспособность: 1 (работает), 0 (не работает) |
+| `type` | `string` | `HTTP` | Тип прокси: HTTP, HTTPS, SOCKS4, SOCKS5 |
+| `p` | `int` | `1` | Номер страницы для пагинации |
+| `short` | `int\|string` | - | Краткий формат: 2 (с протоколами), 4 (текстовый) |
 | `timeout` | `int` | `10` | Таймаут HTTP запроса в секундах |
 
 ### API htmlweb.ru

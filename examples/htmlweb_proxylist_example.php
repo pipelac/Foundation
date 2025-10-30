@@ -9,11 +9,54 @@ use App\Component\ProxyPool;
 use App\Component\htmlWebProxyList;
 use App\Component\Exception\HtmlWebProxyListException;
 use App\Component\Exception\HtmlWebProxyListValidationException;
+use App\Config\ConfigLoader;
 
 echo "=== Примеры использования htmlWebProxyList ===\n\n";
 
 // ВАЖНО: Замените 'YOUR_API_KEY_HERE' на ваш реальный API ключ из профиля htmlweb.ru
 $apiKey = 'YOUR_API_KEY_HERE';
+
+// Пример 0: Загрузка из конфигурационного файла
+echo "=== Пример 0: Загрузка из конфигурационного файла ===\n\n";
+
+try {
+    $configPath = __DIR__ . '/../config/htmlwebproxylist.json';
+    
+    if (file_exists($configPath)) {
+        $logger = new Logger([
+            'directory' => __DIR__ . '/../logs',
+            'file_name' => 'htmlweb_config.log',
+            'enabled' => true,
+        ]);
+        
+        // Способ 1: Использование статического метода fromConfig
+        $htmlWebProxy = htmlWebProxyList::fromConfig($configPath, $logger);
+        
+        echo "✓ htmlWebProxyList загружен из конфигурационного файла\n";
+        echo "Параметры: " . json_encode($htmlWebProxy->getParams()) . "\n";
+        
+        // Получаем прокси
+        // ВНИМАНИЕ: Раскомментируйте строку ниже только после добавления реального API ключа в config/htmlwebproxylist.json
+        // $proxies = $htmlWebProxy->getProxies();
+        // echo "✓ Получено прокси: " . count($proxies) . "\n";
+        
+        // Способ 2: Использование ConfigLoader напрямую
+        $config = ConfigLoader::load($configPath);
+        $apiKeyFromConfig = $config['api_key'];
+        unset($config['api_key'], $config['_comment'], $config['_fields']);
+        
+        $htmlWebProxy2 = new htmlWebProxyList($apiKeyFromConfig, $config, $logger);
+        echo "✓ htmlWebProxyList также может быть создан через ConfigLoader::load()\n";
+        
+        echo "\n";
+    } else {
+        echo "⚠ Конфигурационный файл не найден: {$configPath}\n\n";
+    }
+    
+} catch (HtmlWebProxyListException $e) {
+    echo "✗ Ошибка: " . $e->getMessage() . "\n\n";
+}
+
 
 // Пример 1: Базовое использование - получение списка прокси
 echo "=== Пример 1: Базовое получение списка прокси ===\n\n";

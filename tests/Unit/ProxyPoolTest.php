@@ -500,4 +500,91 @@ class ProxyPoolTest extends TestCase
         $stats = $proxyPool->getStatistics();
         $this->assertEquals(5, $stats['total_proxies']);
     }
+    
+    /**
+     * Тест: Загрузка из конфигурационного файла через fromConfig()
+     */
+    public function testLoadFromConfigFile(): void
+    {
+        // Создаем временный конфигурационный файл
+        $configPath = $this->testLogDirectory . '/proxypool.json';
+        $config = [
+            'proxies' => [
+                'http://proxy1.example.com:8080',
+                'http://proxy2.example.com:8080',
+                'socks5://proxy3.example.com:1080',
+            ],
+            'rotation_strategy' => 'round_robin',
+            'health_check_url' => 'https://httpbin.org/ip',
+            'health_check_timeout' => 5,
+            'auto_health_check' => false,
+            'max_retries' => 3,
+            '_comment' => 'Test config',
+            '_fields' => ['test' => 'field'],
+        ];
+        
+        file_put_contents($configPath, json_encode($config));
+        
+        $proxyPool = ProxyPool::fromConfig($configPath);
+        
+        $this->assertInstanceOf(ProxyPool::class, $proxyPool);
+        
+        $stats = $proxyPool->getStatistics();
+        $this->assertEquals(3, $stats['total_proxies']);
+        $this->assertEquals('round_robin', $stats['rotation_strategy']);
+    }
+    
+    /**
+     * Тест: Загрузка из конфигурационного файла с логгером
+     */
+    public function testLoadFromConfigFileWithLogger(): void
+    {
+        $configPath = $this->testLogDirectory . '/proxypool_with_logger.json';
+        $config = [
+            'proxies' => [
+                'http://proxy1.example.com:8080',
+            ],
+            'auto_health_check' => false,
+        ];
+        
+        file_put_contents($configPath, json_encode($config));
+        
+        $logger = new Logger([
+            'directory' => $this->testLogDirectory,
+            'file_name' => 'proxypool_test.log',
+            'enabled' => true,
+        ]);
+        
+        $proxyPool = ProxyPool::fromConfig($configPath, $logger);
+        
+        $this->assertInstanceOf(ProxyPool::class, $proxyPool);
+        
+        $stats = $proxyPool->getStatistics();
+        $this->assertEquals(1, $stats['total_proxies']);
+    }
+    
+    /**
+     * Тест: Ошибка при загрузке несуществующего конфигурационного файла
+     */
+    public function testLoadFromNonExistentConfigFile(): void
+    {
+        $this->expectException(ProxyPoolException::class);
+        $this->expectExceptionMessageMatches('/Не удалось загрузить конфигурацию/');
+        
+        ProxyPool::fromConfig('/non/existent/config.json');
+    }
+    
+    /**
+     * Тест: Загрузка из конфигурации с некорректным JSON
+     */
+    public function testLoadFromConfigWithInvalidJson(): void
+    {
+        $this->expectException(ProxyPoolException::class);
+        $this->expectExceptionMessageMatches('/Не удалось загрузить конфигурацию/');
+        
+        $configPath = $this->testLogDirectory . '/invalid.json';
+        file_put_contents($configPath, '{invalid json}');
+        
+        ProxyPool::fromConfig($configPath);
+    }
 }
