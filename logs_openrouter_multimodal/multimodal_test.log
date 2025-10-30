@@ -1,0 +1,5 @@
+2025-10-30T19:24:56+00:00 INFO === Инициализация тестов мультимодальных методов === {}
+2025-10-30T19:24:59+00:00 INFO HTTP запрос выполнен [POST chat/completions] код 200 {"method":"POST","uri":"chat/completions","status_code":200,"duration":2.966,"body_size":741,"content_type":"application/json"}
+2025-10-30T19:24:59+00:00 INFO ✓ OpenRouter::image2text() - успешно {"image_url":"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png","description":"This is the GitHub logo. It features a stylized image of a cat with tentacle-like whiskers inside a circular shape, predominantly in black and white.","description_length":149}
+2025-10-30T19:24:59+00:00 INFO === Тестирование завершено === {}
+2025-10-30T19:24:59+00:00 INFO Успешно: 1/1 (100%) {}

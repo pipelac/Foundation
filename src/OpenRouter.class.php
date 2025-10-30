@@ -26,7 +26,7 @@ use JsonException;
  */
 class OpenRouter
 {
-    private const BASE_URL = 'https://openrouter.ai/api/v1';
+    private const BASE_URL = 'https://openrouter.ai/api/v1/';
     private const DEFAULT_TIMEOUT = 60;
 
     private string $apiKey;
@@ -108,34 +108,47 @@ class OpenRouter
     /**
      * Генерирует изображение на основе текстового описания (text2image)
      *
-     * @param string $model Модель генерации изображений (например, "openai/gpt-5-image", "google/gemini-2.5-flash-image")
+     * @param string $model Модель генерации изображений (например, "google/gemini-2.5-flash-image")
      * @param string $prompt Текстовое описание изображения для генерации
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - size (string): Размер изображения (например, "1024x1024")
-     *                                      - quality (string): Качество изображения ("standard", "hd")
-     *                                      - n (int): Количество изображений для генерации
-     * @return string URL сгенерированного изображения
+     *                                      - max_tokens (int): Максимальное количество токенов
+     * @return string Base64-encoded изображение или URL (в зависимости от модели)
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
-     * @throws OpenRouterException Если модель не вернула URL изображения
+     * @throws OpenRouterException Если модель не вернула изображение
      */
     public function text2image(string $model, string $prompt, array $options = []): string
     {
         $this->validateNotEmpty($model, 'model');
         $this->validateNotEmpty($prompt, 'prompt');
 
+        $messages = [
+            ['role' => 'user', 'content' => $prompt],
+        ];
+
         $payload = array_merge([
             'model' => $model,
-            'prompt' => $prompt,
+            'messages' => $messages,
         ], $options);
 
-        $response = $this->sendRequest('/images/generations', $payload);
+        $response = $this->sendRequest('/chat/completions', $payload);
 
-        if (!isset($response['data'][0]['url'])) {
-            throw new OpenRouterException('Модель не вернула URL изображения.');
+        // Проверяем наличие изображения в base64
+        if (isset($response['choices'][0]['message']['content'])) {
+            $content = $response['choices'][0]['message']['content'];
+            
+            // Если это массив с изображением
+            if (is_array($content) && isset($content[0]['image'])) {
+                return (string)$content[0]['image'];
+            }
+            
+            // Если это строка с base64
+            if (is_string($content)) {
+                return $content;
+            }
         }
 
-        return (string)$response['data'][0]['url'];
+        throw new OpenRouterException('Модель не вернула изображение.');
     }
 
     /**
@@ -187,10 +200,11 @@ class OpenRouter
     /**
      * Извлекает текст из PDF документа (pdf2text)
      *
-     * @param string $model Модель для анализа PDF (например, "openai/gpt-4-vision-preview", "anthropic/claude-3-opus")
+     * @param string $model Модель для анализа PDF (например, "openai/gpt-4o", "anthropic/claude-3.5-sonnet")
      * @param string $pdfUrl URL PDF документа для анализа
      * @param string $instruction Инструкция для обработки документа
-     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @param array<string, mixed> $options Дополнительные параметры запроса:
+     *                                      - plugins: настройки парсинга PDF (опционально)
      * @return string Извлеченный текст или результат анализа
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
@@ -206,15 +220,17 @@ class OpenRouter
         $this->validateNotEmpty($pdfUrl, 'pdfUrl');
         $this->validateNotEmpty($instruction, 'instruction');
 
+        // Формат согласно документации OpenRouter: https://openrouter.ai/docs/features/multimodal/pdfs
         $messages = [
             [
                 'role' => 'user',
                 'content' => [
                     ['type' => 'text', 'text' => $instruction],
                     [
-                        'type' => 'image_url',
-                        'image_url' => [
-                            'url' => $pdfUrl,
+                        'type' => 'file',
+                        'file' => [
+                            'filename' => basename($pdfUrl),
+                            'file_data' => $pdfUrl,
                         ],
                     ],
                 ],
@@ -238,42 +254,56 @@ class OpenRouter
     /**
      * Преобразует аудио в текст (audio2text)
      *
-     * @param string $model Модель распознавания речи (например, "openai/gpt-4o-audio-preview", "google/gemini-2.5-flash")
-     * @param string $audioUrl URL аудиофайла для распознавания
+     * @param string $model Модель распознавания речи (например, "google/gemini-2.5-flash")
+     * @param string $audioPath Путь к локальному аудиофайлу или base64-encoded данные
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - language (string): Код языка (например, "ru", "en")
-     *                                      - prompt (string): Подсказка для улучшения точности
+     *                                      - format (string): Формат аудио ("wav", "mp3"), по умолчанию "wav"
+     *                                      - prompt (string): Инструкция для транскрипции
      * @return string Распознанный текст
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
      * @throws OpenRouterException Если модель не вернула транскрипцию
      */
-    public function audio2text(string $model, string $audioUrl, array $options = []): string
+    public function audio2text(string $model, string $audioPath, array $options = []): string
     {
         $this->validateNotEmpty($model, 'model');
-        $this->validateNotEmpty($audioUrl, 'audioUrl');
+        $this->validateNotEmpty($audioPath, 'audioPath');
 
+        // Определяем, это файл или base64
+        $audioBase64 = $audioPath;
+        if (file_exists($audioPath)) {
+            $audioContent = file_get_contents($audioPath);
+            if ($audioContent === false) {
+                throw new OpenRouterException("Не удалось прочитать аудиофайл: {$audioPath}");
+            }
+            $audioBase64 = base64_encode($audioContent);
+        }
+
+        $format = $options['format'] ?? 'wav';
+        $prompt = $options['prompt'] ?? 'Please transcribe this audio file.';
+        
+        // Удаляем из options чтобы не передавать в payload
+        unset($options['format'], $options['prompt']);
+
+        // Формат согласно документации OpenRouter: https://openrouter.ai/docs/features/multimodal/audio
         $messages = [
             [
                 'role' => 'user',
                 'content' => [
                     [
-                        'type' => 'audio_url',
-                        'audio_url' => [
-                            'url' => $audioUrl,
+                        'type' => 'text',
+                        'text' => $prompt,
+                    ],
+                    [
+                        'type' => 'input_audio',
+                        'input_audio' => [
+                            'data' => $audioBase64,
+                            'format' => $format,
                         ],
                     ],
                 ],
             ],
         ];
-
-        if (isset($options['prompt'])) {
-            array_unshift($messages[0]['content'], [
-                'type' => 'text',
-                'text' => $options['prompt'],
-            ]);
-            unset($options['prompt']);
-        }
 
         $payload = array_merge([
             'model' => $model,
@@ -376,7 +406,7 @@ class OpenRouter
         $headers = $this->buildHeaders();
         $headers['Content-Type'] = 'application/json';
 
-        $response = $this->http->request('POST', $endpoint, [
+        $response = $this->http->request('POST', ltrim($endpoint, '/'), [
             'json' => $payload,
             'headers' => $headers,
         ]);
@@ -420,7 +450,7 @@ class OpenRouter
         $headers = $this->buildHeaders();
         $headers['Content-Type'] = 'application/json';
 
-        $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
+        $this->http->requestStream('POST', ltrim($endpoint, '/'), function (string $chunk) use (&$buffer, $callback): void {
             $buffer .= $chunk;
             $lines = explode("\n", $buffer);
             $buffer = array_pop($lines) ?? '';

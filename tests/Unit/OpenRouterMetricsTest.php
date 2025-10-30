@@ -67,7 +67,7 @@ class OpenRouterMetricsTest extends TestCase
     public function testThrowsExceptionWhenApiKeyMissing(): void
     {
         $this->expectException(OpenRouterValidationException::class);
-        $this->expectExceptionMessageMatches('/api_key/i');
+        $this->expectExceptionMessageMatches('/api.*ключ/iu');
         
         new OpenRouterMetrics([]);
     }
