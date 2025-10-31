@@ -385,6 +385,19 @@ class TelegramAPI
     }
 
     /**
+     * Получает обновления через long polling
+     *
+     * @param array<string, mixed> $params Параметры запроса (offset, limit, timeout, allowed_updates)
+     * @return array<array<string, mixed>> Массив обновлений
+     * @throws ApiException При ошибке API
+     */
+    public function getUpdates(array $params = []): array
+    {
+        $result = $this->sendRequest('getUpdates', $params);
+        return is_array($result) ? $result : [];
+    }
+
+    /**
      * Отправляет запрос к Telegram API
      *
      * @param string $method Метод API

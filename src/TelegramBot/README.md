@@ -6,6 +6,8 @@
 
 ### 1. Базовая настройка
 
+#### Режим Webhook
+
 ```php
 use App\Component\Http;
 use App\Component\Logger;
@@ -23,7 +25,30 @@ $api = new TelegramAPI('YOUR_BOT_TOKEN', $http, $logger);
 $webhookHandler = new WebhookHandler($logger);
 ```
 
+#### Режим Polling (Long Polling)
+
+```php
+use App\Component\Http;
+use App\Component\Logger;
+use App\Component\TelegramBot\Core\TelegramAPI;
+use App\Component\TelegramBot\Core\PollingHandler;
+
+// Инициализация зависимостей
+$logger = new Logger(['directory' => __DIR__ . '/logs']);
+$http = new Http(['timeout' => 60], $logger);
+
+// Создание API клиента
+$api = new TelegramAPI('YOUR_BOT_TOKEN', $http, $logger);
+
+// Polling обработчик
+$polling = new PollingHandler($api, $logger);
+$polling->setTimeout(30);
+$polling->skipPendingUpdates(); // Пропускаем старые сообщения
+```
+
 ### 2. Простой эхо-бот
+
+#### Webhook версия
 
 ```php
 use App\Component\TelegramBot\Handlers\MessageHandler;
@@ -36,6 +61,21 @@ $messageHandler->handleText($update, function($message, $text) use ($messageHand
 });
 
 $webhookHandler->sendResponse();
+```
+
+#### Polling версия
+
+```php
+use App\Component\TelegramBot\Entities\Update;
+
+$polling->startPolling(function(Update $update) use ($api) {
+    if ($update->isMessage() && $update->message->text) {
+        $api->sendMessage(
+            $update->message->chat->id,
+            "Вы написали: " . $update->message->text
+        );
+    }
+});
 ```
 
 ### 3. Бот с командами
@@ -130,8 +170,11 @@ src/TelegramBot/
 ├── Core/              # Ядро системы
 │   ├── TelegramAPI.php
 │   ├── WebhookHandler.php
+│   ├── PollingHandler.php
 │   ├── AccessControl.php
-│   └── AccessControlMiddleware.php
+│   ├── AccessControlMiddleware.php
+│   ├── ConversationManager.php
+│   └── MessageStorage.php
 └── Handlers/          # Обработчики событий
     ├── MessageHandler.php
     ├── CallbackQueryHandler.php
@@ -168,15 +211,22 @@ src/TelegramBot/
 ### ✅ Контроль доступа на основе ролей
 Управление правами пользователей через JSON конфигурацию
 
+### ✅ Два режима работы
+- **Webhook**: мгновенная доставка (production)
+- **Polling**: простая настройка (development)
+
 ## Примеры использования
 
 См. полную документацию: `/docs/TELEGRAM_BOT_MODULE.md`
 
-Система контроля доступа: `/docs/TELEGRAM_BOT_ACCESS_CONTROL.md`
+Специальные возможности:
+- Система контроля доступа: `/docs/TELEGRAM_BOT_ACCESS_CONTROL.md`
+- Режим Polling: `/docs/TELEGRAM_BOT_POLLING.md`
 
 Рабочие примеры: 
 - `/examples/telegram_bot_advanced.php`
 - `/examples/telegram_bot_access_control.php`
+- `/examples/telegram_bot_polling_example.php`
 
 ## Требования
 
