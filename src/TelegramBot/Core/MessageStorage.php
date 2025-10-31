@@ -262,7 +262,7 @@ class MessageStorage
                 SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
                 FROM " . self::TABLE_NAME . " {$whereClause}";
 
-            $stats = $this->db->querySingle($query, $params);
+            $stats = $this->db->queryOne($query, $params);
 
             // Статистика по типам
             $typeQuery = "SELECT message_type, COUNT(*) as count 
@@ -343,7 +343,7 @@ class MessageStorage
     {
         try {
             // Проверка существования таблицы
-            $exists = $this->db->querySingle(
+            $exists = $this->db->queryOne(
                 "SHOW TABLES LIKE ?",
                 [self::TABLE_NAME]
             );

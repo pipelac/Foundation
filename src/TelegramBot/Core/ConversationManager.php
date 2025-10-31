@@ -87,7 +87,7 @@ class ConversationManager
 
         try {
             // Проверяем существование пользователя
-            $existing = $this->db->querySingle(
+            $existing = $this->db->queryOne(
                 "SELECT id FROM " . self::TABLE_USERS . " WHERE user_id = ?",
                 [$userId]
             );
@@ -142,7 +142,7 @@ class ConversationManager
         }
 
         try {
-            $user = $this->db->querySingle(
+            $user = $this->db->queryOne(
                 "SELECT user_id, first_name, username, last_name, created_at, updated_at 
                 FROM " . self::TABLE_USERS . " 
                 WHERE user_id = ?",
@@ -231,7 +231,7 @@ class ConversationManager
         }
 
         try {
-            $conversation = $this->db->querySingle(
+            $conversation = $this->db->queryOne(
                 "SELECT id, chat_id, user_id, state, data, message_id, created_at, updated_at, expires_at 
                 FROM " . self::TABLE_CONVERSATIONS . " 
                 WHERE chat_id = ? AND user_id = ? AND expires_at > NOW()
@@ -442,7 +442,7 @@ class ConversationManager
 
         try {
             // Общее количество активных диалогов
-            $total = $this->db->querySingle(
+            $total = $this->db->queryOne(
                 "SELECT COUNT(*) as cnt FROM " . self::TABLE_CONVERSATIONS . " 
                 WHERE expires_at > NOW()"
             )['cnt'] ?? 0;
@@ -482,7 +482,7 @@ class ConversationManager
     {
         try {
             // Создание таблицы пользователей
-            $usersTableExists = $this->db->querySingle(
+            $usersTableExists = $this->db->queryOne(
                 "SHOW TABLES LIKE ?",
                 [self::TABLE_USERS]
             );
@@ -509,7 +509,7 @@ class ConversationManager
             }
 
             // Создание таблицы диалогов
-            $conversationsTableExists = $this->db->querySingle(
+            $conversationsTableExists = $this->db->queryOne(
                 "SHOW TABLES LIKE ?",
                 [self::TABLE_CONVERSATIONS]
             );
