@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Component\Telegram;
 use App\Component\Logger;
-use App\Component\Exception\TelegramConfigException;
+use App\Component\Exception\Telegram\TelegramConfigException;
 use PHPUnit\Framework\TestCase;
 
 /**

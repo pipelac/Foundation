@@ -7,9 +7,9 @@ require_once __DIR__ . '/../../autoload.php';
 use App\Component\OpenRouter;
 use App\Component\OpenRouterMetrics;
 use App\Component\Logger;
-use App\Component\Exception\OpenRouterException;
-use App\Component\Exception\OpenRouterApiException;
-use App\Component\Exception\OpenRouterValidationException;
+use App\Component\Exception\OpenRouter\OpenRouterException;
+use App\Component\Exception\OpenRouter\OpenRouterApiException;
+use App\Component\Exception\OpenRouter\OpenRouterValidationException;
 
 /**
  * Полный интеграционный тест всех методов OpenRouter и OpenRouterMetrics

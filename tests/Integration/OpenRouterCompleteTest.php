@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../autoload.php';
 
 use App\Component\OpenRouter;
 use App\Component\Logger;
-use App\Component\Exception\OpenRouterException;
+use App\Component\Exception\OpenRouter\OpenRouterException;
 
 /**
  * Полный тест всех методов OpenRouter включая text2image, pdf2text, audio2text

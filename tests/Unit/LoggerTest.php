@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Component\Logger;
-use App\Component\Exception\LoggerException;
-use App\Component\Exception\LoggerValidationException;
+use App\Component\Exception\Logger\LoggerException;
+use App\Component\Exception\Logger\LoggerValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\LoggerException;
-use App\Component\Exception\LoggerValidationException;
+use App\Component\Exception\Logger\LoggerException;
+use App\Component\Exception\Logger\LoggerValidationException;
 use DateTimeImmutable;
 
 /**

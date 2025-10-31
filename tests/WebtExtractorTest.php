@@ -6,8 +6,8 @@ namespace Tests;
 
 use App\Component\WebtExtractor;
 use App\Component\Logger;
-use App\Component\Exception\WebtExtractorException;
-use App\Component\Exception\WebtExtractorValidationException;
+use App\Component\Exception\WebtExtractor\WebtExtractorException;
+use App\Component\Exception\WebtExtractor\WebtExtractorValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

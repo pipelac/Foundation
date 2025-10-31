@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\WebtExtractorException;
-use App\Component\Exception\WebtExtractorValidationException;
+use App\Component\Exception\WebtExtractor\WebtExtractorException;
+use App\Component\Exception\WebtExtractor\WebtExtractorValidationException;
 use DOMDocument;
 use Exception;
 use fivefilters\Readability\Readability;

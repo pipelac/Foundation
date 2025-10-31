@@ -2,6 +2,7 @@
     "name": "app/basic-utilities",
     "description": "Базовый набор утилит с интеграцией OpenRouter, Telegram и MySQL.",
     "type": "project",
+    "license": "proprietary",
     "require": {
         "php": "^8.1",
         "ext-json": "*",

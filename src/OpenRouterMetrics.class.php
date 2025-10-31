@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Component;
 
 use App\Component\Exception\OpenRouterApiException;
-use App\Component\Exception\OpenRouterException;
+use App\Component\Exception\OpenRouter\OpenRouterException;
 use App\Component\Exception\OpenRouterValidationException;
 use JsonException;
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\OpenRouterApiException;
-use App\Component\Exception\OpenRouterException;
-use App\Component\Exception\OpenRouterNetworkException;
-use App\Component\Exception\OpenRouterValidationException;
+use App\Component\Exception\OpenRouter\OpenRouterApiException;
+use App\Component\Exception\OpenRouter\OpenRouterException;
+use App\Component\Exception\OpenRouter\OpenRouterNetworkException;
+use App\Component\Exception\OpenRouter\OpenRouterValidationException;
 use JsonException;
 
 /**

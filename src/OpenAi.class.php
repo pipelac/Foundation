@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\OpenAiApiException;
-use App\Component\Exception\OpenAiException;
-use App\Component\Exception\OpenAiNetworkException;
-use App\Component\Exception\OpenAiValidationException;
+use App\Component\Exception\OpenAi\OpenAiApiException;
+use App\Component\Exception\OpenAi\OpenAiException;
+use App\Component\Exception\OpenAi\OpenAiNetworkException;
+use App\Component\Exception\OpenAi\OpenAiValidationException;
 use JsonException;
 
 /**

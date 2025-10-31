@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Component\Netmap;
 
 use App\Component\Logger;
-use App\Component\Exception\TopologyBuilderException;
+use App\Component\Exception\Netmap\TopologyBuilderException;
 
 /**
  * Класс для построения топологии сети из собранных LLDP данных

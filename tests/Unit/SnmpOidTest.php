@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use App\Component\SnmpOid;
-use App\Component\Exception\SnmpException;
-use App\Component\Exception\SnmpValidationException;
+use App\Component\Exception\Snmp\SnmpException;
+use App\Component\Exception\Snmp\SnmpValidationException;
 
 /**
  * Unit тесты для класса SnmpOid

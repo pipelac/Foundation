@@ -6,7 +6,7 @@ namespace App\Component\Netmap;
 
 use App\Component\MySQL;
 use App\Component\Logger;
-use App\Component\Exception\TopologySaverException;
+use App\Component\Exception\Netmap\TopologySaverException;
 use App\Component\Exception\MySQLException;
 
 /**

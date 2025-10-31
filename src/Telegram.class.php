@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\TelegramApiException;
-use App\Component\Exception\TelegramConfigException;
-use App\Component\Exception\TelegramFileException;
+use App\Component\Exception\Telegram\TelegramApiException;
+use App\Component\Exception\Telegram\TelegramConfigException;
+use App\Component\Exception\Telegram\TelegramFileException;
 use CURLFile;
 use GuzzleHttp\Psr7\Utils;
 use JsonException;

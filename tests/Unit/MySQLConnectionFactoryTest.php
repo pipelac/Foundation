@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Component\MySQLConnectionFactory;
 use App\Component\Logger;
-use App\Component\Exception\MySQLException;
+use App\Component\Exception\MySQL\MySQLException;
 use PHPUnit\Framework\TestCase;
 
 /**

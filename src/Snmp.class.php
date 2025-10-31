@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\SnmpException;
-use App\Component\Exception\SnmpConnectionException;
-use App\Component\Exception\SnmpValidationException;
+use App\Component\Exception\Snmp\SnmpException;
+use App\Component\Exception\Snmp\SnmpConnectionException;
+use App\Component\Exception\Snmp\SnmpValidationException;
 
 /**
  * Профессиональный класс-обертка для работы с SNMP протоколом

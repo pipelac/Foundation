@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Component\Rss;
 use App\Component\Logger;
-use App\Component\Exception\RssException;
-use App\Component\Exception\RssValidationException;
+use App\Component\Exception\Rss\RssException;
+use App\Component\Exception\Rss\RssValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

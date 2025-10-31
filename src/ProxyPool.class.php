@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Component;
 
 use App\Component\Exception\HttpException;
-use App\Component\Exception\ProxyPoolException;
-use App\Component\Exception\ProxyPoolValidationException;
+use App\Component\Exception\ProxyPool\ProxyPoolException;
+use App\Component\Exception\ProxyPool\ProxyPoolValidationException;
 use App\Config\ConfigLoader;
 use Psr\Http\Message\ResponseInterface;
 

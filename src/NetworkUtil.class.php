@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\NetworkUtilException;
-use App\Component\Exception\NetworkUtilValidationException;
+use App\Component\Exception\NetworkUtil\NetworkUtilException;
+use App\Component\Exception\NetworkUtil\NetworkUtilValidationException;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 

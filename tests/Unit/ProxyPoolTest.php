@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Component\ProxyPool;
 use App\Component\Logger;
-use App\Component\Exception\ProxyPoolException;
-use App\Component\Exception\ProxyPoolValidationException;
+use App\Component\Exception\ProxyPool\ProxyPoolException;
+use App\Component\Exception\ProxyPool\ProxyPoolValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**
