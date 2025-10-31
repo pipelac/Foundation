@@ -590,4 +590,136 @@ class TelegramAPI
 
         return $multipart;
     }
+
+    /**
+     * Отправляет несколько сообщений одному пользователю с задержкой
+     * 
+     * Автоматически соблюдает rate limits Telegram API.
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param array<string|array{text: string, options?: array}> $messages Массив сообщений (строки или массивы с опциями)
+     * @param int $delayMs Задержка между сообщениями в миллисекундах (по умолчанию 100мс)
+     * @return array<Message> Массив отправленных сообщений
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function sendBatch(string|int $chatId, array $messages, int $delayMs = 100): array
+    {
+        Validator::validateChatId($chatId);
+        
+        if (empty($messages)) {
+            throw new ValidationException('Массив сообщений не может быть пустым', 'messages', []);
+        }
+
+        $sent = [];
+        $delayMicroseconds = $delayMs * 1000;
+
+        $this->logger?->info('Начало пакетной отправки', [
+            'chat_id' => $chatId,
+            'count' => count($messages),
+            'delay_ms' => $delayMs,
+        ]);
+
+        foreach ($messages as $index => $message) {
+            try {
+                // Поддержка простых строк и массивов с опциями
+                if (is_string($message)) {
+                    $text = $message;
+                    $options = [];
+                } elseif (is_array($message) && isset($message['text'])) {
+                    $text = $message['text'];
+                    $options = $message['options'] ?? [];
+                } else {
+                    $this->logger?->warning('Пропущено некорректное сообщение', [
+                        'index' => $index,
+                    ]);
+                    continue;
+                }
+
+                $sentMessage = $this->sendMessage($chatId, $text, $options);
+                $sent[] = $sentMessage;
+
+                // Задержка между сообщениями (кроме последнего)
+                if ($index < count($messages) - 1 && $delayMicroseconds > 0) {
+                    usleep($delayMicroseconds);
+                }
+            } catch (\Exception $e) {
+                $this->logger?->error('Ошибка при отправке сообщения в пакете', [
+                    'index' => $index,
+                    'chat_id' => $chatId,
+                    'error' => $e->getMessage(),
+                ]);
+                // Продолжаем отправку остальных сообщений
+            }
+        }
+
+        $this->logger?->info('Пакетная отправка завершена', [
+            'chat_id' => $chatId,
+            'sent' => count($sent),
+            'total' => count($messages),
+        ]);
+
+        return $sent;
+    }
+
+    /**
+     * Отправляет одно сообщение нескольким пользователям
+     * 
+     * Автоматически соблюдает rate limits.
+     *
+     * @param array<string|int> $chatIds Массив идентификаторов чатов
+     * @param string $text Текст сообщения
+     * @param array<string, mixed> $options Дополнительные параметры
+     * @param int $delayMs Задержка между отправками в миллисекундах
+     * @return array{sent: array<Message>, failed: array<string|int>} Результаты отправки
+     * @throws ValidationException При некорректных параметрах
+     */
+    public function broadcast(array $chatIds, string $text, array $options = [], int $delayMs = 100): array
+    {
+        Validator::validateText($text);
+        
+        if (empty($chatIds)) {
+            throw new ValidationException('Массив chat_ids не может быть пустым', 'chat_ids', []);
+        }
+
+        $sent = [];
+        $failed = [];
+        $delayMicroseconds = $delayMs * 1000;
+
+        $this->logger?->info('Начало рассылки', [
+            'recipients' => count($chatIds),
+            'delay_ms' => $delayMs,
+        ]);
+
+        foreach ($chatIds as $index => $chatId) {
+            try {
+                Validator::validateChatId($chatId);
+                
+                $message = $this->sendMessage($chatId, $text, $options);
+                $sent[] = $message;
+
+                // Задержка между отправками
+                if ($index < count($chatIds) - 1 && $delayMicroseconds > 0) {
+                    usleep($delayMicroseconds);
+                }
+            } catch (\Exception $e) {
+                $this->logger?->error('Ошибка при рассылке', [
+                    'chat_id' => $chatId,
+                    'error' => $e->getMessage(),
+                ]);
+                $failed[] = $chatId;
+            }
+        }
+
+        $this->logger?->info('Рассылка завершена', [
+            'sent' => count($sent),
+            'failed' => count($failed),
+            'total' => count($chatIds),
+        ]);
+
+        return [
+            'sent' => $sent,
+            'failed' => $failed,
+        ];
+    }
 }

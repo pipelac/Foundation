@@ -547,4 +547,103 @@ class ConversationManager
             return false;
         }
     }
+
+    /**
+     * Устанавливает простое состояние для пользователя
+     * 
+     * Упрощённый метод для работы с состояниями без указания chat_id.
+     * Использует chat_id = 0 для общих состояний пользователя.
+     *
+     * @param int $userId ID пользователя в Telegram
+     * @param string $state Название состояния
+     * @param array<string, mixed> $data Данные состояния
+     * @param int|null $messageId ID сообщения для удаления (опционально)
+     * @return bool True при успешной установке
+     */
+    public function setState(int $userId, string $state, array $data = [], ?int $messageId = null): bool
+    {
+        return $this->startConversation(
+            chatId: 0,
+            userId: $userId,
+            state: $state,
+            data: $data,
+            messageId: $messageId
+        );
+    }
+
+    /**
+     * Получает состояние пользователя
+     * 
+     * Упрощённый метод для получения состояния без указания chat_id.
+     *
+     * @param int $userId ID пользователя
+     * @return array{id: int, chat_id: int, user_id: int, state: string, data: array, message_id: ?int, created_at: string, updated_at: string, expires_at: string}|null
+     */
+    public function getState(int $userId): ?array
+    {
+        return $this->getConversation(chatId: 0, userId: $userId);
+    }
+
+    /**
+     * Очищает состояние пользователя
+     * 
+     * Упрощённый метод для очистки состояния без указания chat_id.
+     *
+     * @param int $userId ID пользователя
+     * @return bool True при успешной очистке
+     */
+    public function clearState(int $userId): bool
+    {
+        return $this->endConversation(chatId: 0, userId: $userId);
+    }
+
+    /**
+     * Обновляет данные состояния пользователя
+     * 
+     * Упрощённый метод для обновления только данных без изменения состояния.
+     *
+     * @param int $userId ID пользователя
+     * @param array<string, mixed> $data Новые данные
+     * @return bool True при успешном обновлении
+     */
+    public function updateStateData(int $userId, array $data): bool
+    {
+        if (!$this->isEnabled()) {
+            return false;
+        }
+
+        try {
+            $conversation = $this->getState($userId);
+            if (!$conversation) {
+                return false;
+            }
+
+            return $this->updateConversation(
+                chatId: 0,
+                userId: $userId,
+                state: $conversation['state'],
+                data: $data
+            );
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка обновления данных состояния', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Проверяет, находится ли пользователь в определённом состоянии
+     *
+     * @param int $userId ID пользователя
+     * @param string $state Название состояния для проверки
+     * @return bool True если пользователь в указанном состоянии
+     */
+    public function isInState(int $userId, string $state): bool
+    {
+        $conversation = $this->getState($userId);
+        return $conversation && $conversation['state'] === $state;
+    }
 }

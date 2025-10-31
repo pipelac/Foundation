@@ -45,6 +45,13 @@ class PollingHandler
     private array $allowedUpdates = [];
 
     /**
+     * Обработчик ошибок
+     * 
+     * @var callable|null
+     */
+    private $errorHandler = null;
+
+    /**
      * @param TelegramAPI $api API клиент
      * @param Logger|null $logger Логгер
      */
@@ -252,6 +259,17 @@ class PollingHandler
                             'update_id' => $update->updateId,
                             'error' => $e->getMessage(),
                         ]);
+                        
+                        // Вызываем обработчик ошибок, если установлен
+                        if ($this->errorHandler) {
+                            try {
+                                ($this->errorHandler)($e, $update);
+                            } catch (\Exception $handlerError) {
+                                $this->logger?->error('Ошибка в обработчике ошибок', [
+                                    'error' => $handlerError->getMessage(),
+                                ]);
+                            }
+                        }
                     }
                 }
 
@@ -370,5 +388,32 @@ class PollingHandler
             ]);
             return 0;
         }
+    }
+
+    /**
+     * Устанавливает обработчик ошибок для Polling
+     * 
+     * Обработчик будет вызван при возникновении ошибки в процессе обработки обновления.
+     *
+     * @param callable $handler Обработчик function(\Exception $error, Update $update): void
+     * @return self
+     */
+    public function setErrorHandler(callable $handler): self
+    {
+        $this->errorHandler = $handler;
+        $this->logger?->debug('Установлен обработчик ошибок для polling');
+        return $this;
+    }
+
+    /**
+     * Удаляет обработчик ошибок
+     *
+     * @return self
+     */
+    public function removeErrorHandler(): self
+    {
+        $this->errorHandler = null;
+        $this->logger?->debug('Обработчик ошибок удалён');
+        return $this;
     }
 }
