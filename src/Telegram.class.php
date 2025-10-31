@@ -347,6 +347,286 @@ class Telegram
     }
 
     /**
+     * Отправляет опрос (голосование)
+     *
+     * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
+     * @param string $question Вопрос опроса (1-300 символов)
+     * @param array<string> $options Варианты ответов (2-10 вариантов, 1-100 символов каждый)
+     * @param array<string, mixed> $params Дополнительные параметры:
+     *   - is_anonymous (bool): Анонимный ли опрос (по умолчанию true)
+     *   - type (string): Тип опроса: 'quiz' или 'regular' (по умолчанию 'regular')
+     *   - allows_multiple_answers (bool): Можно ли выбрать несколько вариантов (только для regular)
+     *   - correct_option_id (int): Индекс правильного ответа (только для quiz)
+     *   - explanation (string): Пояснение к правильному ответу (только для quiz, 0-200 символов)
+     *   - explanation_parse_mode (string): Режим разметки для пояснения
+     *   - open_period (int): Время до автоматического закрытия опроса (5-600 секунд)
+     *   - close_date (int): Unix timestamp закрытия опроса
+     *   - is_closed (bool): Передать true для отправки закрытого опроса
+     *   - disable_notification (bool): Отправить без звука
+     *   - protect_content (bool): Защитить контент от пересылки
+     *   - reply_to_message_id (int): ID сообщения для ответа
+     *   - allow_sending_without_reply (bool): Отправить даже если сообщение для ответа не найдено
+     *   - reply_markup (array): Inline клавиатура
+     * 
+     * @return array<string, mixed> Ответ Telegram API
+     * @throws TelegramApiException Если запрос завершился с ошибкой или параметры некорректны
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function sendPoll(?string $chatId, string $question, array $options, array $params = []): array
+    {
+        $this->validatePollQuestion($question);
+        $this->validatePollOptions($options);
+
+        if (isset($params['explanation'])) {
+            $this->validatePollExplanation($params['explanation']);
+        }
+
+        $payload = array_merge($params, [
+            'chat_id' => $this->resolveChatId($chatId),
+            'question' => $question,
+            'options' => $options,
+        ]);
+
+        return $this->sendJson('sendPoll', $payload);
+    }
+
+    /**
+     * Останавливает опрос
+     *
+     * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
+     * @param int $messageId Идентификатор сообщения с опросом
+     * @param array<string, mixed>|null $replyMarkup Inline клавиатура для замены
+     * 
+     * @return array<string, mixed> Ответ Telegram API с остановленным опросом
+     * @throws TelegramApiException Если запрос завершился с ошибкой
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function stopPoll(?string $chatId, int $messageId, ?array $replyMarkup = null): array
+    {
+        $payload = [
+            'chat_id' => $this->resolveChatId($chatId),
+            'message_id' => $messageId,
+        ];
+
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = $replyMarkup;
+        }
+
+        return $this->sendJson('stopPoll', $payload);
+    }
+
+    /**
+     * Формирует inline клавиатуру
+     *
+     * @param array<array<array<string, mixed>>> $buttons Массив рядов кнопок.
+     *   Каждый ряд - массив кнопок. Каждая кнопка - ассоциативный массив:
+     *   - text (string, обязательно): Текст на кнопке
+     *   - url (string): URL для открытия
+     *   - callback_data (string): Данные для callback (1-64 байта)
+     *   - web_app (array): Web App для запуска
+     *   - login_url (array): Login URL для авторизации
+     *   - switch_inline_query (string): Inline запрос в текущем чате
+     *   - switch_inline_query_current_chat (string): Inline запрос в текущем чате
+     *   - callback_game (object): Игра для запуска
+     *   - pay (bool): Кнопка оплаты
+     * 
+     * @return array<string, mixed> Структура inline клавиатуры для использования в reply_markup
+     * @throws TelegramApiException Если структура кнопок некорректна
+     */
+    public function buildInlineKeyboard(array $buttons): array
+    {
+        $this->validateInlineKeyboard($buttons);
+        
+        return ['inline_keyboard' => $buttons];
+    }
+
+    /**
+     * Формирует reply клавиатуру
+     *
+     * @param array<array<array<string, mixed>|string>> $buttons Массив рядов кнопок.
+     *   Каждый ряд - массив кнопок. Кнопка может быть строкой или массивом:
+     *   - text (string, обязательно): Текст на кнопке
+     *   - request_contact (bool): Запросить контакт
+     *   - request_location (bool): Запросить местоположение
+     *   - request_poll (array): Запросить создание опроса
+     *   - web_app (array): Web App для запуска
+     * @param array<string, mixed> $params Дополнительные параметры:
+     *   - resize_keyboard (bool): Автоматически подстроить размер клавиатуры
+     *   - one_time_keyboard (bool): Скрыть клавиатуру после использования
+     *   - input_field_placeholder (string): Placeholder в поле ввода (1-64 символа)
+     *   - selective (bool): Показать клавиатуру только определенным пользователям
+     * 
+     * @return array<string, mixed> Структура reply клавиатуры для использования в reply_markup
+     * @throws TelegramApiException Если структура кнопок некорректна
+     */
+    public function buildReplyKeyboard(array $buttons, array $params = []): array
+    {
+        $normalized = $this->normalizeReplyKeyboard($buttons);
+        $this->validateReplyKeyboard($normalized);
+        
+        return array_merge($params, ['keyboard' => $normalized]);
+    }
+
+    /**
+     * Формирует команду удаления клавиатуры
+     *
+     * @param bool $selective Удалить клавиатуру только для определенных пользователей
+     * @return array<string, mixed> Структура для удаления клавиатуры
+     */
+    public function removeKeyboard(bool $selective = false): array
+    {
+        return [
+            'remove_keyboard' => true,
+            'selective' => $selective,
+        ];
+    }
+
+    /**
+     * Формирует команду принудительного ответа
+     *
+     * @param string|null $placeholder Подсказка в поле ввода (1-64 символа)
+     * @param bool $selective Принудительный ответ только для определенных пользователей
+     * @return array<string, mixed> Структура для принудительного ответа
+     * @throws TelegramApiException Если placeholder слишком длинный
+     */
+    public function forceReply(?string $placeholder = null, bool $selective = false): array
+    {
+        if ($placeholder !== null && mb_strlen($placeholder, 'UTF-8') > 64) {
+            throw new TelegramApiException('Placeholder не может превышать 64 символа.');
+        }
+
+        $result = [
+            'force_reply' => true,
+            'selective' => $selective,
+        ];
+
+        if ($placeholder !== null) {
+            $result['input_field_placeholder'] = $placeholder;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получает обновления от бота
+     *
+     * @param array<string, mixed> $params Параметры запроса:
+     *   - offset (int): Идентификатор первого обновления для получения
+     *   - limit (int): Максимальное количество обновлений (1-100, по умолчанию 100)
+     *   - timeout (int): Таймаут long polling в секундах (по умолчанию 0)
+     *   - allowed_updates (array): Типы обновлений для получения
+     * 
+     * @return array<string, mixed> Массив обновлений
+     * @throws TelegramApiException Если запрос завершился с ошибкой
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function getUpdates(array $params = []): array
+    {
+        return $this->sendJson('getUpdates', $params);
+    }
+
+    /**
+     * Отвечает на callback query от inline кнопок
+     *
+     * @param string $callbackQueryId Уникальный идентификатор callback query
+     * @param array<string, mixed> $params Параметры ответа:
+     *   - text (string): Текст уведомления (0-200 символов)
+     *   - show_alert (bool): Показать alert вместо уведомления (по умолчанию false)
+     *   - url (string): URL для открытия клиентом
+     *   - cache_time (int): Время кэширования на стороне клиента (по умолчанию 0)
+     * 
+     * @return array<string, mixed> Ответ Telegram API
+     * @throws TelegramApiException Если запрос завершился с ошибкой или текст слишком длинный
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function answerCallbackQuery(string $callbackQueryId, array $params = []): array
+    {
+        if (isset($params['text']) && mb_strlen($params['text'], 'UTF-8') > 200) {
+            throw new TelegramApiException('Текст callback ответа не может превышать 200 символов.');
+        }
+
+        $payload = array_merge($params, [
+            'callback_query_id' => $callbackQueryId,
+        ]);
+
+        return $this->sendJson('answerCallbackQuery', $payload);
+    }
+
+    /**
+     * Редактирует текст сообщения
+     *
+     * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
+     * @param int $messageId Идентификатор сообщения для редактирования
+     * @param string $text Новый текст сообщения (1-4096 символов)
+     * @param array<string, mixed> $options Дополнительные параметры:
+     *   - parse_mode (string): Режим разметки
+     *   - entities (array): Специальные сущности в тексте
+     *   - disable_web_page_preview (bool): Отключить превью ссылок
+     *   - reply_markup (array): Inline клавиатура
+     * 
+     * @return array<string, mixed> Ответ Telegram API
+     * @throws TelegramApiException Если запрос завершился с ошибкой
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function editMessageText(?string $chatId, int $messageId, string $text, array $options = []): array
+    {
+        $this->validateText($text);
+
+        $payload = array_merge($options, [
+            'chat_id' => $this->resolveChatId($chatId),
+            'message_id' => $messageId,
+            'text' => $text,
+        ]);
+
+        return $this->sendJson('editMessageText', $payload);
+    }
+
+    /**
+     * Редактирует inline клавиатуру сообщения
+     *
+     * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
+     * @param int $messageId Идентификатор сообщения для редактирования
+     * @param array<string, mixed>|null $replyMarkup Новая inline клавиатура или null для удаления
+     * 
+     * @return array<string, mixed> Ответ Telegram API
+     * @throws TelegramApiException Если запрос завершился с ошибкой
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function editMessageReplyMarkup(?string $chatId, int $messageId, ?array $replyMarkup = null): array
+    {
+        $payload = [
+            'chat_id' => $this->resolveChatId($chatId),
+            'message_id' => $messageId,
+        ];
+
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = $replyMarkup;
+        }
+
+        return $this->sendJson('editMessageReplyMarkup', $payload);
+    }
+
+    /**
+     * Удаляет сообщение
+     *
+     * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
+     * @param int $messageId Идентификатор сообщения для удаления
+     * 
+     * @return array<string, mixed> Ответ Telegram API
+     * @throws TelegramApiException Если запрос завершился с ошибкой
+     * @throws JsonException Если не удалось обработать JSON
+     */
+    public function deleteMessage(?string $chatId, int $messageId): array
+    {
+        $payload = [
+            'chat_id' => $this->resolveChatId($chatId),
+            'message_id' => $messageId,
+        ];
+
+        return $this->sendJson('deleteMessage', $payload);
+    }
+
+    /**
      * Валидирует текст сообщения
      *
      * @param string $text Текст для валидации
@@ -373,6 +653,196 @@ class Telegram
     {
         if (mb_strlen($caption, 'UTF-8') > 1024) {
             throw new TelegramApiException('Подпись не может превышать 1024 символа.');
+        }
+    }
+
+    /**
+     * Валидирует вопрос опроса
+     *
+     * @param string $question Вопрос для валидации
+     * @throws TelegramApiException Если вопрос некорректен
+     */
+    private function validatePollQuestion(string $question): void
+    {
+        $length = mb_strlen($question, 'UTF-8');
+        
+        if ($length < 1) {
+            throw new TelegramApiException('Вопрос опроса не может быть пустым.');
+        }
+        
+        if ($length > 300) {
+            throw new TelegramApiException('Вопрос опроса не может превышать 300 символов.');
+        }
+    }
+
+    /**
+     * Валидирует варианты ответов опроса
+     *
+     * @param array<string> $options Варианты ответов для валидации
+     * @throws TelegramApiException Если варианты ответов некорректны
+     */
+    private function validatePollOptions(array $options): void
+    {
+        $count = count($options);
+        
+        if ($count < 2) {
+            throw new TelegramApiException('Опрос должен содержать минимум 2 варианта ответа.');
+        }
+        
+        if ($count > 10) {
+            throw new TelegramApiException('Опрос не может содержать более 10 вариантов ответа.');
+        }
+
+        foreach ($options as $index => $option) {
+            if (!is_string($option)) {
+                throw new TelegramApiException("Вариант ответа #{$index} должен быть строкой.");
+            }
+
+            $length = mb_strlen($option, 'UTF-8');
+            
+            if ($length < 1) {
+                throw new TelegramApiException("Вариант ответа #{$index} не может быть пустым.");
+            }
+            
+            if ($length > 100) {
+                throw new TelegramApiException("Вариант ответа #{$index} не может превышать 100 символов.");
+            }
+        }
+    }
+
+    /**
+     * Валидирует пояснение к опросу
+     *
+     * @param string $explanation Пояснение для валидации
+     * @throws TelegramApiException Если пояснение слишком длинное
+     */
+    private function validatePollExplanation(string $explanation): void
+    {
+        if (mb_strlen($explanation, 'UTF-8') > 200) {
+            throw new TelegramApiException('Пояснение к опросу не может превышать 200 символов.');
+        }
+    }
+
+    /**
+     * Валидирует структуру inline клавиатуры
+     *
+     * @param array<array<array<string, mixed>>> $buttons Кнопки для валидации
+     * @throws TelegramApiException Если структура некорректна
+     */
+    private function validateInlineKeyboard(array $buttons): void
+    {
+        if (empty($buttons)) {
+            throw new TelegramApiException('Inline клавиатура не может быть пустой.');
+        }
+
+        foreach ($buttons as $rowIndex => $row) {
+            if (!is_array($row)) {
+                throw new TelegramApiException("Ряд #{$rowIndex} inline клавиатуры должен быть массивом.");
+            }
+
+            if (empty($row)) {
+                throw new TelegramApiException("Ряд #{$rowIndex} inline клавиатуры не может быть пустым.");
+            }
+
+            foreach ($row as $buttonIndex => $button) {
+                if (!is_array($button)) {
+                    throw new TelegramApiException("Кнопка [{$rowIndex}][{$buttonIndex}] должна быть массивом.");
+                }
+
+                if (!isset($button['text']) || !is_string($button['text'])) {
+                    throw new TelegramApiException("Кнопка [{$rowIndex}][{$buttonIndex}] должна содержать текстовое поле 'text'.");
+                }
+
+                if (trim($button['text']) === '') {
+                    throw new TelegramApiException("Текст кнопки [{$rowIndex}][{$buttonIndex}] не может быть пустым.");
+                }
+
+                $actionFields = ['url', 'callback_data', 'web_app', 'login_url', 'switch_inline_query', 
+                                'switch_inline_query_current_chat', 'callback_game', 'pay'];
+                $hasAction = false;
+
+                foreach ($actionFields as $field) {
+                    if (isset($button[$field])) {
+                        $hasAction = true;
+                        break;
+                    }
+                }
+
+                if (!$hasAction) {
+                    throw new TelegramApiException("Кнопка [{$rowIndex}][{$buttonIndex}] должна содержать хотя бы одно действие (url, callback_data и т.д.).");
+                }
+
+                if (isset($button['callback_data'])) {
+                    $callbackLength = strlen((string)$button['callback_data']);
+                    if ($callbackLength < 1 || $callbackLength > 64) {
+                        throw new TelegramApiException("callback_data кнопки [{$rowIndex}][{$buttonIndex}] должен быть от 1 до 64 байт.");
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Нормализует структуру reply клавиатуры
+     *
+     * @param array<array<array<string, mixed>|string>> $buttons Кнопки для нормализации
+     * @return array<array<array<string, mixed>>>
+     */
+    private function normalizeReplyKeyboard(array $buttons): array
+    {
+        $normalized = [];
+
+        foreach ($buttons as $row) {
+            $normalizedRow = [];
+
+            foreach ($row as $button) {
+                if (is_string($button)) {
+                    $normalizedRow[] = ['text' => $button];
+                } elseif (is_array($button)) {
+                    $normalizedRow[] = $button;
+                }
+            }
+
+            $normalized[] = $normalizedRow;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Валидирует структуру reply клавиатуры
+     *
+     * @param array<array<array<string, mixed>>> $buttons Кнопки для валидации
+     * @throws TelegramApiException Если структура некорректна
+     */
+    private function validateReplyKeyboard(array $buttons): void
+    {
+        if (empty($buttons)) {
+            throw new TelegramApiException('Reply клавиатура не может быть пустой.');
+        }
+
+        foreach ($buttons as $rowIndex => $row) {
+            if (!is_array($row)) {
+                throw new TelegramApiException("Ряд #{$rowIndex} reply клавиатуры должен быть массивом.");
+            }
+
+            if (empty($row)) {
+                throw new TelegramApiException("Ряд #{$rowIndex} reply клавиатуры не может быть пустым.");
+            }
+
+            foreach ($row as $buttonIndex => $button) {
+                if (!is_array($button)) {
+                    throw new TelegramApiException("Кнопка [{$rowIndex}][{$buttonIndex}] должна быть массивом.");
+                }
+
+                if (!isset($button['text']) || !is_string($button['text'])) {
+                    throw new TelegramApiException("Кнопка [{$rowIndex}][{$buttonIndex}] должна содержать текстовое поле 'text'.");
+                }
+
+                if (trim($button['text']) === '') {
+                    throw new TelegramApiException("Текст кнопки [{$rowIndex}][{$buttonIndex}] не может быть пустым.");
+                }
+            }
         }
     }
 
