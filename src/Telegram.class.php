@@ -508,51 +508,6 @@ class Telegram
     }
 
     /**
-     * Получает обновления от бота
-     *
-     * @param array<string, mixed> $params Параметры запроса:
-     *   - offset (int): Идентификатор первого обновления для получения
-     *   - limit (int): Максимальное количество обновлений (1-100, по умолчанию 100)
-     *   - timeout (int): Таймаут long polling в секундах (по умолчанию 0)
-     *   - allowed_updates (array): Типы обновлений для получения
-     * 
-     * @return array<string, mixed> Массив обновлений
-     * @throws TelegramApiException Если запрос завершился с ошибкой
-     * @throws JsonException Если не удалось обработать JSON
-     */
-    public function getUpdates(array $params = []): array
-    {
-        return $this->sendJson('getUpdates', $params);
-    }
-
-    /**
-     * Отвечает на callback query от inline кнопок
-     *
-     * @param string $callbackQueryId Уникальный идентификатор callback query
-     * @param array<string, mixed> $params Параметры ответа:
-     *   - text (string): Текст уведомления (0-200 символов)
-     *   - show_alert (bool): Показать alert вместо уведомления (по умолчанию false)
-     *   - url (string): URL для открытия клиентом
-     *   - cache_time (int): Время кэширования на стороне клиента (по умолчанию 0)
-     * 
-     * @return array<string, mixed> Ответ Telegram API
-     * @throws TelegramApiException Если запрос завершился с ошибкой или текст слишком длинный
-     * @throws JsonException Если не удалось обработать JSON
-     */
-    public function answerCallbackQuery(string $callbackQueryId, array $params = []): array
-    {
-        if (isset($params['text']) && mb_strlen($params['text'], 'UTF-8') > 200) {
-            throw new TelegramApiException('Текст callback ответа не может превышать 200 символов.');
-        }
-
-        $payload = array_merge($params, [
-            'callback_query_id' => $callbackQueryId,
-        ]);
-
-        return $this->sendJson('answerCallbackQuery', $payload);
-    }
-
-    /**
      * Редактирует текст сообщения
      *
      * @param string|null $chatId Идентификатор чата (если null, используется default_chat_id)
