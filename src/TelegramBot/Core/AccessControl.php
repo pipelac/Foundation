@@ -332,4 +332,149 @@ class AccessControl
         $this->logger?->info('Перезагрузка конфигурации контроля доступа');
         $this->loadConfig($configPath);
     }
+
+    /**
+     * Проверяет, может ли роль работать в режиме профилактики
+     *
+     * @param int $chatId ID чата пользователя
+     * @return bool True если роль может работать в режиме профилактики
+     */
+    public function canIgnoreReconstructionMode(int $chatId): bool
+    {
+        if (!$this->enabled) {
+            return true;
+        }
+
+        $role = $this->getUserRole($chatId);
+        $roleInfo = $this->getRoleInfo($role);
+
+        if (!$roleInfo) {
+            return false;
+        }
+
+        $reconstructionModeIgnore = $roleInfo['reconstructionModeIgnore'] ?? 'no';
+
+        return strtolower($reconstructionModeIgnore) === 'yes';
+    }
+
+    /**
+     * Проверяет, нужно ли отправлять беззвучное уведомление для пользователя
+     *
+     * @param int $chatId ID чата пользователя
+     * @param \DateTimeInterface|null $time Время для проверки (по умолчанию текущее)
+     * @return bool True если нужно отправить беззвучное уведомление
+     */
+    public function shouldDisableSoundNotification(int $chatId, ?\DateTimeInterface $time = null): bool
+    {
+        if (!$this->enabled) {
+            return false;
+        }
+
+        $role = $this->getUserRole($chatId);
+        $roleInfo = $this->getRoleInfo($role);
+
+        if (!$roleInfo) {
+            return false;
+        }
+
+        $disableSoundRange = $roleInfo['disable_sound_notification'] ?? null;
+
+        if ($disableSoundRange === null || empty($disableSoundRange)) {
+            return false;
+        }
+
+        return $this->isTimeInRange($disableSoundRange, $time);
+    }
+
+    /**
+     * Проверяет, находится ли время в указанном диапазоне
+     *
+     * @param string $range Диапазон времени в формате "HH:MM-HH:MM"
+     * @param \DateTimeInterface|null $time Время для проверки (по умолчанию текущее)
+     * @return bool True если время в диапазоне
+     */
+    private function isTimeInRange(string $range, ?\DateTimeInterface $time = null): bool
+    {
+        if ($time === null) {
+            $time = new \DateTime();
+        }
+
+        // Парсинг диапазона "HH:MM-HH:MM"
+        $parts = explode('-', $range);
+        
+        if (count($parts) !== 2) {
+            $this->logger?->warning('Некорректный формат диапазона времени', [
+                'range' => $range,
+            ]);
+            return false;
+        }
+
+        try {
+            $startParts = explode(':', trim($parts[0]));
+            $endParts = explode(':', trim($parts[1]));
+
+            if (count($startParts) !== 2 || count($endParts) !== 2) {
+                throw new \Exception('Неверный формат времени');
+            }
+
+            $startHour = (int)$startParts[0];
+            $startMinute = (int)$startParts[1];
+            $endHour = (int)$endParts[0];
+            $endMinute = (int)$endParts[1];
+
+            // Создаем объекты времени для сравнения
+            $currentTime = (int)$time->format('H') * 60 + (int)$time->format('i');
+            $startTime = $startHour * 60 + $startMinute;
+            $endTime = $endHour * 60 + $endMinute;
+
+            // Проверка диапазона через полночь (например, 22:00-09:00)
+            if ($startTime > $endTime) {
+                return $currentTime >= $startTime || $currentTime <= $endTime;
+            } else {
+                return $currentTime >= $startTime && $currentTime <= $endTime;
+            }
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка парсинга диапазона времени', [
+                'range' => $range,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Получает параметр reconstructionModeIgnore для роли пользователя
+     *
+     * @param int $chatId ID чата пользователя
+     * @return string "yes" или "no"
+     */
+    public function getReconstructionModeIgnore(int $chatId): string
+    {
+        $role = $this->getUserRole($chatId);
+        $roleInfo = $this->getRoleInfo($role);
+
+        if (!$roleInfo) {
+            return 'no';
+        }
+
+        return $roleInfo['reconstructionModeIgnore'] ?? 'no';
+    }
+
+    /**
+     * Получает параметр disable_sound_notification для роли пользователя
+     *
+     * @param int $chatId ID чата пользователя
+     * @return string|null Диапазон времени или null
+     */
+    public function getDisableSoundNotification(int $chatId): ?string
+    {
+        $role = $this->getUserRole($chatId);
+        $roleInfo = $this->getRoleInfo($role);
+
+        if (!$roleInfo) {
+            return null;
+        }
+
+        return $roleInfo['disable_sound_notification'] ?? null;
+    }
 }

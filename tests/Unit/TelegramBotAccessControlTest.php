@@ -371,4 +371,209 @@ class TelegramBotAccessControlTest extends TestCase
 
         new AccessControl($this->configPath);
     }
+
+    public function testCanIgnoreReconstructionModeForAdmin(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        // Создаем роли с поддержкой reconstructionModeIgnore
+        $roles = [
+            'default' => [
+                'commands' => ['/start'],
+                'reconstructionModeIgnore' => 'no',
+            ],
+            'admin' => [
+                'commands' => ['/start', '/admin'],
+                'reconstructionModeIgnore' => 'yes',
+            ],
+            'user' => [
+                'commands' => ['/start'],
+                'reconstructionModeIgnore' => 'no',
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // Админ может работать в режиме профилактики
+        $this->assertTrue($accessControl->canIgnoreReconstructionMode(123456));
+        
+        // Обычный пользователь не может
+        $this->assertFalse($accessControl->canIgnoreReconstructionMode(789012));
+        
+        // Неизвестный пользователь не может
+        $this->assertFalse($accessControl->canIgnoreReconstructionMode(999999));
+    }
+
+    public function testCanIgnoreReconstructionModeWhenDisabled(): void
+    {
+        $this->createTestConfig(false);
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // Когда контроль доступа выключен, все могут работать
+        $this->assertTrue($accessControl->canIgnoreReconstructionMode(123456));
+        $this->assertTrue($accessControl->canIgnoreReconstructionMode(999999));
+    }
+
+    public function testShouldDisableSoundNotificationInRange(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        // Создаем роли с поддержкой disable_sound_notification
+        $roles = [
+            'default' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => null,
+            ],
+            'admin' => [
+                'commands' => ['/start', '/admin'],
+                'disable_sound_notification' => '22:00-09:00',
+            ],
+            'user' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => '23:00-08:00',
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // Тест в диапазоне (23:30)
+        $time = new \DateTime('2024-01-01 23:30:00');
+        $this->assertTrue($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // Тест в диапазоне (08:00)
+        $time = new \DateTime('2024-01-01 08:00:00');
+        $this->assertTrue($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // Тест вне диапазона (12:00)
+        $time = new \DateTime('2024-01-01 12:00:00');
+        $this->assertFalse($accessControl->shouldDisableSoundNotification(123456, $time));
+    }
+
+    public function testShouldDisableSoundNotificationForRoleWithoutRange(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        $roles = [
+            'default' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => null,
+            ],
+            'admin' => [
+                'commands' => ['/start'],
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // Роль без диапазона - всегда false
+        $time = new \DateTime('2024-01-01 23:00:00');
+        $this->assertFalse($accessControl->shouldDisableSoundNotification(123456, $time));
+    }
+
+    public function testShouldDisableSoundNotificationWhenDisabled(): void
+    {
+        $this->createTestConfig(false);
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // Когда контроль доступа выключен - всегда false
+        $time = new \DateTime('2024-01-01 23:00:00');
+        $this->assertFalse($accessControl->shouldDisableSoundNotification(123456, $time));
+    }
+
+    public function testGetReconstructionModeIgnore(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        $roles = [
+            'default' => [
+                'commands' => ['/start'],
+                'reconstructionModeIgnore' => 'no',
+            ],
+            'admin' => [
+                'commands' => ['/start'],
+                'reconstructionModeIgnore' => 'yes',
+            ],
+            'user' => [
+                'commands' => ['/start'],
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        $this->assertEquals('yes', $accessControl->getReconstructionModeIgnore(123456));
+        $this->assertEquals('no', $accessControl->getReconstructionModeIgnore(789012));
+    }
+
+    public function testGetDisableSoundNotification(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        $roles = [
+            'default' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => null,
+            ],
+            'admin' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => '22:00-09:00',
+            ],
+            'user' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => '23:00-08:00',
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        $this->assertEquals('22:00-09:00', $accessControl->getDisableSoundNotification(123456));
+        $this->assertEquals('23:00-08:00', $accessControl->getDisableSoundNotification(789012));
+    }
+
+    public function testTimeRangeAcrossMidnight(): void
+    {
+        $this->createTestConfig(true);
+        $this->createTestUsers();
+        
+        $roles = [
+            'admin' => [
+                'commands' => ['/start'],
+                'disable_sound_notification' => '22:00-09:00',
+            ],
+        ];
+        file_put_contents($this->rolesPath, json_encode($roles));
+
+        $accessControl = new AccessControl($this->configPath);
+
+        // 22:30 - в диапазоне
+        $time = new \DateTime('2024-01-01 22:30:00');
+        $this->assertTrue($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // 02:00 - в диапазоне (после полуночи)
+        $time = new \DateTime('2024-01-01 02:00:00');
+        $this->assertTrue($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // 08:30 - в диапазоне
+        $time = new \DateTime('2024-01-01 08:30:00');
+        $this->assertTrue($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // 10:00 - вне диапазона
+        $time = new \DateTime('2024-01-01 10:00:00');
+        $this->assertFalse($accessControl->shouldDisableSoundNotification(123456, $time));
+        
+        // 15:00 - вне диапазона
+        $time = new \DateTime('2024-01-01 15:00:00');
+        $this->assertFalse($accessControl->shouldDisableSoundNotification(123456, $time));
+    }
 }

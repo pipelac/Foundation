@@ -85,13 +85,17 @@ config/
 ```json
 {
     "default": {
-        "commands": ["/start", "/help"]
+        "commands": ["/start", "/help"],
+        "reconstructionModeIgnore": "no",
+        "disable_sound_notification": null
     },
     "admin": {
         "commands": [
             "/start", "/help", "/adduser", 
             "/userinfo", "/settings"
-        ]
+        ],
+        "reconstructionModeIgnore": "yes",
+        "disable_sound_notification": "22:00-09:00"
     }
 }
 ```
@@ -99,6 +103,17 @@ config/
 **Команды можно указывать:**
 - С `/` - `/start`
 - Без `/` - `start` (автоматически нормализуется)
+
+**Дополнительные параметры роли:**
+
+- `reconstructionModeIgnore` - может ли роль работать в режиме профилактики
+  - `"yes"` - роль работает даже в режиме профилактики
+  - `"no"` - роль блокируется в режиме профилактики (бот отвечает сообщением)
+  
+- `disable_sound_notification` - временной диапазон для беззвучных уведомлений
+  - Формат: `"HH:MM-HH:MM"` (например, `"22:00-09:00"`)
+  - `null` - звуковые уведомления всегда включены
+  - Поддерживает диапазоны через полночь (22:00-09:00)
 
 ## Использование
 
@@ -166,6 +181,47 @@ echo "Доступные команды: " . implode(', ', $commands);
 if ($accessControl->isUserRegistered($userId)) {
     echo "Пользователь зарегистрирован";
 }
+```
+
+### Работа с режимом профилактики
+
+```php
+$userId = 366442475;
+
+// Проверить, может ли пользователь работать в режиме профилактики
+if ($accessControl->canIgnoreReconstructionMode($userId)) {
+    echo "Пользователь может работать в режиме профилактики";
+} else {
+    echo "Доступ запрещен в режиме профилактики";
+}
+
+// Получить значение параметра
+$reconstructionMode = $accessControl->getReconstructionModeIgnore($userId);
+echo "ReconstructionModeIgnore: {$reconstructionMode}"; // "yes" или "no"
+```
+
+### Работа с беззвучными уведомлениями
+
+```php
+$userId = 366442475;
+
+// Проверить, нужно ли отправлять беззвучное уведомление
+if ($accessControl->shouldDisableSoundNotification($userId)) {
+    echo "Отправить беззвучное уведомление";
+    // При отправке сообщения добавить 'disable_notification' => true
+} else {
+    echo "Отправить обычное уведомление";
+}
+
+// Проверить для конкретного времени
+$time = new \DateTime('2024-01-01 23:00:00');
+if ($accessControl->shouldDisableSoundNotification($userId, $time)) {
+    echo "В 23:00 нужно отправлять беззвучно";
+}
+
+// Получить диапазон времени
+$range = $accessControl->getDisableSoundNotification($userId);
+echo "Диапазон беззвучных уведомлений: {$range}"; // "22:00-09:00" или null
 ```
 
 ### Использование с обработчиками команд

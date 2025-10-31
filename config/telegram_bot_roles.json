@@ -1,6 +1,8 @@
 {
     "default": {
         "commands": ["/start", "/contacts"],
+        "reconstructionModeIgnore": "no",
+        "disable_sound_notification": null,
         "_comment": "Базовая роль для всех незарегистрированных пользователей"
     },
     "admin": {
@@ -16,7 +18,9 @@
             "/stat",
             "/pay"
         ],
-        "_comment": "Администратор - полный доступ ко всем командам"
+        "reconstructionModeIgnore": "yes",
+        "disable_sound_notification": "22:00-09:00",
+        "_comment": "Администратор - полный доступ ко всем командам, работает в режиме профилактики"
     },
     "L2": {
         "commands": [
@@ -26,7 +30,9 @@
             "/userinfo",
             "/freeip"
         ],
-        "_comment": "Роль L2 - ограниченный доступ для технической поддержки второго уровня"
+        "reconstructionModeIgnore": "yes",
+        "disable_sound_notification": "22:00-09:00",
+        "_comment": "Роль L2 - ограниченный доступ для технической поддержки второго уровня, работает в режиме профилактики"
     },
     "_comment": [
         "Определение ролей и разрешенных для них команд.",
@@ -37,7 +43,9 @@
             "commands": [
                 "Массив команд в формате /command",
                 "Команды можно указывать с / или без - система автоматически нормализует"
-            ]
+            ],
+            "reconstructionModeIgnore": "yes/no - может ли роль работать в режиме профилактики (yes) или нет (no)",
+            "disable_sound_notification": "Временной диапазон беззвучных уведомлений в формате HH:MM-HH:MM (например, 22:00-09:00) или null"
         }
     }
 }

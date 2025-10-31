@@ -186,6 +186,75 @@ $textHandler->handleCommand($update, 'roles', function ($message) use ($api, $ac
     $api->sendMessage($message->chat->id, $response);
 });
 
+// === 10. ПРОВЕРКА РЕЖИМА ПРОФИЛАКТИКИ ===
+
+$textHandler->handleCommand($update, 'maintenance', function ($message) use ($api, $accessControl) {
+    $userId = $message->from->id;
+    
+    // Проверяем, может ли пользователь работать в режиме профилактики
+    if ($accessControl->canIgnoreReconstructionMode($userId)) {
+        $response = "✓ Вы можете работать в режиме профилактики\n";
+        $response .= "Ваши команды будут выполняться даже когда бот на профилактике.";
+    } else {
+        $response = "⚠️ В режиме профилактики бот недоступен\n";
+        $response .= "Пожалуйста, повторите попытку позже.";
+    }
+    
+    $api->sendMessage($message->chat->id, $response);
+});
+
+// === 11. ОТПРАВКА С УЧЕТОМ БЕЗЗВУЧНЫХ УВЕДОМЛЕНИЙ ===
+
+$textHandler->handleCommand($update, 'notify', function ($message) use ($api, $accessControl) {
+    $userId = $message->from->id;
+    
+    // Проверяем, нужно ли отправлять беззвучно
+    $disableNotification = $accessControl->shouldDisableSoundNotification($userId);
+    
+    $options = [
+        'disable_notification' => $disableNotification
+    ];
+    
+    $text = "📢 Это тестовое уведомление\n\n";
+    if ($disableNotification) {
+        $text .= "🔇 Отправлено беззвучно (текущее время в диапазоне тихих часов)";
+    } else {
+        $text .= "🔔 Отправлено со звуком";
+    }
+    
+    $api->sendMessage($message->chat->id, $text, $options);
+});
+
+// === 12. ПОЛНАЯ ИНФОРМАЦИЯ О НАСТРОЙКАХ РОЛИ ===
+
+$textHandler->handleCommand($update, 'myaccess', function ($message) use ($api, $accessControl) {
+    $userId = $message->from->id;
+    
+    $role = $accessControl->getUserRole($userId);
+    $commands = $accessControl->getAllowedCommands($userId);
+    $reconstructionMode = $accessControl->getReconstructionModeIgnore($userId);
+    $soundRange = $accessControl->getDisableSoundNotification($userId);
+    $canIgnoreMaintenance = $accessControl->canIgnoreReconstructionMode($userId);
+    $shouldBeSilent = $accessControl->shouldDisableSoundNotification($userId);
+    
+    $response = "🔐 Ваши права доступа:\n\n";
+    $response .= "👤 Роль: {$role}\n";
+    $response .= "📋 Доступно команд: " . count($commands) . "\n";
+    $response .= "🔧 Работа в профилактику: " . ($canIgnoreMaintenance ? "✓ Да" : "✗ Нет") . "\n";
+    
+    if ($soundRange !== null) {
+        $response .= "🔇 Тихие часы: {$soundRange}\n";
+        $response .= "📱 Сейчас беззвучно: " . ($shouldBeSilent ? "✓ Да" : "✗ Нет") . "\n";
+    } else {
+        $response .= "🔔 Тихие часы: не установлены\n";
+    }
+    
+    $response .= "\n💼 Доступные команды:\n";
+    $response .= implode(', ', $commands);
+    
+    $api->sendMessage($message->chat->id, $response);
+});
+
 // Отправка ответа Telegram
 $webhookHandler->sendResponse();
 
