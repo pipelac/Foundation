@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Component\OpenRouter;
 use App\Component\Logger;
-use App\Component\Exception\OpenRouterValidationException;
+use App\Component\Exception\OpenRouter\OpenRouterValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

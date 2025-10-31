@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\SnmpException;
+use App\Component\Exception\Snmp\SnmpException;
 use App\Component\Exception\SnmpValidationException;
 
 /**

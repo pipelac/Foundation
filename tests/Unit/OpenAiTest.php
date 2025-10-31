@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Component\OpenAi;
 use App\Component\Logger;
-use App\Component\Exception\OpenAiValidationException;
+use App\Component\Exception\OpenAi\OpenAiValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

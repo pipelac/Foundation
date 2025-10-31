@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Component\Email;
 use App\Component\Logger;
-use App\Component\Exception\EmailException;
-use App\Component\Exception\EmailValidationException;
+use App\Component\Exception\Email\EmailException;
+use App\Component\Exception\Email\EmailValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

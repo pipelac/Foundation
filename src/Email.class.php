@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\EmailException;
-use App\Component\Exception\EmailValidationException;
+use App\Component\Exception\Email\EmailException;
+use App\Component\Exception\Email\EmailValidationException;
 use DateTimeImmutable;
 use Exception;
 use Throwable;

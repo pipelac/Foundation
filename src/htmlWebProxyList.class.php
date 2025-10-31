@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\HtmlWebProxyListException;
-use App\Component\Exception\HtmlWebProxyListValidationException;
+use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListException;
+use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListValidationException;
 use App\Component\Exception\HttpException;
 use App\Config\ConfigLoader;
 

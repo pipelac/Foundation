@@ -7,8 +7,8 @@ namespace Tests\Unit;
 use App\Component\htmlWebProxyList;
 use App\Component\ProxyPool;
 use App\Component\Logger;
-use App\Component\Exception\HtmlWebProxyListException;
-use App\Component\Exception\HtmlWebProxyListValidationException;
+use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListException;
+use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**

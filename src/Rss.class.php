@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\RssException;
-use App\Component\Exception\RssValidationException;
+use App\Component\Exception\Rss\RssException;
+use App\Component\Exception\Rss\RssValidationException;
 use DateTimeImmutable;
 use Exception;
 use SimplePie\SimplePie;

@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Component\MySQL;
 use App\Component\Logger;
-use App\Component\Exception\MySQLException;
-use App\Component\Exception\MySQLConnectionException;
+use App\Component\Exception\MySQL\MySQLException;
+use App\Component\Exception\MySQL\MySQLConnectionException;
 use PHPUnit\Framework\TestCase;
 use PDO;
 

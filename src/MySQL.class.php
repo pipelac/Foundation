@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\MySQLConnectionException;
-use App\Component\Exception\MySQLException;
-use App\Component\Exception\MySQLTransactionException;
+use App\Component\Exception\MySQL\MySQLConnectionException;
+use App\Component\Exception\MySQL\MySQLException;
+use App\Component\Exception\MySQL\MySQLTransactionException;
 use PDO;
 use PDOException;
 use PDOStatement;

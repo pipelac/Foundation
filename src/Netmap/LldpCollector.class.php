@@ -7,7 +7,7 @@ namespace App\Component\Netmap;
 use App\Component\Snmp;
 use App\Component\SnmpOid;
 use App\Component\Logger;
-use App\Component\Exception\LldpCollectorException;
+use App\Component\Exception\Netmap\LldpCollectorException;
 use App\Component\Exception\SnmpException;
 
 /**

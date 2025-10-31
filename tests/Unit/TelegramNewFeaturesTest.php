@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Component\Telegram;
-use App\Component\Exception\TelegramApiException;
+use App\Component\Exception\Telegram\TelegramApiException;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\HttpException;
-use App\Component\Exception\HttpValidationException;
+use App\Component\Exception\Http\HttpException;
+use App\Component\Exception\Http\HttpValidationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;

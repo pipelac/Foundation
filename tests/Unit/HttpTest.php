@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Component\Http;
 use App\Component\Logger;
-use App\Component\Exception\HttpException;
-use App\Component\Exception\HttpValidationException;
+use App\Component\Exception\Http\HttpException;
+use App\Component\Exception\Http\HttpValidationException;
 use PHPUnit\Framework\TestCase;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;

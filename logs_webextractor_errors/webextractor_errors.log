@@ -1,7 +1,0 @@
-2025-10-30T18:54:55+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":10485760,"retries":3,"proxy_enabled":false}
-2025-10-30T18:54:55+00:00 ERROR Ошибка валидации параметров {"url":"","error":"HTML контент слишком короткий (минимум 100 байт)"}
-2025-10-30T18:54:55+00:00 ERROR Ошибка валидации параметров {"url":"not-a-valid-url","error":"HTML контент слишком короткий (минимум 100 байт)"}
-2025-10-30T18:54:55+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент не может быть пустым"}
-2025-10-30T18:54:55+00:00 ERROR Ошибка валидации параметров {"url":"https://example.com","error":"HTML контент слишком короткий (минимум 100 байт)"}
-2025-10-30T18:54:55+00:00 INFO WebtExtractor инициализирован {"timeout":30,"connect_timeout":10,"max_size":1024,"retries":3,"proxy_enabled":false}
-2025-10-30T18:54:55+00:00 DEBUG Начало парсинга HTML {"url":"https://example.com","html_size":2945}
