@@ -1,0 +1,830 @@
+{
+    "_comment": [
+        "Конфигурация SNMP OID для различных типов сетевого оборудования",
+        "Используется компонентом SnmpOid для получения OID по именованному идентификатору",
+        "Поддерживает общие OID (common) и специфичные для устройств",
+        "Формат: deviceType -> oidName -> {oid, description, type, value_type, value}"
+    ],
+    "common": {
+        "sysName": {
+            "oid": ".1.3.6.1.2.1.1.5.0",
+            "description": "Имя системы",
+            "type": "get"
+        },
+        "sysDescr": {
+            "oid": ".1.3.6.1.2.1.1.1.0",
+            "description": "Описание системы",
+            "type": "get"
+        },
+        "sysContact": {
+            "oid": ".1.3.6.1.2.1.1.4.0",
+            "description": "Контакт администратора",
+            "type": "get"
+        },
+        "sysLocation": {
+            "oid": ".1.3.6.1.2.1.1.6.0",
+            "description": "Местоположение системы",
+            "type": "get"
+        },
+        "sysUpTime": {
+            "oid": ".1.3.6.1.2.1.1.3.0",
+            "description": "Время работы системы в сотых долях секунды",
+            "type": "get"
+        },
+        "sysInterfacesCount": {
+            "oid": ".1.3.6.1.2.1.2.1.0",
+            "description": "Число интерфейсов",
+            "type": "get"
+        },
+        "sysInterfaceDescr": {
+            "oid": ".1.3.6.1.2.1.2.2.1.2.",
+            "description": "Описание интерфейса",
+            "type": "get"
+        },
+        "sysInterfaceType": {
+            "oid": ".1.3.6.1.2.1.2.2.1.3.",
+            "description": "Тип интерфейса",
+            "type": "get"
+        },
+        "ifIndex": {
+            "oid": ".1.3.6.1.2.1.2.2.1.1.",
+            "description": "Индекс интерфейса",
+            "type": "get"
+        },
+        "ifInErrors": {
+            "oid": ".1.3.6.1.2.1.2.2.1.14.",
+            "description": "Количество входящих ошибок",
+            "type": "get"
+        },
+        "ifOutErrors": {
+            "oid": ".1.3.6.1.2.1.2.2.1.20.",
+            "description": "Количество исходящих ошибок",
+            "type": "get"
+        },
+        "ifInOctets": {
+            "oid": ".1.3.6.1.2.1.2.2.1.10.",
+            "description": "Счетчик входящих данных (RX) 32 bit",
+            "type": "get"
+        },
+        "ifOutOctets": {
+            "oid": ".1.3.6.1.2.1.2.2.1.16.",
+            "description": "Счетчик исходящих данных (TX) 32 bit",
+            "type": "get"
+        },
+        "ifHCInOctets": {
+            "oid": ".1.3.6.1.2.1.31.1.1.1.6",
+            "description": "Счетчик входящих данных (RX) 64 bit",
+            "type": "get"
+        },
+        "ifHCOutOctets": {
+            "oid": ".1.3.6.1.2.1.31.1.1.1.10",
+            "description": "Счетчик исходящих данных (TX) 64 bit",
+            "type": "get"
+        },
+        "ifInDiscards": {
+            "oid": ".1.3.6.1.2.1.2.2.1.13.",
+            "description": "Количество отброшенных входящих пакетов",
+            "type": "get"
+        },
+        "ifOutDiscards": {
+            "oid": ".1.3.6.1.2.1.2.2.1.19.",
+            "description": "Количество отброшенных исходящих пакетов",
+            "type": "get"
+        },
+        "ifInUcastPkts": {
+            "oid": ".1.3.6.1.2.1.2.2.1.11.",
+            "description": "Количество входящих unicast пакетов",
+            "type": "get"
+        },
+        "ifOutUcastPkts": {
+            "oid": ".1.3.6.1.2.1.2.2.1.17.",
+            "description": "Количество исходящих unicast пакетов",
+            "type": "get"
+        },
+        "ifInNUcastPkts": {
+            "oid": ".1.3.6.1.2.1.2.2.1.12.",
+            "description": "Количество входящих nonunicast пакетов",
+            "type": "get"
+        },
+        "ifOutNUcastPkts": {
+            "oid": ".1.3.6.1.2.1.2.2.1.18.",
+            "description": "Количество исходящих nonunicast пакетов",
+            "type": "get"
+        },
+        "ifInUnknownProtos": {
+            "oid": ".1.3.6.1.2.1.2.2.1.15.",
+            "description": "Количество пакетов с неизвестным протоколом",
+            "type": "get"
+        },
+        "ifOutQLen": {
+            "oid": ".1.3.6.1.2.1.2.2.1.21.",
+            "description": "Длина очереди исходящих пакетов",
+            "type": "get"
+        },
+        "ifSpeed": {
+            "oid": ".1.3.6.1.2.1.31.1.1.1.15.",
+            "description": "Скорость интерфейса",
+            "type": "get"
+        },
+        "ifOperStatus": {
+            "oid": ".1.3.6.1.2.1.2.2.1.8.",
+            "description": "Операционный статус интерфейса (1-up, 2-down, 3-testing, 4-unknown, 5-dormant, 6-notPresent, 7-lowerLayerDown)",
+            "type": "get"
+        },
+        "ifAdminStatus": {
+            "oid": ".1.3.6.1.2.1.2.2.1.7.",
+            "description": "Административный статус интерфейса (1-up, 2-down, 3-testing)",
+            "type": "get"
+        },
+        "ifOperHack": {
+            "oid": ".1.3.6.1.2.1.2.2.1.8.",
+            "description": "Операционный статус интерфейса hack (1-up, 0-down)",
+            "type": "get"
+        },
+        "ifAdminHack": {
+            "oid": ".1.3.6.1.2.1.2.2.1.7.",
+            "description": "Административный статус интерфейса hack (1-up, 0-down)",
+            "type": "get"
+        },
+        "portRX_crc_err": {
+            "oid": "1.3.6.1.2.1.10.7.2.1.3.",
+            "description": "Счетчики ошибок контрольной суммы (CRC) для входящих данных (RX)",
+            "type": "get"
+        },
+        "portRX_undersize_err": {
+            "oid": ".1.3.6.1.2.1.16.1.1.1.9.",
+            "description": "Счетчик кадров с правильной контрольной суммой и размером менее 64 байт",
+            "type": "get"
+        },
+        "portRX_oversize_err": {
+            "oid": ".1.3.6.1.2.1.16.1.1.1.10.",
+            "description": "Счетчик кадров с правильной контрольной суммой, размер которых превышает 1518 байт",
+            "type": "get"
+        },
+        "portRX_fragment_err": {
+            "oid": ".1.3.6.1.2.1.16.1.1.1.11.",
+            "description": "Счетчик кадров с неправильной контрольной суммой или структурой и размером менее 64 байт",
+            "type": "get"
+        },
+        "portRX_jabber_err": {
+            "oid": ".1.3.6.1.2.1.16.1.1.1.12.",
+            "description": "Счетчик кадров с неправильной контрольной суммой, размер которых превышает 1518 байт",
+            "type": "get"
+        },
+        "portTX_collision_err": {
+            "oid": ".1.3.6.1.2.1.16.1.1.1.13.",
+            "description": "Счетчик коллизий для исходящих данных (TX)",
+            "type": "get"
+        },
+        "portTX_single_collision_err": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.4.",
+            "description": "Счетчик успешно отправленных кадров с одной коллизией",
+            "type": "get"
+        },
+        "portTX_excessive_defferal_err": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.7.",
+            "description": "Счетчик кадров, отправка которых была отложена из-за занятости среды",
+            "type": "get"
+        },
+        "portTX_late_collision_err": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.8.",
+            "description": "Счетчик поздних коллизий (после передачи первых 64 байт)",
+            "type": "get"
+        },
+        "portTX_excessive_collision_err": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.9.",
+            "description": "Счетчик кадров, отправка которых не удалась из-за чрезмерного количества коллизий",
+            "type": "get"
+        },
+        "port_al_err_ab": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.2.",
+            "description": "Ошибки выравнивания (некорректной длины кадра)",
+            "type": "get"
+        },
+        "port_fcs_err_ab": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.3.",
+            "description": "Ошибки FCS (Frame Check Sequence)",
+            "type": "get"
+        },
+        "FDB": {
+            "oid": ".1.3.6.1.2.1.17.7.1.2.2.1.2",
+            "description": "Forwarding Database",
+            "type": "walk"
+        },
+        "port_label": {
+            "oid": ".1.3.6.1.2.1.31.1.1.1.18.",
+            "description": "Описание порта",
+            "type": "get"
+        },
+        "set_portLable": {
+            "oid": ".1.3.6.1.2.1.31.1.1.1.18.",
+            "description": "Установить описание порта",
+            "type": "set",
+            "value_type": "s"
+        },
+        "switch_vlan": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1",
+            "description": "VLAN информация",
+            "type": "walk"
+        },
+        "vlan_names": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1.1",
+            "description": "Список названий VLAN",
+            "type": "walk"
+        },
+        "vlan_egressPorts": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1.2",
+            "description": "Порты, входящие в VLAN (member ports)",
+            "type": "walk"
+        },
+        "vlan_forbiddenEgressPorts": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1.3",
+            "description": "Порты, исключенные из VLAN (forbidden ports)",
+            "type": "walk"
+        },
+        "vlan_untaggedPorts": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1.4",
+            "description": "Порты, настроенные как untagged",
+            "type": "walk"
+        },
+        "vlan_rowStatus": {
+            "oid": ".1.3.6.1.2.1.17.7.1.4.3.1.5",
+            "description": "Статус записи VLAN",
+            "type": "get"
+        },
+        "sysUpTimeInstance": {
+            "oid": ".1.3.6.1.2.1.1.3.0",
+            "description": "Время работы системы",
+            "type": "get"
+        },
+        "lldpRemSysName": {
+            "oid": "1.0.8802.1.1.2.1.4.1.1.9",
+            "description": "Список линков на данном свиче (LLDP)",
+            "type": "walk"
+        },
+        "portLinkStatus": {
+            "oid": "1.3.6.1.2.1.2.2.1.8.",
+            "description": "Фактическое состояние линка (есть ли линк или нет)",
+            "type": "get"
+        },
+        "port_duplex": {
+            "oid": ".1.3.6.1.2.1.10.7.2.1.19.",
+            "description": "Режим и скорость работы порта (100 Mbit full-duplex)",
+            "type": "get"
+        }
+    },
+    "D-Link DES-3526": {
+        "reboot": {
+            "oid": ".1.3.6.1.4.1.171.12.1.2.3.0",
+            "description": "Перезагрузка устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "3"
+        },
+        "CPUutilizationIn5sec": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.1.0",
+            "description": "Утилизация CPU за 5 секунд",
+            "type": "get"
+        },
+        "CPUutilizationIn1min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.2.0",
+            "description": "Утилизация CPU за 1 минуту",
+            "type": "get"
+        },
+        "CPUutilizationIn5min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.3.0",
+            "description": "Утилизация CPU за 5 минут",
+            "type": "get"
+        },
+        "temperatureCurrent": {
+            "oid": ".1.3.6.1.4.1.171.12.11.1.8.1.2.1",
+            "description": "Текущая температура",
+            "type": "get"
+        },
+        "multiImageVersion": {
+            "oid": ".1.3.6.1.4.1.171.12.1.2.7.1.2.1",
+            "description": "Версия прошивки",
+            "type": "get"
+        },
+        "startDiagnostics": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.12.",
+            "description": "Запуск диагностики кабеля (указать порт)",
+            "type": "set",
+            "value_type": "i",
+            "value": "1"
+        },
+        "pair1Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.4.",
+            "description": "Статус 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.5.",
+            "description": "Статус 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.6.",
+            "description": "Статус 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.7.",
+            "description": "Статус 4-й пары кабеля",
+            "type": "get"
+        },
+        "pair1Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.8.",
+            "description": "Длина 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.9.",
+            "description": "Длина 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.10.",
+            "description": "Длина 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.11.",
+            "description": "Длина 4-й пары кабеля",
+            "type": "get"
+        },
+        "portNwayState": {
+            "oid": ".1.3.6.1.4.1.171.11.113.1.3.2.2.1.1.5.",
+            "description": "Административно заданная скорость на порту",
+            "type": "get"
+        },
+        "portLinkStatus": {
+            "oid": ".1.3.6.1.4.1.171.11.64.1.2.4.1.1.4.",
+            "description": "Фактическое состояние линка",
+            "type": "get"
+        },
+        "portNwayStatus": {
+            "oid": ".1.3.6.1.4.1.171.11.64.1.2.4.1.1.5.",
+            "description": "Фактическая скорость на порту",
+            "type": "get"
+        },
+        "port_duplex": {
+            "oid": "1.3.6.1.4.1.171.11.64.1.2.4.1.1.5.",
+            "description": "Режим и скорость работы порта",
+            "type": "get"
+        },
+        "clear_counters": {
+            "oid": "1.3.6.1.4.1.171.11.64.1.2.1.2.8.0",
+            "description": "Очистить счетчики на всех портах",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        },
+        "port_temp": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.2.",
+            "description": "Температура SFP модуля, °C",
+            "type": "get"
+        },
+        "port_voltage": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.3.",
+            "description": "Напряжение SFP модуля, V",
+            "type": "get"
+        },
+        "port_bias": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.4.",
+            "description": "Ток смещения SFP модуля, mA",
+            "type": "get"
+        },
+        "port_rxpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.5.",
+            "description": "Мощность приема SFP модуля, dBM",
+            "type": "get"
+        },
+        "port_txpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.6.",
+            "description": "Мощность передачи SFP модуля, dBM",
+            "type": "get"
+        },
+        "save_config": {
+            "oid": "1.3.6.1.4.1.171.12.1.2.6.0",
+            "description": "Сохранить конфигурацию устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "3"
+        }
+    },
+    "D-Link DGS-3627G": {
+        "sysName": {
+            "oid": ".1.3.6.1.2.1.1.5.0",
+            "description": "Имя системы",
+            "type": "get"
+        },
+        "sysDescr": {
+            "oid": ".1.3.6.1.2.1.1.1.0",
+            "description": "Описание системы",
+            "type": "get"
+        }
+    },
+    "D-Link DES-3028": {
+        "sysName": {
+            "oid": ".1.3.6.1.2.1.1.5.0",
+            "description": "Имя системы",
+            "type": "get"
+        },
+        "sysDescr": {
+            "oid": ".1.3.6.1.2.1.1.1.0",
+            "description": "Описание системы",
+            "type": "get"
+        }
+    },
+    "Extreme X670-48x": {
+        "sysName": {
+            "oid": ".1.3.6.1.2.1.1.5.0",
+            "description": "Имя системы",
+            "type": "get"
+        },
+        "sysDescr": {
+            "oid": ".1.3.6.1.2.1.1.1.0",
+            "description": "Описание системы",
+            "type": "get"
+        }
+    },
+    "D-Link DES-3200-28": {
+        "reboot": {
+            "oid": ".1.3.6.1.4.1.171.11.113.1.3.2.1.2.1.0",
+            "description": "Перезагрузка устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "3"
+        },
+        "CPUutilizationIn5sec": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.1.0",
+            "description": "Утилизация CPU за 5 секунд",
+            "type": "get"
+        },
+        "CPUutilizationIn1min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.2.0",
+            "description": "Утилизация CPU за 1 минуту",
+            "type": "get"
+        },
+        "CPUutilizationIn5min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.3.0",
+            "description": "Утилизация CPU за 5 минут",
+            "type": "get"
+        },
+        "temperatureCurrent": {
+            "oid": ".1.3.6.1.4.1.171.12.11.1.8.1.2.1",
+            "description": "Текущая температура",
+            "type": "get"
+        },
+        "multiImageVersion": {
+            "oid": ".1.3.6.1.4.1.171.12.1.2.7.1.2.1",
+            "description": "Версия прошивки",
+            "type": "get"
+        },
+        "startDiagnostics": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.12.",
+            "description": "Запуск диагностики кабеля (указать порт)",
+            "type": "set",
+            "value_type": "i",
+            "value": "1"
+        },
+        "pair1Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.4.",
+            "description": "Статус 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.5.",
+            "description": "Статус 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.6.",
+            "description": "Статус 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.7.",
+            "description": "Статус 4-й пары кабеля",
+            "type": "get"
+        },
+        "pair1Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.8.",
+            "description": "Длина 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.9.",
+            "description": "Длина 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.10.",
+            "description": "Длина 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.11.",
+            "description": "Длина 4-й пары кабеля",
+            "type": "get"
+        },
+        "portNwayState": {
+            "oid": ".1.3.6.1.4.1.171.11.113.1.3.2.2.1.1.5.",
+            "description": "Административно заданная скорость на порту",
+            "type": "get"
+        },
+        "portNwayStatus": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.3.1.1.6.",
+            "description": "Фактическая скорость на порту",
+            "type": "get"
+        },
+        "port_duplex": {
+            "oid": "1.3.6.1.4.1.171.11.113.1.3.2.2.1.1.5.",
+            "description": "Режим и скорость работы порта",
+            "type": "get"
+        },
+        "port_temp": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.2.",
+            "description": "Температура SFP модуля, °C",
+            "type": "get"
+        },
+        "port_voltage": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.3.",
+            "description": "Напряжение SFP модуля, V",
+            "type": "get"
+        },
+        "port_bias": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.4.",
+            "description": "Ток смещения SFP модуля, mA",
+            "type": "get"
+        },
+        "port_rxpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.5.",
+            "description": "Мощность приема SFP модуля, dBM",
+            "type": "get"
+        },
+        "port_txpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.6.",
+            "description": "Мощность передачи SFP модуля, dBM",
+            "type": "get"
+        },
+        "save_config": {
+            "oid": "1.3.6.1.4.1.171.12.1.2.6.0",
+            "description": "Сохранить конфигурацию устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "5"
+        }
+    },
+    "D-Link DES-3200-26-C1": {
+        "reboot": {
+            "oid": ".1.3.6.1.4.1.171.12.1.2.19.0",
+            "description": "Перезагрузка устройства (start = 2)",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        },
+        "CPUutilizationIn5sec": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.1.0",
+            "description": "Утилизация CPU за 5 секунд",
+            "type": "get"
+        },
+        "CPUutilizationIn1min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.2.0",
+            "description": "Утилизация CPU за 1 минуту",
+            "type": "get"
+        },
+        "CPUutilizationIn5min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.3.0",
+            "description": "Утилизация CPU за 5 минут",
+            "type": "get"
+        },
+        "startDiagnostics": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.12.",
+            "description": "Запуск диагностики кабеля (указать порт)",
+            "type": "set",
+            "value_type": "i",
+            "value": "1"
+        },
+        "pair1Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.4.",
+            "description": "Статус 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.5.",
+            "description": "Статус 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.6.",
+            "description": "Статус 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.7.",
+            "description": "Статус 4-й пары кабеля",
+            "type": "get"
+        },
+        "pair1Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.8.",
+            "description": "Длина 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.9.",
+            "description": "Длина 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.10.",
+            "description": "Длина 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.11.",
+            "description": "Длина 4-й пары кабеля",
+            "type": "get"
+        },
+        "portNwayState": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.3.2.1.5.",
+            "description": "Административно заданная скорость на порту",
+            "type": "get"
+        },
+        "portNwayStatus": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.3.1.1.6.",
+            "description": "Фактическая скорость на порту",
+            "type": "get"
+        },
+        "port_duplex": {
+            "oid": "1.3.6.1.4.1.171.11.113.4.1.2.3.1.1.6.",
+            "description": "Режим и скорость работы порта",
+            "type": "get"
+        },
+        "clear_counters": {
+            "oid": ".1.3.6.1.4.1.171.11.113.4.1.2.1.2.6.0",
+            "description": "Очистить счетчики на всех портах",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        },
+        "port_temp": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.2.",
+            "description": "Температура SFP модуля, °C",
+            "type": "get"
+        },
+        "port_voltage": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.3.",
+            "description": "Напряжение SFP модуля, V",
+            "type": "get"
+        },
+        "port_bias": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.4.",
+            "description": "Ток смещения SFP модуля, mA",
+            "type": "get"
+        },
+        "port_rxpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.5.",
+            "description": "Мощность приема SFP модуля, dBM",
+            "type": "get"
+        },
+        "port_txpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.6.",
+            "description": "Мощность передачи SFP модуля, dBM",
+            "type": "get"
+        },
+        "save_config": {
+            "oid": "1.3.6.1.4.1.171.12.1.2.18.4.0",
+            "description": "Сохранить конфигурацию устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        }
+    },
+    "D-Link DES-3200-28-C1": {
+        "reboot": {
+            "oid": ".1.3.6.1.4.1.171.12.1.2.19.0",
+            "description": "Перезагрузка устройства (start = 2)",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        },
+        "CPUutilizationIn5sec": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.1.0",
+            "description": "Утилизация CPU за 5 секунд",
+            "type": "get"
+        },
+        "CPUutilizationIn1min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.2.0",
+            "description": "Утилизация CPU за 1 минуту",
+            "type": "get"
+        },
+        "CPUutilizationIn5min": {
+            "oid": ".1.3.6.1.4.1.171.12.1.1.6.3.0",
+            "description": "Утилизация CPU за 5 минут",
+            "type": "get"
+        },
+        "startDiagnostics": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.12.",
+            "description": "Запуск диагностики кабеля (указать порт)",
+            "type": "set",
+            "value_type": "i",
+            "value": "1"
+        },
+        "pair1Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.4.",
+            "description": "Статус 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.5.",
+            "description": "Статус 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.6.",
+            "description": "Статус 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Status": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.7.",
+            "description": "Статус 4-й пары кабеля",
+            "type": "get"
+        },
+        "pair1Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.8.",
+            "description": "Длина 1-й пары кабеля",
+            "type": "get"
+        },
+        "pair2Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.9.",
+            "description": "Длина 2-й пары кабеля",
+            "type": "get"
+        },
+        "pair3Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.10.",
+            "description": "Длина 3-й пары кабеля",
+            "type": "get"
+        },
+        "pair4Length": {
+            "oid": ".1.3.6.1.4.1.171.12.58.1.1.1.11.",
+            "description": "Длина 4-й пары кабеля",
+            "type": "get"
+        },
+        "portNwayState": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.3.2.1.5.",
+            "description": "Административно заданная скорость на порту",
+            "type": "get"
+        },
+        "portNwayStatus": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.3.1.1.6.",
+            "description": "Фактическая скорость на порту",
+            "type": "get"
+        },
+        "port_duplex": {
+            "oid": "1.3.6.1.4.1.171.11.113.5.1.2.3.1.1.6.",
+            "description": "Режим и скорость работы порта",
+            "type": "get"
+        },
+        "clear_counters": {
+            "oid": ".1.3.6.1.4.1.171.11.113.5.1.2.1.2.6.0",
+            "description": "Очистить счетчики на всех портах",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        },
+        "port_temp": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.2.",
+            "description": "Температура SFP модуля, °C",
+            "type": "get"
+        },
+        "port_voltage": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.3.",
+            "description": "Напряжение SFP модуля, V",
+            "type": "get"
+        },
+        "port_bias": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.4.",
+            "description": "Ток смещения SFP модуля, mA",
+            "type": "get"
+        },
+        "port_rxpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.5.",
+            "description": "Мощность приема SFP модуля, dBM",
+            "type": "get"
+        },
+        "port_txpower": {
+            "oid": ".1.3.6.1.4.1.171.12.72.2.1.1.1.6.",
+            "description": "Мощность передачи SFP модуля, dBM",
+            "type": "get"
+        },
+        "save_config": {
+            "oid": "1.3.6.1.4.1.171.12.1.2.18.4.0",
+            "description": "Сохранить конфигурацию устройства",
+            "type": "set",
+            "value_type": "i",
+            "value": "2"
+        }
+    }
+}
