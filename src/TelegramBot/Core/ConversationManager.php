@@ -67,6 +67,53 @@ class ConversationManager
     }
 
     /**
+     * Вспомогательный метод для вставки данных в таблицу
+     *
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для вставки
+     * @return int ID вставленной записи
+     */
+    private function insertData(string $table, array $data): int
+    {
+        $columns = array_keys($data);
+        $placeholders = array_fill(0, count($columns), '?');
+        
+        $sql = sprintf(
+            'INSERT INTO `%s` (%s) VALUES (%s)',
+            $table,
+            implode(', ', array_map(fn($col) => "`{$col}`", $columns)),
+            implode(', ', $placeholders)
+        );
+        
+        return $this->db->insert($sql, array_values($data));
+    }
+    
+    /**
+     * Вспомогательный метод для обновления данных в таблице
+     *
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для обновления
+     * @param array<string, mixed> $where Условие WHERE
+     * @return int Количество затронутых строк
+     */
+    private function updateData(string $table, array $data, array $where): int
+    {
+        $setColumns = array_map(fn($col) => "`{$col}` = ?", array_keys($data));
+        $whereColumns = array_map(fn($col) => "`{$col}` = ?", array_keys($where));
+        
+        $sql = sprintf(
+            'UPDATE `%s` SET %s WHERE %s',
+            $table,
+            implode(', ', $setColumns),
+            implode(' AND ', $whereColumns)
+        );
+        
+        $params = array_merge(array_values($data), array_values($where));
+        
+        return $this->db->update($sql, $params);
+    }
+
+    /**
      * Сохраняет или обновляет данные пользователя
      *
      * @param int $userId ID пользователя в Telegram
@@ -102,7 +149,7 @@ class ConversationManager
 
             if ($existing) {
                 // Обновляем существующего пользователя
-                $this->db->update(
+                $this->updateData(
                     self::TABLE_USERS,
                     $data,
                     ['id' => $existing['id']]
@@ -110,7 +157,7 @@ class ConversationManager
             } else {
                 // Создаем нового пользователя
                 $data['created_at'] = date('Y-m-d H:i:s');
-                $this->db->insert(self::TABLE_USERS, $data);
+                $this->insertData(self::TABLE_USERS, $data);
             }
 
             $this->logger?->debug('Данные пользователя сохранены', [
@@ -196,7 +243,7 @@ class ConversationManager
                 'expires_at' => date('Y-m-d H:i:s', time() + ($this->config['timeout'] ?? self::DEFAULT_TIMEOUT)),
             ];
 
-            $id = $this->db->insert(self::TABLE_CONVERSATIONS, $conversationData);
+            $id = $this->insertData(self::TABLE_CONVERSATIONS, $conversationData);
 
             $this->logger?->info('Начат новый диалог', [
                 'id' => $id,
@@ -305,7 +352,7 @@ class ConversationManager
                 $updateData['message_id'] = $newMessageId;
             }
 
-            $this->db->update(
+            $this->updateData(
                 self::TABLE_CONVERSATIONS,
                 $updateData,
                 ['id' => $conversation['id']]
@@ -483,11 +530,11 @@ class ConversationManager
         try {
             // Создание таблицы пользователей
             $usersTableExists = $this->db->queryOne(
-                "SHOW TABLES LIKE ?",
+                "SELECT COUNT(*) as count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
                 [self::TABLE_USERS]
             );
 
-            if (empty($usersTableExists)) {
+            if (empty($usersTableExists) || $usersTableExists['count'] == 0) {
                 $sqlUsers = "CREATE TABLE " . self::TABLE_USERS . " (
                     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                     user_id BIGINT NOT NULL,
@@ -510,11 +557,11 @@ class ConversationManager
 
             // Создание таблицы диалогов
             $conversationsTableExists = $this->db->queryOne(
-                "SHOW TABLES LIKE ?",
+                "SELECT COUNT(*) as count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
                 [self::TABLE_CONVERSATIONS]
             );
 
-            if (empty($conversationsTableExists)) {
+            if (empty($conversationsTableExists) || $conversationsTableExists['count'] == 0) {
                 $sqlConversations = "CREATE TABLE " . self::TABLE_CONVERSATIONS . " (
                     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                     chat_id BIGINT NOT NULL,
