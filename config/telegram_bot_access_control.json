@@ -1,0 +1,18 @@
+{
+    "enabled": false,
+    "users_file": "config/telegram_bot_users.json",
+    "roles_file": "config/telegram_bot_roles.json",
+    "default_role": "default",
+    "access_denied_message": "У вас нет доступа к этой команде.",
+    "_comment": [
+        "Конфигурация системы контроля доступа для Telegram бота.",
+        "Управляет правами пользователей на основе ролей."
+    ],
+    "_fields": {
+        "enabled": "Включить/выключить контроль доступа (true/false). При false все команды доступны всем",
+        "users_file": "Путь к файлу со списком пользователей и их ролями",
+        "roles_file": "Путь к файлу с описанием ролей и разрешенных команд",
+        "default_role": "Роль по умолчанию для незарегистрированных пользователей",
+        "access_denied_message": "Сообщение, отправляемое пользователю при отказе в доступе"
+    }
+}
