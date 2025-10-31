@@ -92,6 +92,12 @@ class OpenAi
         $this->validateNotEmpty($prompt, 'prompt');
         $this->validateNotEmpty($model, 'model');
 
+        $this->logDebug('Отправка запроса text2text', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt),
+            'options' => array_keys($options)
+        ]);
+
         $messages = [];
         
         if (isset($options['system'])) {
@@ -112,7 +118,16 @@ class OpenAi
             throw new OpenAiException('Модель не вернула текстовый ответ.');
         }
 
-        return (string)$response['choices'][0]['message']['content'];
+        $result = (string)$response['choices'][0]['message']['content'];
+
+        $this->logInfo('Успешный запрос text2text', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt),
+            'response_length' => strlen($result),
+            'tokens_used' => $response['usage'] ?? null
+        ]);
+
+        return $result;
     }
 
     /**
@@ -135,6 +150,12 @@ class OpenAi
         $this->validateNotEmpty($prompt, 'prompt');
         $this->validateNotEmpty($model, 'model');
 
+        $this->logDebug('Отправка запроса text2image', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt),
+            'options' => array_keys($options)
+        ]);
+
         $payload = array_merge([
             'model' => $model,
             'prompt' => $prompt,
@@ -146,7 +167,15 @@ class OpenAi
             throw new OpenAiException('Модель не вернула URL изображения.');
         }
 
-        return (string)$response['data'][0]['url'];
+        $imageUrl = (string)$response['data'][0]['url'];
+
+        $this->logInfo('Успешный запрос text2image', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt),
+            'image_url' => $imageUrl
+        ]);
+
+        return $imageUrl;
     }
 
     /**
@@ -172,6 +201,13 @@ class OpenAi
         $this->validateNotEmpty($imageUrl, 'imageUrl');
         $this->validateNotEmpty($question, 'question');
         $this->validateNotEmpty($model, 'model');
+
+        $this->logDebug('Отправка запроса image2text', [
+            'model' => $model,
+            'image_url' => $imageUrl,
+            'question_length' => strlen($question),
+            'options' => array_keys($options)
+        ]);
 
         $imageUrlData = ['url' => $imageUrl];
         
@@ -201,7 +237,16 @@ class OpenAi
             throw new OpenAiException('Модель не вернула текстовый ответ.');
         }
 
-        return (string)$response['choices'][0]['message']['content'];
+        $result = (string)$response['choices'][0]['message']['content'];
+
+        $this->logInfo('Успешный запрос image2text', [
+            'model' => $model,
+            'image_url' => $imageUrl,
+            'response_length' => strlen($result),
+            'tokens_used' => $response['usage'] ?? null
+        ]);
+
+        return $result;
     }
 
     /**
@@ -223,6 +268,12 @@ class OpenAi
     {
         $this->validateNotEmpty($audioUrl, 'audioUrl');
         $this->validateNotEmpty($model, 'model');
+
+        $this->logDebug('Отправка запроса audio2text', [
+            'model' => $model,
+            'audio_url' => $audioUrl,
+            'options' => array_keys($options)
+        ]);
 
         // Для Whisper API необходимо скачать файл и отправить как multipart/form-data
         // Однако для упрощения, используем подход с отправкой URL через messages (GPT-4o Audio)
@@ -263,7 +314,16 @@ class OpenAi
             throw new OpenAiException('Модель не вернула транскрипцию.');
         }
 
-        return (string)$response['choices'][0]['message']['content'];
+        $result = (string)$response['choices'][0]['message']['content'];
+
+        $this->logInfo('Успешный запрос audio2text', [
+            'model' => 'gpt-4o-audio-preview',
+            'audio_url' => $audioUrl,
+            'response_length' => strlen($result),
+            'tokens_used' => $response['usage'] ?? null
+        ]);
+
+        return $result;
     }
 
     /**
@@ -289,6 +349,12 @@ class OpenAi
         $this->validateNotEmpty($prompt, 'prompt');
         $this->validateNotEmpty($model, 'model');
 
+        $this->logDebug('Отправка streaming запроса textStream', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt),
+            'options' => array_keys($options)
+        ]);
+
         $messages = [];
         
         if (isset($options['system'])) {
@@ -305,6 +371,11 @@ class OpenAi
         ], $options);
 
         $this->sendStreamRequest('/chat/completions', $payload, $callback);
+
+        $this->logInfo('Успешный streaming запрос textStream', [
+            'model' => $model,
+            'prompt_length' => strlen($prompt)
+        ]);
     }
 
     /**
@@ -330,6 +401,13 @@ class OpenAi
 
         $this->validateNotEmpty($model, 'model');
 
+        $this->logDebug('Отправка запроса embeddings', [
+            'model' => $model,
+            'input_type' => is_string($input) ? 'string' : 'array',
+            'input_count' => is_array($input) ? count($input) : 1,
+            'options' => array_keys($options)
+        ]);
+
         $payload = array_merge([
             'model' => $model,
             'input' => $input,
@@ -352,6 +430,13 @@ class OpenAi
             throw new OpenAiException('Модель не вернула корректные эмбеддинги.');
         }
 
+        $this->logInfo('Успешный запрос embeddings', [
+            'model' => $model,
+            'embeddings_count' => count($embeddings),
+            'dimensions' => count($embeddings[0] ?? []),
+            'tokens_used' => $response['usage'] ?? null
+        ]);
+
         return $embeddings;
     }
 
@@ -373,6 +458,11 @@ class OpenAi
         $this->validateNotEmpty($input, 'input');
         $this->validateNotEmpty($model, 'model');
 
+        $this->logDebug('Отправка запроса moderation', [
+            'model' => $model,
+            'input_length' => strlen($input)
+        ]);
+
         $payload = [
             'model' => $model,
             'input' => $input,
@@ -384,7 +474,15 @@ class OpenAi
             throw new OpenAiException('Модель не вернула результаты модерации.');
         }
 
-        return $response['results'][0];
+        $result = $response['results'][0];
+
+        $this->logInfo('Успешный запрос moderation', [
+            'model' => $model,
+            'flagged' => $result['flagged'] ?? false,
+            'categories_flagged' => array_keys(array_filter($result['categories'] ?? [], fn($v) => $v === true))
+        ]);
+
+        return $result;
     }
 
     /**
@@ -398,8 +496,6 @@ class OpenAi
         if (!isset($config['api_key']) || !is_string($config['api_key']) || trim($config['api_key']) === '') {
             throw new OpenAiValidationException('API ключ OpenAI не указан или пустой.');
         }
-
-        $config['api_key'] = trim($config['api_key']);
     }
 
     /**
@@ -494,40 +590,52 @@ class OpenAi
         $headers = $this->buildHeaders();
         $headers['Content-Type'] = 'application/json';
 
-        $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
-            $buffer .= $chunk;
-            $lines = explode("\n", $buffer);
-            $buffer = array_pop($lines) ?? '';
+        try {
+            $this->http->requestStream('POST', $endpoint, function (string $chunk) use (&$buffer, $callback): void {
+                $buffer .= $chunk;
+                $lines = explode("\n", $buffer);
+                $buffer = array_pop($lines) ?? '';
 
-            foreach ($lines as $line) {
-                $line = trim($line);
+                foreach ($lines as $line) {
+                    $line = trim($line);
 
-                if ($line === '' || $line === 'data: [DONE]') {
-                    continue;
-                }
-
-                if (str_starts_with($line, 'data: ')) {
-                    $json = substr($line, 6);
-
-                    try {
-                        $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-                    } catch (JsonException $exception) {
-                        $this->logError('Ошибка декодирования JSON в потоке', [
-                            'json' => $json,
-                            'error' => $exception->getMessage()
-                        ]);
+                    if ($line === '' || $line === 'data: [DONE]') {
                         continue;
                     }
 
-                    if (isset($decoded['choices'][0]['delta']['content'])) {
-                        $callback((string)$decoded['choices'][0]['delta']['content']);
+                    if (str_starts_with($line, 'data: ')) {
+                        $json = substr($line, 6);
+
+                        try {
+                            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+                        } catch (JsonException $exception) {
+                            $this->logError('Ошибка декодирования JSON в потоке', [
+                                'json' => $json,
+                                'error' => $exception->getMessage()
+                            ]);
+                            continue;
+                        }
+
+                        if (isset($decoded['choices'][0]['delta']['content'])) {
+                            $callback((string)$decoded['choices'][0]['delta']['content']);
+                        }
                     }
                 }
-            }
-        }, [
-            'json' => $payload,
-            'headers' => $headers,
-        ]);
+            }, [
+                'json' => $payload,
+                'headers' => $headers,
+            ]);
+        } catch (\App\Component\Exception\HttpException $exception) {
+            $statusCode = $exception->getCode();
+            
+            $this->logError('Ошибка потокового запроса к OpenAI', [
+                'status_code' => $statusCode,
+                'endpoint' => $endpoint,
+                'message' => $exception->getMessage()
+            ]);
+
+            throw new OpenAiApiException('Сервер вернул код ошибки в потоковом запросе', $statusCode, '');
+        }
     }
 
     /**
@@ -540,6 +648,32 @@ class OpenAi
     {
         if ($this->logger !== null) {
             $this->logger->error($message, $context);
+        }
+    }
+
+    /**
+     * Записывает информационное сообщение в лог при наличии логгера
+     *
+     * @param string $message Информационное сообщение
+     * @param array<string, mixed> $context Контекст операции
+     */
+    private function logInfo(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->info($message, $context);
+        }
+    }
+
+    /**
+     * Записывает отладочное сообщение в лог при наличии логгера
+     *
+     * @param string $message Отладочное сообщение
+     * @param array<string, mixed> $context Контекст операции
+     */
+    private function logDebug(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->debug($message, $context);
         }
     }
 }
