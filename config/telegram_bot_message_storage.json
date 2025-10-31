@@ -1,0 +1,110 @@
+{
+    "message_storage": {
+        "enabled": false,
+        "storage_level": "standard",
+        "store_incoming": true,
+        "store_outgoing": true,
+        "exclude_methods": [
+            "getMe",
+            "getWebhookInfo",
+            "answerCallbackQuery"
+        ],
+        "retention_days": 0,
+        "auto_create_table": true
+    },
+    "_comment": [
+        "Конфигурация хранилища сообщений Telegram бота в MySQL.",
+        "Позволяет сохранять историю всех входящих и исходящих сообщений для анализа и отладки."
+    ],
+    "_fields": {
+        "enabled": "Включить/выключить хранение сообщений (true/false)",
+        "storage_level": "Уровень детализации хранимой информации (minimal/standard/extended/full)",
+        "store_incoming": "Сохранять входящие сообщения (true/false)",
+        "store_outgoing": "Сохранять исходящие сообщения (true/false)",
+        "exclude_methods": "Список методов API, которые не нужно сохранять",
+        "retention_days": "Количество дней хранения записей (0 = бесконечно)",
+        "auto_create_table": "Автоматически создать таблицу при первом использовании (true/false)"
+    },
+    "_storage_levels": {
+        "minimal": {
+            "description": "Минимальный набор данных для базовой аналитики",
+            "fields": [
+                "id",
+                "direction",
+                "message_id",
+                "chat_id",
+                "user_id",
+                "message_type",
+                "method_name",
+                "created_at",
+                "telegram_date",
+                "success",
+                "error_code",
+                "error_message"
+            ],
+            "storage_impact": "~100 байт на сообщение",
+            "use_case": "Базовая статистика и мониторинг доставляемости"
+        },
+        "standard": {
+            "description": "Стандартный набор с текстом и файлами",
+            "fields": [
+                "все поля minimal +",
+                "text",
+                "caption",
+                "file_id",
+                "file_name",
+                "reply_to_message_id"
+            ],
+            "storage_impact": "~500 байт на сообщение (зависит от длины текста)",
+            "use_case": "Полноценная история переписки, поиск по тексту"
+        },
+        "extended": {
+            "description": "Расширенный набор с метаданными медиа",
+            "fields": [
+                "все поля standard +",
+                "file_size",
+                "mime_type",
+                "media_metadata (JSON)",
+                "forward_from_chat_id",
+                "entities (JSON)"
+            ],
+            "storage_impact": "~1 КБ на сообщение",
+            "use_case": "Детальный анализ медиа контента, отслеживание пересылок"
+        },
+        "full": {
+            "description": "Полный набор со всеми данными API",
+            "fields": [
+                "все поля extended +",
+                "reply_markup (JSON)",
+                "options (JSON)",
+                "raw_data (JSON)"
+            ],
+            "storage_impact": "~5-10 КБ на сообщение",
+            "use_case": "Полная отладка, реплей сообщений, глубокий аудит"
+        }
+    },
+    "_usage_example": [
+        "// Подключение к БД",
+        "$db = $connectionFactory->getConnection('main');",
+        "",
+        "// Загрузка конфигурации хранилища",
+        "$storageConfig = $configLoader->load('telegram_bot_message_storage.json');",
+        "",
+        "// Создание хранилища",
+        "$messageStorage = new MessageStorage($db, $logger, $storageConfig['message_storage']);",
+        "",
+        "// Создание TelegramAPI с хранилищем",
+        "$api = new TelegramAPI($token, $http, $logger, $messageStorage);",
+        "",
+        "// Сообщения будут автоматически сохраняться в БД",
+        "$api->sendMessage($chatId, 'Тестовое сообщение');",
+        "",
+        "// Получение статистики",
+        "$stats = $messageStorage->getStatistics();",
+        "echo \"Всего сообщений: {$stats['total']}\\n\";",
+        "echo \"Исходящих: {$stats['outgoing']}, Входящих: {$stats['incoming']}\\n\";",
+        "",
+        "// Очистка старых записей (если retention_days > 0)",
+        "$deleted = $messageStorage->cleanupOldMessages();"
+    ]
+}

@@ -50,11 +50,13 @@ class TelegramAPI
      * @param string $token Токен бота
      * @param Http $http HTTP клиент
      * @param Logger|null $logger Логгер
+     * @param MessageStorage|null $messageStorage Хранилище сообщений
      */
     public function __construct(
         private readonly string $token,
         private readonly Http $http,
         private readonly ?Logger $logger = null,
+        private readonly ?MessageStorage $messageStorage = null,
     ) {
         Validator::validateToken($token);
     }
@@ -393,6 +395,11 @@ class TelegramAPI
      */
     private function sendRequest(string $method, array $params = [], bool $multipart = false): mixed
     {
+        $success = false;
+        $errorCode = null;
+        $errorMessage = null;
+        $result = null;
+
         try {
             $url = self::BASE_URL . $this->token . '/' . $method;
 
@@ -425,6 +432,16 @@ class TelegramAPI
                     'code' => $errorCode,
                 ]);
 
+                // Сохранение ошибочного запроса в БД
+                $this->messageStorage?->storeOutgoing(
+                    $method,
+                    $params,
+                    null,
+                    false,
+                    $errorCode,
+                    $errorMessage
+                );
+
                 throw new ApiException($errorMessage, $errorCode, [
                     'method' => $method,
                     'params' => $params,
@@ -435,23 +452,58 @@ class TelegramAPI
                 'method' => $method,
             ]);
 
-            return $data['result'];
+            $result = $data['result'];
+            $success = true;
+
+            // Сохранение успешного запроса в БД
+            $this->messageStorage?->storeOutgoing(
+                $method,
+                $params,
+                $result,
+                true
+            );
+
+            return $result;
         } catch (\JsonException $e) {
+            $errorMessage = 'Ошибка парсинга ответа API: ' . $e->getMessage();
+            
             $this->logger?->error('Ошибка парсинга JSON ответа от Telegram API', [
                 'method' => $method,
                 'error' => $e->getMessage(),
             ]);
 
-            throw new ApiException('Ошибка парсинга ответа API: ' . $e->getMessage());
+            // Сохранение ошибки парсинга в БД
+            $this->messageStorage?->storeOutgoing(
+                $method,
+                $params,
+                null,
+                false,
+                -1,
+                $errorMessage
+            );
+
+            throw new ApiException($errorMessage);
         } catch (ApiException $e) {
             throw $e;
         } catch (\Exception $e) {
+            $errorMessage = 'Ошибка запроса к API: ' . $e->getMessage();
+            
             $this->logger?->error('Ошибка при запросе к Telegram API', [
                 'method' => $method,
                 'error' => $e->getMessage(),
             ]);
 
-            throw new ApiException('Ошибка запроса к API: ' . $e->getMessage());
+            // Сохранение общей ошибки в БД
+            $this->messageStorage?->storeOutgoing(
+                $method,
+                $params,
+                null,
+                false,
+                -2,
+                $errorMessage
+            );
+
+            throw new ApiException($errorMessage);
         }
     }
 
