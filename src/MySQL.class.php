@@ -533,17 +533,26 @@ class MySQL
      * Выполняет произвольный SQL запрос (DDL, DML команды)
      * 
      * Используется для выполнения команд типа CREATE, ALTER, DROP, TRUNCATE и т.д.
+     * Также поддерживает параметризованные запросы через prepared statements.
      * 
      * @param string $query SQL команда для выполнения
+     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
      * 
      * @return int Количество затронутых строк (0 для большинства DDL команд)
      * 
      * @throws MySQLException Если команда завершилась с ошибкой
      */
-    public function execute(string $query): int
+    public function execute(string $query, array $params = []): int
     {
         try {
-            $affectedRows = $this->connection->exec($query);
+            // Если есть параметры, используем prepared statements
+            if (!empty($params)) {
+                $statement = $this->prepareAndExecute($query, $params);
+                $affectedRows = $statement->rowCount();
+            } else {
+                // Для DDL команд без параметров используем exec
+                $affectedRows = $this->connection->exec($query);
+            }
 
             $this->logDebug('Выполнена SQL команда', [
                 'query' => $this->sanitizeQueryForLog($query),
