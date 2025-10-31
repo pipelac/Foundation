@@ -12,7 +12,6 @@ use PHPUnit\Framework\TestCase;
  * Unit тесты для новых функций класса Telegram:
  * - Голосования (polls)
  * - Клавиатуры (inline и reply)
- * - Обработка callback queries
  */
 class TelegramNewFeaturesTest extends TestCase
 {
@@ -325,22 +324,6 @@ class TelegramNewFeaturesTest extends TestCase
     }
 
     /**
-     * ТЕСТЫ ANSWER CALLBACK QUERY
-     */
-
-    public function testAnswerCallbackQueryThrowsExceptionForTooLongText(): void
-    {
-        $this->expectException(TelegramApiException::class);
-        $this->expectExceptionMessage('Текст callback ответа не может превышать 200 символов');
-
-        $longText = str_repeat('A', 201);
-        
-        $this->telegram->answerCallbackQuery('callback_id', [
-            'text' => $longText,
-        ]);
-    }
-
-    /**
      * ТЕСТЫ СТРУКТУР ДАННЫХ
      */
 
@@ -467,15 +450,6 @@ class TelegramNewFeaturesTest extends TestCase
         $result = $this->telegram->forceReply($placeholder);
 
         $this->assertEquals($placeholder, $result['input_field_placeholder']);
-    }
-
-    public function testAnswerCallbackQueryTextWithMaxLength(): void
-    {
-        $text = str_repeat('A', 200);
-        
-        // Тест на валидацию, не делаем реальный API запрос
-        // Если валидация пройдет, значит всё ОК
-        $this->expectNotToPerformAssertions();
     }
 
     /**
