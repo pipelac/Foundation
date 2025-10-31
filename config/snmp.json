@@ -1,0 +1,128 @@
+{
+    "devices": {
+        "localhost": {
+            "host": "127.0.0.1",
+            "community": "public",
+            "version": 1,
+            "timeout": 1000000,
+            "retries": 3,
+            "port": 161
+        },
+        "router": {
+            "host": "192.168.1.1",
+            "community": "public",
+            "version": 1,
+            "timeout": 2000000,
+            "retries": 5,
+            "port": 161
+        },
+        "switch": {
+            "host": "192.168.1.10",
+            "community": "public",
+            "version": 1,
+            "timeout": 1500000,
+            "retries": 3,
+            "port": 161
+        },
+        "server_v3": {
+            "host": "192.168.1.100",
+            "community": "snmpuser",
+            "version": 3,
+            "timeout": 2000000,
+            "retries": 3,
+            "port": 161,
+            "v3_security_level": "authPriv",
+            "v3_auth_protocol": "SHA",
+            "v3_auth_passphrase": "authentication_password",
+            "v3_privacy_protocol": "AES",
+            "v3_privacy_passphrase": "privacy_password"
+        }
+    },
+    "default": "localhost",
+    "_comment": [
+        "Конфигурация SNMP устройств для мониторинга и управления сетевым оборудованием.",
+        "Поддерживает SNMPv1, SNMPv2c и SNMPv3 с различными уровнями безопасности.",
+        "Используется компонентом Snmp для установки соединений с SNMP агентами."
+    ],
+    "_structure": {
+        "devices": "Объект с конфигурациями всех доступных SNMP устройств. Ключ - имя устройства для использования в коде",
+        "default": "Имя устройства по умолчанию (если не указано - используется первое из списка)"
+    },
+    "_device_fields": {
+        "host": "IP адрес или hostname SNMP агента (обязательно)",
+        "community": "Community string для SNMPv1/v2c или username для SNMPv3 (по умолчанию: 'public')",
+        "version": "Версия SNMP протокола: 0 = SNMPv1, 1 = SNMPv2c, 3 = SNMPv3 (по умолчанию: 1)",
+        "timeout": "Тайм-аут соединения в микросекундах (1000000 = 1 секунда, по умолчанию: 1000000)",
+        "retries": "Количество попыток повтора запроса при неудаче (по умолчанию: 3)",
+        "port": "Порт SNMP агента (по умолчанию: 161)"
+    },
+    "_snmpv3_fields": {
+        "v3_security_level": "Уровень безопасности SNMPv3: 'noAuthNoPriv', 'authNoPriv', 'authPriv'",
+        "v3_auth_protocol": "Протокол аутентификации: 'MD5', 'SHA' (требуется для authNoPriv и authPriv)",
+        "v3_auth_passphrase": "Парольная фраза аутентификации (минимум 8 символов, требуется для authNoPriv и authPriv)",
+        "v3_privacy_protocol": "Протокол конфиденциальности: 'DES', 'AES' (требуется для authPriv)",
+        "v3_privacy_passphrase": "Парольная фраза конфиденциальности (минимум 8 символов, требуется для authPriv)"
+    },
+    "_version_constants": {
+        "0": "Snmp::VERSION_1 - SNMPv1 (базовая версия, не рекомендуется для продакшена)",
+        "1": "Snmp::VERSION_2C или Snmp::VERSION_2c - SNMPv2c (рекомендуется, поддержка bulk операций)",
+        "3": "Snmp::VERSION_3 - SNMPv3 (наиболее безопасная, с аутентификацией и шифрованием)"
+    },
+    "_security_levels": {
+        "noAuthNoPriv": "Без аутентификации и шифрования (только username)",
+        "authNoPriv": "С аутентификацией, без шифрования (требуется auth_protocol и auth_passphrase)",
+        "authPriv": "С аутентификацией и шифрованием (требуется auth_protocol, auth_passphrase, priv_protocol, priv_passphrase)"
+    },
+    "_usage_example": [
+        "use App\\Component\\Snmp;",
+        "use App\\Config\\ConfigLoader;",
+        "",
+        "// Загрузка конфигурации",
+        "$config = ConfigLoader::load(__DIR__ . '/config/snmp.json');",
+        "",
+        "// Подключение к устройству по умолчанию (localhost)",
+        "$snmp = new Snmp($config['devices'][$config['default']], $logger);",
+        "",
+        "// Или к конкретному устройству",
+        "$router = new Snmp($config['devices']['router'], $logger);",
+        "$server = new Snmp($config['devices']['server_v3'], $logger);",
+        "",
+        "// Получение системной информации",
+        "$systemInfo = $snmp->getSystemInfo();",
+        "echo \"System: {$systemInfo['sysDescr']}\\n\";",
+        "",
+        "// Получение значения OID",
+        "$sysUpTime = $snmp->get('.1.3.6.1.2.1.1.3.0');",
+        "echo \"Uptime: {$sysUpTime}\\n\";",
+        "",
+        "// Обход дерева MIB",
+        "$interfaces = $snmp->walk('.1.3.6.1.2.1.2.2.1.2', true);",
+        "foreach ($interfaces as $index => $name) {",
+        "    echo \"Interface #{$index}: {$name}\\n\";",
+        "}",
+        "",
+        "// Закрытие соединения",
+        "$snmp->close();"
+    ],
+    "_common_oids": {
+        "sysDescr": ".1.3.6.1.2.1.1.1.0 - Описание системы",
+        "sysObjectID": ".1.3.6.1.2.1.1.2.0 - Object ID системы",
+        "sysUpTime": ".1.3.6.1.2.1.1.3.0 - Время работы системы",
+        "sysContact": ".1.3.6.1.2.1.1.4.0 - Контакт администратора",
+        "sysName": ".1.3.6.1.2.1.1.5.0 - Имя системы",
+        "sysLocation": ".1.3.6.1.2.1.1.6.0 - Местоположение системы",
+        "ifDescr": ".1.3.6.1.2.1.2.2.1.2 - Описание интерфейсов",
+        "ifOperStatus": ".1.3.6.1.2.1.2.2.1.8 - Операционный статус интерфейсов",
+        "ifInOctets": ".1.3.6.1.2.1.2.2.1.10 - Входящий трафик на интерфейсах",
+        "ifOutOctets": ".1.3.6.1.2.1.2.2.1.16 - Исходящий трафик на интерфейсах"
+    },
+    "_security_notes": [
+        "ВАЖНО: В продакшен окружении:",
+        "1. Используйте SNMPv3 с уровнем безопасности 'authPriv'",
+        "2. Используйте сильные парольные фразы (минимум 16 символов)",
+        "3. Для SNMPv1/v2c измените community string с 'public' на что-то уникальное",
+        "4. Ограничьте доступ к SNMP агенту по IP адресам",
+        "5. Используйте read-only community для операций только чтения",
+        "6. Храните конфигурацию в защищенном месте с правами доступа 600"
+    ]
+}
