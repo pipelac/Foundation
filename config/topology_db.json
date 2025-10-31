@@ -1,0 +1,10 @@
+{
+    "_comment": "Конфигурация БД для хранения топологии сети",
+    "host": "localhost",
+    "port": 3306,
+    "database": "network_topology",
+    "username": "topology_user",
+    "password": "secure_password",
+    "charset": "utf8mb4",
+    "persistent": false
+}
