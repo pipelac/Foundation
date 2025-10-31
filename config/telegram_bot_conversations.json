@@ -1,0 +1,102 @@
+{
+    "conversations": {
+        "enabled": true,
+        "timeout": 3600,
+        "auto_create_tables": true
+    },
+    "_comment": [
+        "Конфигурация менеджера диалогов Telegram бота.",
+        "Обеспечивает работу с многошаговыми диалогами и хранение состояний."
+    ],
+    "_fields": {
+        "enabled": "Включить/выключить менеджер диалогов (true/false)",
+        "timeout": "Время жизни диалога в секундах (по умолчанию: 3600 = 1 час)",
+        "auto_create_tables": "Автоматически создать таблицы при первом использовании (true/false)"
+    },
+    "_tables": {
+        "telegram_bot_users": {
+            "description": "Хранит данные пользователей бота",
+            "fields": [
+                "id - внутренний ID",
+                "user_id - ID пользователя в Telegram",
+                "first_name - имя пользователя",
+                "username - username пользователя",
+                "last_name - фамилия пользователя",
+                "created_at - дата первого обращения",
+                "updated_at - дата последнего обновления"
+            ]
+        },
+        "telegram_bot_conversations": {
+            "description": "Хранит состояния активных диалогов",
+            "fields": [
+                "id - внутренний ID диалога",
+                "chat_id - ID чата",
+                "user_id - ID пользователя",
+                "state - текущее состояние диалога (например, 'awaiting_name')",
+                "data - JSON с данными диалога",
+                "message_id - ID сообщения с кнопками для удаления",
+                "created_at - время начала диалога",
+                "updated_at - время последнего обновления",
+                "expires_at - время истечения диалога"
+            ]
+        }
+    },
+    "_usage_example": [
+        "// Инициализация",
+        "$conversationManager = new ConversationManager($db, $logger, $config['conversations']);",
+        "",
+        "// Сохранение пользователя",
+        "$conversationManager->saveUser($userId, $firstName, $username);",
+        "",
+        "// Начало диалога",
+        "$conversationManager->startConversation($chatId, $userId, 'awaiting_name', [], $messageId);",
+        "",
+        "// Получение текущего состояния",
+        "$conversation = $conversationManager->getConversation($chatId, $userId);",
+        "if ($conversation) {",
+        "    $state = $conversation['state'];",
+        "    $data = $conversation['data'];",
+        "}",
+        "",
+        "// Обновление состояния",
+        "$conversationManager->updateConversation($chatId, $userId, 'awaiting_email', ['name' => 'John']);",
+        "",
+        "// Завершение диалога",
+        "$conversationManager->endConversation($chatId, $userId);"
+    ],
+    "_conversation_example": {
+        "scenario": "Регистрация пользователя через бот",
+        "steps": [
+            {
+                "step": 1,
+                "state": "start",
+                "description": "Пользователь нажимает /adduser",
+                "action": "Показать меню с 3 кнопками выбора типа регистрации"
+            },
+            {
+                "step": 2,
+                "state": "type_selected",
+                "description": "Пользователь выбирает тип регистрации",
+                "action": "Сохранить выбор, запросить имя"
+            },
+            {
+                "step": 3,
+                "state": "awaiting_name",
+                "description": "Пользователь вводит имя",
+                "action": "Сохранить имя, запросить email"
+            },
+            {
+                "step": 4,
+                "state": "awaiting_email",
+                "description": "Пользователь вводит email",
+                "action": "Сохранить email, показать итоги и подтверждение"
+            },
+            {
+                "step": 5,
+                "state": "completed",
+                "description": "Пользователь подтверждает",
+                "action": "Сохранить в основную таблицу, завершить диалог, удалить сообщения с кнопками"
+            }
+        ]
+    }
+}
