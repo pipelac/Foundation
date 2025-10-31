@@ -41,6 +41,16 @@ class Snmp
     private readonly ?Logger $logger;
 
     /**
+     * Опциональный загрузчик OID конфигураций
+     */
+    private readonly ?SnmpOid $oidLoader;
+
+    /**
+     * Тип устройства для загрузки специфичных OID
+     */
+    private ?string $deviceType = null;
+
+    /**
      * Хост SNMP агента
      */
     private readonly string $host;
@@ -104,6 +114,7 @@ class Snmp
      *     timeout?: int,
      *     retries?: int,
      *     port?: int,
+     *     device_type?: string,
      *     v3_security_level?: string,
      *     v3_auth_protocol?: string,
      *     v3_auth_passphrase?: string,
@@ -111,13 +122,16 @@ class Snmp
      *     v3_privacy_passphrase?: string
      * } $config Конфигурация SNMP соединения
      * @param Logger|null $logger Логгер для записи операций и ошибок
+     * @param SnmpOid|null $oidLoader Загрузчик OID конфигураций
      * 
      * @throws SnmpConnectionException Если не удалось подключиться к SNMP агенту
      * @throws SnmpValidationException Если конфигурация некорректна
      */
-    public function __construct(array $config, ?Logger $logger = null)
+    public function __construct(array $config, ?Logger $logger = null, ?SnmpOid $oidLoader = null)
     {
         $this->logger = $logger;
+        $this->oidLoader = $oidLoader;
+        $this->deviceType = $config['device_type'] ?? null;
         
         try {
             $this->validateConfig($config);
@@ -793,5 +807,185 @@ class Snmp
         } catch (\SNMPException $e) {
             return 'Не удалось получить информацию об ошибке: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Получает значение OID по его имени
+     * 
+     * @param string $oidName Имя OID из конфигурации
+     * @param string $suffix Суффикс для добавления к OID (например, номер порта)
+     * 
+     * @return string|false Значение OID или false при ошибке
+     * @throws SnmpException При критических ошибках или если OID загрузчик не настроен
+     */
+    public function getByName(string $oidName, string $suffix = ''): string|false
+    {
+        if ($this->oidLoader === null) {
+            throw new SnmpException('OID загрузчик не настроен. Передайте SnmpOid в конструктор класса Snmp');
+        }
+
+        $oid = $this->oidLoader->getOid($oidName, $this->deviceType, $suffix);
+        
+        $this->log('debug', 'SNMP GET запрос по имени OID', [
+            'oid_name' => $oidName,
+            'device_type' => $this->deviceType,
+            'suffix' => $suffix,
+            'resolved_oid' => $oid,
+        ]);
+        
+        return $this->get($oid);
+    }
+
+    /**
+     * Получает значения нескольких OID по их именам
+     * 
+     * @param array<int, string> $oidNames Массив имен OID из конфигурации
+     * @param string $suffix Суффикс для добавления ко всем OID
+     * 
+     * @return array<string, string|false> Ассоциативный массив: имя OID => значение
+     * @throws SnmpException При критических ошибках
+     */
+    public function getMultipleByName(array $oidNames, string $suffix = ''): array
+    {
+        if ($this->oidLoader === null) {
+            throw new SnmpException('OID загрузчик не настроен. Передайте SnmpOid в конструктор класса Snmp');
+        }
+
+        $resolvedOids = [];
+        foreach ($oidNames as $oidName) {
+            $resolvedOids[$oidName] = $this->oidLoader->getOid($oidName, $this->deviceType, $suffix);
+        }
+
+        $this->log('debug', 'SNMP GET множественный запрос по именам OID', [
+            'oid_names' => $oidNames,
+            'device_type' => $this->deviceType,
+            'suffix' => $suffix,
+            'resolved_oids' => $resolvedOids,
+        ]);
+
+        $oidValues = $this->getMultiple(array_values($resolvedOids));
+        
+        // Преобразуем результат обратно к именам OID
+        $result = [];
+        foreach ($resolvedOids as $name => $oid) {
+            $result[$name] = $oidValues[$oid] ?? false;
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Обходит дерево MIB по имени OID
+     * 
+     * @param string $oidName Имя корневого OID из конфигурации
+     * @param string $suffix Суффикс для добавления к OID
+     * @param bool $suffixAsKey Использовать суффикс OID в качестве ключа массива
+     * @param int $maxRepetitions Максимальное количество повторений (для SNMPv2c/v3)
+     * @param int $nonRepeaters Количество неповторяющихся переменных (для SNMPv2c/v3)
+     * 
+     * @return array<string, mixed>|false Массив OID => значение или false при ошибке
+     * @throws SnmpException При критических ошибках
+     */
+    public function walkByName(
+        string $oidName,
+        string $suffix = '',
+        bool $suffixAsKey = false,
+        int $maxRepetitions = 20,
+        int $nonRepeaters = 0
+    ): array|false {
+        if ($this->oidLoader === null) {
+            throw new SnmpException('OID загрузчик не настроен. Передайте SnmpOid в конструктор класса Snmp');
+        }
+
+        $oid = $this->oidLoader->getOid($oidName, $this->deviceType, $suffix);
+        
+        $this->log('debug', 'SNMP WALK запрос по имени OID', [
+            'oid_name' => $oidName,
+            'device_type' => $this->deviceType,
+            'suffix' => $suffix,
+            'resolved_oid' => $oid,
+        ]);
+        
+        return $this->walk($oid, $suffixAsKey, $maxRepetitions, $nonRepeaters);
+    }
+
+    /**
+     * Устанавливает значение OID по его имени
+     * 
+     * @param string $oidName Имя OID из конфигурации
+     * @param string|int $value Значение для установки
+     * @param string $suffix Суффикс для добавления к OID (например, номер порта)
+     * @param string|null $type Тип данных (если null - берется из конфигурации OID)
+     * 
+     * @return bool Успешность операции
+     * @throws SnmpException При критических ошибках
+     */
+    public function setByName(
+        string $oidName,
+        string|int $value,
+        string $suffix = '',
+        ?string $type = null
+    ): bool {
+        if ($this->oidLoader === null) {
+            throw new SnmpException('OID загрузчик не настроен. Передайте SnmpOid в конструктор класса Snmp');
+        }
+
+        $oid = $this->oidLoader->getOid($oidName, $this->deviceType, $suffix);
+        
+        // Если тип не указан явно, пытаемся получить из конфигурации
+        if ($type === null) {
+            $valueType = $this->oidLoader->getValueType($oidName, $this->deviceType);
+            if ($valueType === null) {
+                throw new SnmpValidationException(
+                    "Тип значения не указан для OID '{$oidName}' и не найден в конфигурации"
+                );
+            }
+            $type = $valueType;
+        }
+        
+        $this->log('info', 'SNMP SET запрос по имени OID', [
+            'oid_name' => $oidName,
+            'device_type' => $this->deviceType,
+            'suffix' => $suffix,
+            'resolved_oid' => $oid,
+            'type' => $type,
+            'value' => $value,
+        ]);
+        
+        return $this->set($oid, $type, $value);
+    }
+
+    /**
+     * Устанавливает тип устройства для резолва OID
+     * 
+     * @param string|null $deviceType Тип устройства (например, "D-Link DES-3526")
+     */
+    public function setDeviceType(?string $deviceType): void
+    {
+        $this->deviceType = $deviceType;
+        
+        $this->log('debug', 'Тип устройства SNMP изменен', [
+            'device_type' => $deviceType,
+        ]);
+    }
+
+    /**
+     * Получает текущий тип устройства
+     * 
+     * @return string|null Тип устройства
+     */
+    public function getDeviceType(): ?string
+    {
+        return $this->deviceType;
+    }
+
+    /**
+     * Получает объект SnmpOid если он установлен
+     * 
+     * @return SnmpOid|null Объект SnmpOid или null
+     */
+    public function getOidLoader(): ?SnmpOid
+    {
+        return $this->oidLoader;
     }
 }
