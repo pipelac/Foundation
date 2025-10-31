@@ -78,6 +78,30 @@ $callbackHandler->handleAction($update, 'settings', function($query) use ($callb
 });
 ```
 
+### 5. Контроль доступа к командам
+
+```php
+use App\Component\TelegramBot\Core\AccessControl;
+use App\Component\TelegramBot\Core\AccessControlMiddleware;
+
+// Инициализация системы контроля доступа
+$accessControl = new AccessControl(
+    __DIR__ . '/config/telegram_bot_access_control.json',
+    $logger
+);
+
+$accessMiddleware = new AccessControlMiddleware($accessControl, $api, $logger);
+
+// Команда только для админов
+$textHandler->handleCommand($update, 'admin', function($message) use ($api, $accessMiddleware) {
+    if (!$accessMiddleware->checkAndNotify($message, '/admin')) {
+        return; // Middleware отправит сообщение об отказе
+    }
+    
+    $api->sendMessage($message->chat->id, "🔧 Админ-панель");
+});
+```
+
 ## Структура модуля
 
 ```
@@ -87,7 +111,8 @@ src/TelegramBot/
 │   ├── ApiException.php
 │   ├── ValidationException.php
 │   ├── FileException.php
-│   └── WebhookException.php
+│   ├── WebhookException.php
+│   └── AccessControlException.php
 ├── Entities/          # DTO классы
 │   ├── User.php
 │   ├── Chat.php
@@ -104,7 +129,9 @@ src/TelegramBot/
 │   └── ReplyKeyboardBuilder.php
 ├── Core/              # Ядро системы
 │   ├── TelegramAPI.php
-│   └── WebhookHandler.php
+│   ├── WebhookHandler.php
+│   ├── AccessControl.php
+│   └── AccessControlMiddleware.php
 └── Handlers/          # Обработчики событий
     ├── MessageHandler.php
     ├── CallbackQueryHandler.php
@@ -138,11 +165,18 @@ src/TelegramBot/
 ### ✅ Логирование
 Интеграция с системой логирования проекта
 
+### ✅ Контроль доступа на основе ролей
+Управление правами пользователей через JSON конфигурацию
+
 ## Примеры использования
 
 См. полную документацию: `/docs/TELEGRAM_BOT_MODULE.md`
 
-Рабочий пример: `/examples/telegram_bot_advanced.php`
+Система контроля доступа: `/docs/TELEGRAM_BOT_ACCESS_CONTROL.md`
+
+Рабочие примеры: 
+- `/examples/telegram_bot_advanced.php`
+- `/examples/telegram_bot_access_control.php`
 
 ## Требования
 

@@ -1,0 +1,45 @@
+{
+    "default": {
+        "first_name": "Имя",
+        "last_name": "Фамилия",
+        "email": "",
+        "role": "default",
+        "mac": "",
+        "_comment": "Пользователь по умолчанию - шаблон для незарегистрированных пользователей"
+    },
+    "366442475": {
+        "first_name": "Z",
+        "last_name": "B",
+        "email": "bzd@bl.ru",
+        "role": "admin",
+        "mac": "50:af:73:1b:96:c3"
+    },
+    "438722815": {
+        "first_name": "U",
+        "last_name": "A",
+        "email": "auv@bl.ru",
+        "role": "L2",
+        "mac": "00:E0:99:9E:92:89"
+    },
+    "446229227": {
+        "first_name": "M",
+        "last_name": "A",
+        "email": "amm@bl.ru",
+        "role": "L2",
+        "mac": "00:E0:99:9E:92:89"
+    },
+    "_comment": [
+        "Список пользователей бота с их правами доступа.",
+        "Ключ - chat_id пользователя в Telegram (узнать можно у @userinfobot).",
+        "Секция 'default' используется как шаблон для незарегистрированных пользователей."
+    ],
+    "_structure": {
+        "chat_id (number as string)": {
+            "first_name": "Имя пользователя",
+            "last_name": "Фамилия пользователя",
+            "email": "Email адрес (опционально)",
+            "role": "Название роли из файла roles.json",
+            "mac": "MAC адрес устройства (опционально)"
+        }
+    }
+}
