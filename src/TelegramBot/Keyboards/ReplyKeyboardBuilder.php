@@ -37,6 +37,16 @@ class ReplyKeyboardBuilder
     private array $params = [];
 
     /**
+     * Создаёт новый экземпляр построителя (фабричный метод)
+     *
+     * @return self
+     */
+    public static function make(): self
+    {
+        return new self();
+    }
+
+    /**
      * Добавляет текстовую кнопку в текущий ряд
      *
      * @param string $text Текст на кнопке

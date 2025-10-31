@@ -262,7 +262,7 @@ class MessageStorage
                 SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
                 FROM " . self::TABLE_NAME . " {$whereClause}";
 
-            $stats = $this->db->querySingle($query, $params);
+            $stats = $this->db->queryOne($query, $params);
 
             // Статистика по типам
             $typeQuery = "SELECT message_type, COUNT(*) as count 
@@ -343,7 +343,7 @@ class MessageStorage
     {
         try {
             // Проверка существования таблицы
-            $exists = $this->db->querySingle(
+            $exists = $this->db->queryOne(
                 "SHOW TABLES LIKE ?",
                 [self::TABLE_NAME]
             );
@@ -692,5 +692,239 @@ class MessageStorage
         }
 
         return 'unknown';
+    }
+
+    /**
+     * Получает топ пользователей по активности
+     *
+     * @param int $limit Количество пользователей (по умолчанию 10)
+     * @param int|null $days Период в днях (null = за всё время)
+     * @return array<array{user_id: int, message_count: int, last_activity: string}> Топ пользователей
+     */
+    public function getTopUsers(int $limit = 10, ?int $days = null): array
+    {
+        if (!$this->isEnabled()) {
+            return [];
+        }
+
+        try {
+            $where = [];
+            $params = [];
+
+            if ($days !== null) {
+                $where[] = 'created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)';
+                $params[] = $days;
+            }
+
+            $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+            $query = "SELECT 
+                user_id,
+                COUNT(*) as message_count,
+                MAX(created_at) as last_activity
+                FROM " . self::TABLE_NAME . " 
+                {$whereClause}
+                GROUP BY user_id
+                ORDER BY message_count DESC
+                LIMIT ?";
+
+            $params[] = $limit;
+
+            $result = $this->db->query($query, $params);
+
+            $this->logger?->debug('Получен топ пользователей', [
+                'count' => count($result),
+                'limit' => $limit,
+            ]);
+
+            return array_map(function($row) {
+                return [
+                    'user_id' => (int)$row['user_id'],
+                    'message_count' => (int)$row['message_count'],
+                    'last_activity' => $row['last_activity'],
+                ];
+            }, $result);
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка получения топа пользователей', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Получает статистику по времени
+     *
+     * @param string $period Период: 'hour', 'day', 'week', 'month' (по умолчанию 'day')
+     * @param int $limit Количество периодов (по умолчанию 30)
+     * @return array<array{period: string, count: int, incoming: int, outgoing: int}> Статистика по периодам
+     */
+    public function getTimeStatistics(string $period = 'day', int $limit = 30): array
+    {
+        if (!$this->isEnabled()) {
+            return [];
+        }
+
+        try {
+            $formatMap = [
+                'hour' => '%Y-%m-%d %H:00:00',
+                'day' => '%Y-%m-%d',
+                'week' => '%Y-%u',
+                'month' => '%Y-%m',
+            ];
+
+            if (!isset($formatMap[$period])) {
+                throw new \InvalidArgumentException("Неподдерживаемый период: {$period}");
+            }
+
+            $format = $formatMap[$period];
+
+            $query = "SELECT 
+                DATE_FORMAT(created_at, ?) as period,
+                COUNT(*) as count,
+                SUM(CASE WHEN direction = 'incoming' THEN 1 ELSE 0 END) as incoming,
+                SUM(CASE WHEN direction = 'outgoing' THEN 1 ELSE 0 END) as outgoing
+                FROM " . self::TABLE_NAME . " 
+                GROUP BY period
+                ORDER BY period DESC
+                LIMIT ?";
+
+            $result = $this->db->query($query, [$format, $limit]);
+
+            $this->logger?->debug('Получена статистика по времени', [
+                'period' => $period,
+                'count' => count($result),
+            ]);
+
+            return array_map(function($row) {
+                return [
+                    'period' => $row['period'],
+                    'count' => (int)$row['count'],
+                    'incoming' => (int)$row['incoming'],
+                    'outgoing' => (int)$row['outgoing'],
+                ];
+            }, $result);
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка получения статистики по времени', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Получает статистику ошибок
+     *
+     * @param int|null $days Период в днях (null = за всё время)
+     * @return array<array{error_code: int, error_message: string, count: int, last_occurrence: string}> Статистика ошибок
+     */
+    public function getErrorStatistics(?int $days = null): array
+    {
+        if (!$this->isEnabled()) {
+            return [];
+        }
+
+        try {
+            $where = ['success = 0'];
+            $params = [];
+
+            if ($days !== null) {
+                $where[] = 'created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)';
+                $params[] = $days;
+            }
+
+            $whereClause = 'WHERE ' . implode(' AND ', $where);
+
+            $query = "SELECT 
+                error_code,
+                error_message,
+                COUNT(*) as count,
+                MAX(created_at) as last_occurrence
+                FROM " . self::TABLE_NAME . " 
+                {$whereClause}
+                GROUP BY error_code, error_message
+                ORDER BY count DESC";
+
+            $result = $this->db->query($query, $params);
+
+            $this->logger?->debug('Получена статистика ошибок', [
+                'count' => count($result),
+            ]);
+
+            return array_map(function($row) {
+                return [
+                    'error_code' => (int)$row['error_code'],
+                    'error_message' => $row['error_message'],
+                    'count' => (int)$row['count'],
+                    'last_occurrence' => $row['last_occurrence'],
+                ];
+            }, $result);
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка получения статистики ошибок', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Получает подробную статистику по чату
+     *
+     * @param string|int $chatId ID чата
+     * @return array{total: int, incoming: int, outgoing: int, by_type: array, by_day: array, errors: int} Подробная статистика
+     */
+    public function getChatStatistics(string|int $chatId): array
+    {
+        if (!$this->isEnabled()) {
+            return [
+                'total' => 0,
+                'incoming' => 0,
+                'outgoing' => 0,
+                'by_type' => [],
+                'by_day' => [],
+                'errors' => 0,
+            ];
+        }
+
+        try {
+            // Общая статистика
+            $general = $this->getStatistics($chatId);
+
+            // Статистика по дням (последние 7 дней)
+            $timeStats = $this->getTimeStatistics('day', 7);
+
+            // Статистика ошибок для чата
+            $errorQuery = "SELECT COUNT(*) as count 
+                FROM " . self::TABLE_NAME . " 
+                WHERE chat_id = ? AND success = 0";
+            $errorResult = $this->db->queryOne($errorQuery, [$chatId]);
+            $errors = (int)($errorResult['count'] ?? 0);
+
+            return [
+                'total' => $general['total'],
+                'incoming' => $general['incoming'],
+                'outgoing' => $general['outgoing'],
+                'by_type' => $general['by_type'],
+                'by_day' => $timeStats,
+                'errors' => $errors,
+            ];
+        } catch (\Exception $e) {
+            $this->logger?->error('Ошибка получения статистики чата', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'total' => 0,
+                'incoming' => 0,
+                'outgoing' => 0,
+                'by_type' => [],
+                'by_day' => [],
+                'errors' => 0,
+            ];
+        }
     }
 }
