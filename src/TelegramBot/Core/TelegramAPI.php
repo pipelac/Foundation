@@ -402,12 +402,18 @@ class TelegramAPI
             ]);
 
             if ($multipart) {
-                $response = $this->http->postMultipart($url, $params);
+                $multipartData = $this->prepareMultipart($params);
+                $response = $this->http->request('POST', $url, [
+                    'multipart' => $multipartData,
+                ]);
             } else {
-                $response = $this->http->postJson($url, $params);
+                $response = $this->http->request('POST', $url, [
+                    'json' => $params,
+                ]);
             }
 
-            $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+            $body = (string)$response->getBody();
+            $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
 
             if (!isset($data['ok']) || !$data['ok']) {
                 $errorMessage = $data['description'] ?? 'Неизвестная ошибка API';
@@ -485,5 +491,38 @@ class TelegramAPI
         }
 
         return false;
+    }
+
+    /**
+     * Подготавливает данные для multipart запроса
+     *
+     * @param array<string, mixed> $params Параметры запроса
+     * @return array<array<string, mixed>> Multipart данные
+     */
+    private function prepareMultipart(array $params): array
+    {
+        $multipart = [];
+
+        foreach ($params as $name => $value) {
+            if ($value instanceof CURLFile) {
+                $multipart[] = [
+                    'name' => $name,
+                    'contents' => fopen($value->getFilename(), 'r'),
+                    'filename' => basename($value->getFilename()),
+                ];
+            } elseif (is_array($value)) {
+                $multipart[] = [
+                    'name' => $name,
+                    'contents' => json_encode($value),
+                ];
+            } else {
+                $multipart[] = [
+                    'name' => $name,
+                    'contents' => (string)$value,
+                ];
+            }
+        }
+
+        return $multipart;
     }
 }
