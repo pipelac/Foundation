@@ -99,18 +99,24 @@ class MySQLHelpersTest
         $this->db->execute($sql);
 
         // Вставляем тестовые данные
-        $this->db->insert(
-            "INSERT INTO `{$this->testTable}` (name, email, age, active) VALUES (?, ?, ?, ?)",
-            ['Alice', 'alice@test.com', 25, 1]
-        );
-        $this->db->insert(
-            "INSERT INTO `{$this->testTable}` (name, email, age, active) VALUES (?, ?, ?, ?)",
-            ['Bob', 'bob@test.com', 30, 1]
-        );
-        $this->db->insert(
-            "INSERT INTO `{$this->testTable}` (name, email, age, active) VALUES (?, ?, ?, ?)",
-            ['Charlie', 'charlie@test.com', 35, 0]
-        );
+        $this->db->insert($this->testTable, [
+            'name' => 'Alice',
+            'email' => 'alice@test.com',
+            'age' => 25,
+            'active' => 1
+        ]);
+        $this->db->insert($this->testTable, [
+            'name' => 'Bob',
+            'email' => 'bob@test.com',
+            'age' => 30,
+            'active' => 1
+        ]);
+        $this->db->insert($this->testTable, [
+            'name' => 'Charlie',
+            'email' => 'charlie@test.com',
+            'age' => 35,
+            'active' => 0
+        ]);
 
         echo "✓ Тестовая таблица создана и заполнена\n\n";
     }
