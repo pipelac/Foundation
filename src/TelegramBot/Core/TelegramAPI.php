@@ -88,6 +88,9 @@ class TelegramAPI
         Validator::validateChatId($chatId);
         Validator::validateText($text);
 
+        // Показываем индикатор "печатает"
+        $this->showChatAction($chatId, 'typing');
+
         $params = array_merge($options, [
             'chat_id' => $chatId,
             'text' => $text,
@@ -114,6 +117,9 @@ class TelegramAPI
         if (isset($options['caption'])) {
             Validator::validateCaption($options['caption']);
         }
+
+        // Показываем индикатор загрузки фото
+        $this->showChatAction($chatId, 'upload_photo');
 
         $params = array_merge($options, [
             'chat_id' => $chatId,
@@ -142,6 +148,9 @@ class TelegramAPI
             Validator::validateCaption($options['caption']);
         }
 
+        // Показываем индикатор загрузки видео
+        $this->showChatAction($chatId, 'upload_video');
+
         $params = array_merge($options, [
             'chat_id' => $chatId,
             'video' => $this->prepareFileOrUrl($video),
@@ -168,6 +177,9 @@ class TelegramAPI
         if (isset($options['caption'])) {
             Validator::validateCaption($options['caption']);
         }
+
+        // Показываем индикатор загрузки аудио
+        $this->showChatAction($chatId, 'upload_voice');
 
         $params = array_merge($options, [
             'chat_id' => $chatId,
@@ -196,6 +208,9 @@ class TelegramAPI
             Validator::validateCaption($options['caption']);
         }
 
+        // Показываем индикатор загрузки документа
+        $this->showChatAction($chatId, 'upload_document');
+
         $params = array_merge($options, [
             'chat_id' => $chatId,
             'document' => $this->prepareFileOrUrl($document),
@@ -221,6 +236,9 @@ class TelegramAPI
         Validator::validateChatId($chatId);
         Validator::validatePollQuestion($question);
         Validator::validatePollOptions($options);
+
+        // Показываем индикатор "печатает" для опроса
+        $this->showChatAction($chatId, 'typing');
 
         $requestParams = array_merge($params, [
             'chat_id' => $chatId,
@@ -344,6 +362,72 @@ class TelegramAPI
         ]);
 
         return $this->sendRequest('answerCallbackQuery', $params);
+    }
+
+    /**
+     * Отправляет индикатор активности
+     * 
+     * Показывает пользователю, что бот печатает или выполняет другое действие.
+     * Индикатор автоматически исчезает через 5 секунд или при отправке сообщения.
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param string $action Тип действия (typing, upload_photo, record_video, upload_video, record_voice, upload_voice, upload_document, choose_sticker, find_location, record_video_note, upload_video_note)
+     * @return bool True при успешной отправке
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function sendChatAction(string|int $chatId, string $action): bool
+    {
+        Validator::validateChatId($chatId);
+        
+        $validActions = [
+            'typing',
+            'upload_photo',
+            'record_video',
+            'upload_video',
+            'record_voice',
+            'upload_voice',
+            'upload_document',
+            'choose_sticker',
+            'find_location',
+            'record_video_note',
+            'upload_video_note',
+        ];
+        
+        if (!in_array($action, $validActions, true)) {
+            throw new ValidationException(
+                'Недопустимое действие. Допустимые значения: ' . implode(', ', $validActions),
+                'action',
+                $action
+            );
+        }
+
+        $params = [
+            'chat_id' => $chatId,
+            'action' => $action,
+        ];
+
+        return $this->sendRequest('sendChatAction', $params);
+    }
+
+    /**
+     * Отображает индикатор активности, игнорируя возможные ошибки
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param string $action Тип действия
+     * @return void
+     */
+    private function showChatAction(string|int $chatId, string $action): void
+    {
+        try {
+            $this->sendChatAction($chatId, $action);
+        } catch (\Throwable $e) {
+            $this->logger?->warning('Не удалось отправить индикатор активности', [
+                'chat_id' => $chatId,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -722,4 +806,97 @@ class TelegramAPI
             'failed' => $failed,
         ];
     }
+
+    /**
+     * Отправляет текстовое сообщение с эффектом постепенного появления (streaming)
+     * 
+     * Сначала отправляет первую часть текста, затем постепенно редактирует сообщение,
+     * добавляя новые символы/слова, создавая визуальный эффект печатающегося текста.
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param string $text Полный текст сообщения
+     * @param array<string, mixed> $options Дополнительные параметры (parse_mode, reply_markup и т.д.)
+     * @param int $charsPerChunk Количество символов, добавляемых за одно обновление (по умолчанию 8)
+     * @param int $delayMs Задержка между обновлениями в миллисекундах (по умолчанию 60мс)
+     * @param bool $showTyping Показывать ли индикатор "печатает" перед началом (по умолчанию true)
+     * @return Message Финальное отправленное сообщение
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function sendMessageStreaming(
+        string|int $chatId,
+        string $text,
+        array $options = [],
+        int $charsPerChunk = 8,
+        int $delayMs = 60,
+        bool $showTyping = true
+    ): Message {
+        Validator::validateChatId($chatId);
+        Validator::validateText($text);
+
+        if ($charsPerChunk < 1) {
+            throw new ValidationException('charsPerChunk должен быть больше 0', 'charsPerChunk', $charsPerChunk);
+        }
+
+        if ($delayMs < 0) {
+            throw new ValidationException('delayMs не может быть отрицательным', 'delayMs', $delayMs);
+        }
+
+        $textLength = mb_strlen($text, 'UTF-8');
+
+        $this->logger?->info('Начало streaming отправки', [
+            'chat_id' => $chatId,
+            'text_length' => $textLength,
+            'chars_per_chunk' => $charsPerChunk,
+            'delay_ms' => $delayMs,
+        ]);
+
+        $lastChatActionAt = null;
+        if ($showTyping) {
+            $this->showChatAction($chatId, 'typing');
+            $lastChatActionAt = microtime(true);
+        }
+
+        $currentLength = min($charsPerChunk, $textLength);
+        $currentText = mb_substr($text, 0, $currentLength, 'UTF-8');
+        $message = $this->sendMessage($chatId, $currentText, $options);
+        $messageId = $message->messageId;
+        $lastChatActionAt = microtime(true);
+
+        $delayMicroseconds = $delayMs > 0 ? $delayMs * 1000 : 0;
+
+        while ($currentLength < $textLength) {
+            if ($delayMicroseconds > 0) {
+                usleep($delayMicroseconds);
+            }
+
+            if ($showTyping && ($lastChatActionAt === null || (microtime(true) - $lastChatActionAt) >= 4.0)) {
+                $this->showChatAction($chatId, 'typing');
+                $lastChatActionAt = microtime(true);
+            }
+
+            $currentLength = min($currentLength + $charsPerChunk, $textLength);
+            $currentText = mb_substr($text, 0, $currentLength, 'UTF-8');
+
+            try {
+                $message = $this->editMessageText($chatId, $messageId, $currentText, $options);
+            } catch (ApiException $e) {
+                $this->logger?->warning('Ошибка при редактировании streaming сообщения', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'error' => $e->getMessage(),
+                    'current_length' => $currentLength,
+                ]);
+            }
+        }
+
+        $this->logger?->info('Streaming отправка завершена', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text_length' => $textLength,
+        ]);
+
+        return $message;
+    }
 }
+
