@@ -1174,9 +1174,34 @@ class MySQL
     private function prepareAndExecute(string $query, array $params = []): PDOStatement
     {
         $statement = $this->getOrPrepareStatement($query);
+        
+        // Если используются позиционные плейсхолдеры (?), нормализуем массив параметров
+        // чтобы использовались числовые индексы, начиная с 0
+        if (!empty($params) && $this->usesPositionalPlaceholders($query)) {
+            $params = array_values($params);
+        }
+        
         $statement->execute($params);
 
         return $statement;
+    }
+
+    /**
+     * Определяет, использует ли SQL запрос позиционные плейсхолдеры (?)
+     * 
+     * @param string $query SQL запрос
+     * 
+     * @return bool True, если используются позиционные плейсхолдеры, иначе false
+     */
+    private function usesPositionalPlaceholders(string $query): bool
+    {
+        // Проверяем наличие позиционных плейсхолдеров (?)
+        // Учитываем, что ? может быть внутри строковых литералов, которые нужно игнорировать
+        // Простая эвристика: если есть хотя бы один ? вне кавычек, считаем что используются позиционные
+        $strippedQuery = preg_replace("/'([^']|\\\\')*'/", '', $query);
+        $strippedQuery = preg_replace('/"([^"]|\\\\")*"/', '', $strippedQuery ?? '');
+        
+        return ($strippedQuery !== null && strpos($strippedQuery, '?') !== false);
     }
 
     /**
