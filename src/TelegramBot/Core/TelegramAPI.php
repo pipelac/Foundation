@@ -816,8 +816,8 @@ class TelegramAPI
      * @param string|int $chatId Идентификатор чата
      * @param string $text Полный текст сообщения
      * @param array<string, mixed> $options Дополнительные параметры (parse_mode, reply_markup и т.д.)
-     * @param int $charsPerChunk Количество символов, добавляемых за одно обновление (по умолчанию 5)
-     * @param int $delayMs Задержка между обновлениями в миллисекундах (по умолчанию 100мс)
+     * @param int $charsPerChunk Количество символов, добавляемых за одно обновление (по умолчанию 8)
+     * @param int $delayMs Задержка между обновлениями в миллисекундах (по умолчанию 60мс)
      * @param bool $showTyping Показывать ли индикатор "печатает" перед началом (по умолчанию true)
      * @return Message Финальное отправленное сообщение
      * @throws ValidationException При некорректных параметрах
@@ -827,8 +827,8 @@ class TelegramAPI
         string|int $chatId,
         string $text,
         array $options = [],
-        int $charsPerChunk = 5,
-        int $delayMs = 100,
+        int $charsPerChunk = 8,
+        int $delayMs = 60,
         bool $showTyping = true
     ): Message {
         Validator::validateChatId($chatId);

@@ -107,8 +107,8 @@ public function sendMessageStreaming(
     string|int $chatId,
     string $text,
     array $options = [],
-    int $charsPerChunk = 5,
-    int $delayMs = 100,
+    int $charsPerChunk = 8,
+    int $delayMs = 60,
     bool $showTyping = true
 ): Message
 ```
@@ -117,8 +117,8 @@ public function sendMessageStreaming(
 - `$chatId` (string|int) - ID чата или username канала
 - `$text` (string) - Полный текст сообщения (1-4096 символов)
 - `$options` (array) - Дополнительные параметры (parse_mode, reply_markup и т.д.)
-- `$charsPerChunk` (int) - Количество символов, добавляемых за одно обновление (по умолчанию 5)
-- `$delayMs` (int) - Задержка между обновлениями в миллисекундах (по умолчанию 100мс)
+- `$charsPerChunk` (int) - Количество символов, добавляемых за одно обновление (по умолчанию 8)
+- `$delayMs` (int) - Задержка между обновлениями в миллисекундах (по умолчанию 60мс)
 - `$showTyping` (bool) - Показывать ли индикатор "печатает" (по умолчанию true)
 
 ### Возвращаемое значение
@@ -136,8 +136,8 @@ $api->sendMessageStreaming(
     $chatId,
     'Это сообщение будет появляться постепенно!',
     [],
-    5,   // 5 символов за раз
-    50   // 50мс между обновлениями
+    8,   // 8 символов за раз (значение по умолчанию)
+    60   // 60мс между обновлениями (значение по умолчанию)
 );
 ```
 
@@ -174,8 +174,8 @@ $api->sendMessageStreaming(
     $chatId,
     'Текст без индикатора',
     [],
-    5,
-    50,
+    8,
+    60,
     false  // Отключаем индикатор
 );
 ```
@@ -186,19 +186,19 @@ $api->sendMessageStreaming(
 
 #### Для коротких сообщений (до 100 символов)
 ```php
-charsPerChunk: 5-8
-delayMs: 50-80
+charsPerChunk: 6-8
+delayMs: 55-65
 Итого: ~1-2 секунды на сообщение
 ```
 
 **Пример:**
 ```php
-$api->sendMessageStreaming($chatId, $shortText, [], 5, 60);
+$api->sendMessageStreaming($chatId, $shortText, [], 8, 60);
 ```
 
 #### Для средних сообщений (100-300 символов)
 ```php
-charsPerChunk: 5-10
+charsPerChunk: 8-10
 delayMs: 50-60
 Итого: ~2-4 секунды на сообщение
 ```
@@ -220,16 +220,16 @@ delayMs: 40-50
 $api->sendMessageStreaming($chatId, $longText, [], 12, 45);
 ```
 
-#### Оптимальный баланс (рекомендуется)
+#### Оптимальный баланс (значение по умолчанию)
 ```php
-charsPerChunk: 5
-delayMs: 50-60
-Комфортно для глаз, не слишком медленно
+charsPerChunk: 8
+delayMs: 60
+Комфортно для глаз, соответствует настройке по умолчанию
 ```
 
 **Пример:**
 ```php
-$api->sendMessageStreaming($chatId, $text, [], 5, 55);
+$api->sendMessageStreaming($chatId, $text, [], 8, 60);
 ```
 
 ### Специальные случаи
@@ -275,13 +275,11 @@ $api->sendMessageStreaming($chatId, $text, [], 1, 150);
 // Получаем ответ от AI постепенно
 $aiResponse = $openAi->generateText($userQuestion);
 
-// Показываем ответ с эффектом печатания
+// Показываем ответ с эффектом печатания (используем значения по умолчанию)
 $api->sendMessageStreaming(
     $chatId,
     $aiResponse,
-    ['parse_mode' => 'Markdown'],
-    8,
-    50
+    ['parse_mode' => 'Markdown']
 );
 ```
 
@@ -289,6 +287,7 @@ $api->sendMessageStreaming(
 ```php
 $report = generateReport();
 
+// Для длинных отчетов используем более быстрые параметры
 $api->sendMessageStreaming(
     $chatId,
     $report,
@@ -306,12 +305,10 @@ $instructions = <<<TEXT
 Шаг 3: Включите двухфакторную аутентификацию
 TEXT;
 
+// Используем значения по умолчанию
 $api->sendMessageStreaming(
     $chatId,
-    $instructions,
-    [],
-    5,
-    70
+    $instructions
 );
 ```
 
@@ -331,7 +328,7 @@ $api->sendMessageStreaming(
 - Максимально быстро (20 символов / 30мс): ~1.6 секунды
 
 ### Выводы
-1. Оптимальная конфигурация: `charsPerChunk=5, delayMs=50-60`
+1. Оптимальная конфигурация (по умолчанию): `charsPerChunk=8, delayMs=60`
 2. Индикаторы активности работают корректно
 3. Длинные тексты обрабатываются без проблем
 4. Rate limits Telegram API соблюдаются автоматически
