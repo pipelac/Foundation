@@ -240,25 +240,27 @@ class MySQLFullTest
     }
 
     /**
-     * Тест: простой INSERT
+     * Тест: простой INSERT (новый API)
      */
     private function testInsertSimple(): void
     {
-        $this->test('INSERT без параметров', function() {
-            $sql = "INSERT INTO `{$this->testTable}` (name, email, age, salary) 
-                    VALUES ('John Doe', 'john@example.com', 30, 50000.00)";
-            
-            $lastId = $this->db->insert($sql);
+        $this->test('INSERT с новым API', function() {
+            $lastId = $this->db->insert($this->testTable, [
+                'name' => 'John Doe',
+                'email' => 'john@example.com',
+                'age' => 30,
+                'salary' => 50000.00
+            ]);
             return $lastId > 0;
         });
     }
 
     /**
-     * Тест: INSERT с параметрами
+     * Тест: INSERT с параметрами через execute()
      */
     private function testInsertWithParams(): void
     {
-        $this->test('INSERT с именованными параметрами', function() {
+        $this->test('INSERT через execute() с именованными параметрами', function() {
             $sql = "INSERT INTO `{$this->testTable}` (name, email, age, salary) 
                     VALUES (:name, :email, :age, :salary)";
             
@@ -269,17 +271,19 @@ class MySQLFullTest
                 ':salary' => 55000.00,
             ];
             
-            $lastId = $this->db->insert($sql, $params);
+            $this->db->execute($sql, $params);
+            $lastId = $this->db->getLastInsertId();
             return $lastId > 0;
         });
 
-        $this->test('INSERT с позиционными параметрами', function() {
+        $this->test('INSERT через execute() с позиционными параметрами', function() {
             $sql = "INSERT INTO `{$this->testTable}` (name, email, age, salary) 
                     VALUES (?, ?, ?, ?)";
             
             $params = ['Bob Johnson', 'bob@example.com', 35, 60000.00];
             
-            $lastId = $this->db->insert($sql, $params);
+            $this->db->execute($sql, $params);
+            $lastId = $this->db->getLastInsertId();
             return $lastId > 0;
         });
     }
@@ -392,31 +396,35 @@ class MySQLFullTest
     }
 
     /**
-     * Тест: UPDATE
+     * Тест: UPDATE (новый API)
      */
     private function testUpdate(): void
     {
-        $this->test('update() без параметров', function() {
-            $affected = $this->db->update("UPDATE `{$this->testTable}` SET is_active = 0 WHERE age > 35");
+        $this->test('update() с новым API', function() {
+            $affected = $this->db->update(
+                $this->testTable,
+                ['is_active' => 0],
+                ['age' => 40] // WHERE age = 40
+            );
             return $affected >= 0;
         });
     }
 
     /**
-     * Тест: UPDATE с параметрами
+     * Тест: UPDATE через execute()
      */
     private function testUpdateWithParams(): void
     {
-        $this->test('update() с именованными параметрами', function() {
-            $affected = $this->db->update(
+        $this->test('UPDATE через execute() с именованными параметрами', function() {
+            $affected = $this->db->execute(
                 "UPDATE `{$this->testTable}` SET salary = :new_salary WHERE name = :name",
                 [':new_salary' => 75000.00, ':name' => 'Charlie Davis']
             );
             return $affected === 1;
         });
 
-        $this->test('update() с позиционными параметрами', function() {
-            $affected = $this->db->update(
+        $this->test('UPDATE через execute() с позиционными параметрами', function() {
+            $affected = $this->db->execute(
                 "UPDATE `{$this->testTable}` SET age = ? WHERE email = ?",
                 [31, 'john@example.com']
             );
@@ -425,31 +433,39 @@ class MySQLFullTest
     }
 
     /**
-     * Тест: DELETE
+     * Тест: DELETE (новый API)
      */
     private function testDelete(): void
     {
-        $this->test('delete() без параметров', function() {
-            $affected = $this->db->delete("DELETE FROM `{$this->testTable}` WHERE age < 26");
-            return $affected >= 0;
+        $this->test('delete() с новым API', function() {
+            // Сначала вставим запись для удаления
+            $this->db->insert($this->testTable, [
+                'name' => 'To Delete',
+                'email' => 'delete@test.com',
+                'age' => 25,
+                'salary' => 40000.00
+            ]);
+            
+            $affected = $this->db->delete($this->testTable, ['email' => 'delete@test.com']);
+            return $affected >= 1;
         });
     }
 
     /**
-     * Тест: DELETE с параметрами
+     * Тест: DELETE через execute()
      */
     private function testDeleteWithParams(): void
     {
-        $this->test('delete() с именованными параметрами', function() {
-            $affected = $this->db->delete(
+        $this->test('DELETE через execute() с именованными параметрами', function() {
+            $affected = $this->db->execute(
                 "DELETE FROM `{$this->testTable}` WHERE name = :name",
                 [':name' => 'Grace Harris']
             );
             return $affected >= 0;
         });
 
-        $this->test('delete() с позиционными параметрами', function() {
-            $affected = $this->db->delete(
+        $this->test('DELETE через execute() с позиционными параметрами', function() {
+            $affected = $this->db->execute(
                 "DELETE FROM `{$this->testTable}` WHERE email = ?",
                 ['diana@example.com']
             );
@@ -465,10 +481,11 @@ class MySQLFullTest
         $this->test('Транзакция с commit', function() {
             $this->db->beginTransaction();
             
-            $this->db->insert(
-                "INSERT INTO `{$this->testTable}` (name, email, age) VALUES (?, ?, ?)",
-                ['Transaction Test', 'trans@example.com', 40]
-            );
+            $this->db->insert($this->testTable, [
+                'name' => 'Transaction Test',
+                'email' => 'trans@example.com',
+                'age' => 40
+            ]);
             
             $this->db->commit();
             
@@ -490,10 +507,11 @@ class MySQLFullTest
         $this->test('Транзакция с rollback', function() {
             $this->db->beginTransaction();
             
-            $this->db->insert(
-                "INSERT INTO `{$this->testTable}` (name, email, age) VALUES (?, ?, ?)",
-                ['Rollback Test', 'rollback@example.com', 45]
-            );
+            $this->db->insert($this->testTable, [
+                'name' => 'Rollback Test',
+                'email' => 'rollback@example.com',
+                'age' => 45
+            ]);
             
             $this->db->rollback();
             
@@ -514,10 +532,11 @@ class MySQLFullTest
     {
         $this->test('transaction() с успешным callback', function() {
             $result = $this->db->transaction(function() {
-                $this->db->insert(
-                    "INSERT INTO `{$this->testTable}` (name, email, age) VALUES (?, ?, ?)",
-                    ['Callback Test', 'callback@example.com', 33]
-                );
+                $this->db->insert($this->testTable, [
+                    'name' => 'Callback Test',
+                    'email' => 'callback@example.com',
+                    'age' => 33
+                ]);
                 
                 return 'success';
             });
@@ -534,10 +553,11 @@ class MySQLFullTest
         $this->test('transaction() с exception в callback', function() {
             try {
                 $this->db->transaction(function() {
-                    $this->db->insert(
-                        "INSERT INTO `{$this->testTable}` (name, email, age) VALUES (?, ?, ?)",
-                        ['Exception Test', 'exception@example.com', 50]
-                    );
+                    $this->db->insert($this->testTable, [
+                        'name' => 'Exception Test',
+                        'email' => 'exception@example.com',
+                        'age' => 50
+                    ]);
                     
                     throw new \Exception('Test exception');
                 });

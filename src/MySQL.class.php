@@ -360,34 +360,59 @@ class MySQL
     }
 
     /**
-     * Выполняет INSERT запрос и возвращает ID вставленной записи
+     * Вставляет запись в таблицу и возвращает ID вставленной записи
      * 
-     * @param string $query SQL запрос с плейсхолдерами для параметров
-     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
+     * Industry standard метод для вставки данных в таблицу.
+     * Автоматически формирует INSERT запрос из переданных данных.
+     * 
+     * Примеры использования:
+     * ```php
+     * $id = $db->insert('users', ['name' => 'John', 'email' => 'john@example.com']);
+     * $id = $db->insert('posts', ['title' => 'Hello', 'content' => 'World', 'user_id' => 1]);
+     * ```
+     * 
+     * @param string $table Имя таблицы для вставки
+     * @param array<string, mixed> $data Данные для вставки в формате ['column' => 'value']
      * 
      * @return int ID вставленной записи (0 для таблиц без AUTO_INCREMENT)
      * 
-     * @throws MySQLException Если запрос завершился с ошибкой
+     * @throws MySQLException Если данные пусты или запрос завершился с ошибкой
      */
-    public function insert(string $query, array $params = []): int
+    public function insert(string $table, array $data): int
     {
+        if (empty($data)) {
+            throw new MySQLException('Нет данных для вставки');
+        }
+
+        $columns = array_keys($data);
+        $columnsStr = implode(', ', array_map(fn($col) => "`{$col}`", $columns));
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        
+        $query = sprintf(
+            'INSERT INTO `%s` (%s) VALUES (%s)',
+            $table,
+            $columnsStr,
+            $placeholders
+        );
+
         try {
-            $this->prepareAndExecute($query, $params);
+            $this->prepareAndExecute($query, array_values($data));
             $lastId = (int)$this->connection->lastInsertId();
 
             $this->logDebug('Выполнен INSERT запрос', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
+                'columns' => $columns,
                 'last_insert_id' => $lastId,
             ]);
 
             return $lastId;
         } catch (PDOException $e) {
             $this->logError('Ошибка выполнения INSERT запроса', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
                 'error' => $e->getMessage(),
             ]);
             throw new MySQLException(
-                sprintf('Ошибка выполнения INSERT запроса: %s', $e->getMessage()),
+                sprintf('Ошибка вставки в таблицу "%s": %s', $table, $e->getMessage()),
                 (int)$e->getCode(),
                 $e
             );
@@ -460,34 +485,70 @@ class MySQL
     }
 
     /**
-     * Выполняет UPDATE запрос и возвращает количество затронутых строк
+     * Обновляет записи в таблице и возвращает количество затронутых строк
      * 
-     * @param string $query SQL запрос с плейсхолдерами для параметров
-     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
+     * Industry standard метод для обновления данных в таблице.
+     * Автоматически формирует UPDATE запрос из переданных данных.
+     * 
+     * Примеры использования:
+     * ```php
+     * $count = $db->update('users', ['name' => 'Jane'], ['id' => 1]);
+     * $count = $db->update('posts', ['status' => 'published'], ['user_id' => 5, 'draft' => 1]);
+     * ```
+     * 
+     * @param string $table Имя таблицы для обновления
+     * @param array<string, mixed> $data Данные для обновления в формате ['column' => 'value']
+     * @param array<string, mixed> $conditions Условия WHERE в формате ['column' => 'value']
      * 
      * @return int Количество обновленных строк
      * 
-     * @throws MySQLException Если запрос завершился с ошибкой
+     * @throws MySQLException Если данные пусты или запрос завершился с ошибкой
      */
-    public function update(string $query, array $params = []): int
+    public function update(string $table, array $data, array $conditions = []): int
     {
+        if (empty($data)) {
+            throw new MySQLException('Нет данных для обновления');
+        }
+
+        // Формируем SET часть запроса
+        $setParts = [];
+        $params = [];
+        foreach ($data as $column => $value) {
+            $setParts[] = sprintf('`%s` = ?', $column);
+            $params[] = $value;
+        }
+        $setStr = implode(', ', $setParts);
+
+        // Формируем WHERE часть запроса
+        $whereStr = '';
+        if (!empty($conditions)) {
+            $whereParts = [];
+            foreach ($conditions as $column => $value) {
+                $whereParts[] = sprintf('`%s` = ?', $column);
+                $params[] = $value;
+            }
+            $whereStr = ' WHERE ' . implode(' AND ', $whereParts);
+        }
+
+        $query = sprintf('UPDATE `%s` SET %s%s', $table, $setStr, $whereStr);
+
         try {
             $statement = $this->prepareAndExecute($query, $params);
             $rowCount = $statement->rowCount();
 
             $this->logDebug('Выполнен UPDATE запрос', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
                 'affected_rows' => $rowCount,
             ]);
 
             return $rowCount;
         } catch (PDOException $e) {
             $this->logError('Ошибка выполнения UPDATE запроса', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
                 'error' => $e->getMessage(),
             ]);
             throw new MySQLException(
-                sprintf('Ошибка выполнения UPDATE запроса: %s', $e->getMessage()),
+                sprintf('Ошибка обновления таблицы "%s": %s', $table, $e->getMessage()),
                 (int)$e->getCode(),
                 $e
             );
@@ -495,34 +556,58 @@ class MySQL
     }
 
     /**
-     * Выполняет DELETE запрос и возвращает количество удаленных строк
+     * Удаляет записи из таблицы и возвращает количество удаленных строк
      * 
-     * @param string $query SQL запрос с плейсхолдерами для параметров
-     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
+     * Industry standard метод для удаления данных из таблицы.
+     * Автоматически формирует DELETE запрос из переданных условий.
+     * 
+     * Примеры использования:
+     * ```php
+     * $count = $db->delete('users', ['id' => 1]);
+     * $count = $db->delete('posts', ['user_id' => 5, 'draft' => 1]);
+     * $count = $db->delete('logs', []); // Удалит ВСЕ записи! Используйте осторожно
+     * ```
+     * 
+     * @param string $table Имя таблицы для удаления
+     * @param array<string, mixed> $conditions Условия WHERE в формате ['column' => 'value']
      * 
      * @return int Количество удаленных строк
      * 
      * @throws MySQLException Если запрос завершился с ошибкой
      */
-    public function delete(string $query, array $params = []): int
+    public function delete(string $table, array $conditions = []): int
     {
+        // Формируем WHERE часть запроса
+        $whereStr = '';
+        $params = [];
+        if (!empty($conditions)) {
+            $whereParts = [];
+            foreach ($conditions as $column => $value) {
+                $whereParts[] = sprintf('`%s` = ?', $column);
+                $params[] = $value;
+            }
+            $whereStr = ' WHERE ' . implode(' AND ', $whereParts);
+        }
+
+        $query = sprintf('DELETE FROM `%s`%s', $table, $whereStr);
+
         try {
             $statement = $this->prepareAndExecute($query, $params);
             $rowCount = $statement->rowCount();
 
             $this->logDebug('Выполнен DELETE запрос', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
                 'affected_rows' => $rowCount,
             ]);
 
             return $rowCount;
         } catch (PDOException $e) {
             $this->logError('Ошибка выполнения DELETE запроса', [
-                'query' => $this->sanitizeQueryForLog($query),
+                'table' => $table,
                 'error' => $e->getMessage(),
             ]);
             throw new MySQLException(
-                sprintf('Ошибка выполнения DELETE запроса: %s', $e->getMessage()),
+                sprintf('Ошибка удаления из таблицы "%s": %s', $table, $e->getMessage()),
                 (int)$e->getCode(),
                 $e
             );
@@ -1174,9 +1259,34 @@ class MySQL
     private function prepareAndExecute(string $query, array $params = []): PDOStatement
     {
         $statement = $this->getOrPrepareStatement($query);
+        
+        // Если используются позиционные плейсхолдеры (?), нормализуем массив параметров
+        // чтобы использовались числовые индексы, начиная с 0
+        if (!empty($params) && $this->usesPositionalPlaceholders($query)) {
+            $params = array_values($params);
+        }
+        
         $statement->execute($params);
 
         return $statement;
+    }
+
+    /**
+     * Определяет, использует ли SQL запрос позиционные плейсхолдеры (?)
+     * 
+     * @param string $query SQL запрос
+     * 
+     * @return bool True, если используются позиционные плейсхолдеры, иначе false
+     */
+    private function usesPositionalPlaceholders(string $query): bool
+    {
+        // Проверяем наличие позиционных плейсхолдеров (?)
+        // Учитываем, что ? может быть внутри строковых литералов, которые нужно игнорировать
+        // Простая эвристика: если есть хотя бы один ? вне кавычек, считаем что используются позиционные
+        $strippedQuery = preg_replace("/'([^']|\\\\')*'/", '', $query);
+        $strippedQuery = preg_replace('/"([^"]|\\\\")*"/', '', $strippedQuery ?? '');
+        
+        return ($strippedQuery !== null && strpos($strippedQuery, '?') !== false);
     }
 
     /**
