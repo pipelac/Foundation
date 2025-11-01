@@ -11,7 +11,13 @@
             "@kompasDaily"
         ],
         "cache_ttl": 300,
-        "access_denied_message": "⛔ Для использования бота необходимо подписаться на канал."
+        "access_denied_message": "⛔ Для использования бота необходимо подписаться на канал.",
+        "_examples": {
+            "public_channel": "@channel_username",
+            "private_channel": "-1001234567890",
+            "private_supergroup": "-1002345678901",
+            "note": "Для приватных каналов/супергрупп используйте числовой ID с минусом"
+        }
     },
     "_comment": [
         "Конфигурация системы контроля доступа для Telegram бота.",

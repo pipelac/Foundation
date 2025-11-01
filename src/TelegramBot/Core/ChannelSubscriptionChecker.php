@@ -111,12 +111,23 @@ class ChannelSubscriptionChecker
                 throw new AccessControlException('Список каналов не может быть пустым при включенной проверке подписки');
             }
 
-            // Нормализация имен каналов (добавляем @ если отсутствует)
+            // Нормализация идентификаторов каналов
             $this->channels = array_map(function ($channel) {
-                $channel = trim($channel);
+                $channel = trim((string)$channel);
+
+                if ($channel === '') {
+                    throw new AccessControlException('Идентификатор канала не может быть пустым');
+                }
+
+                // Если канал указан как числовой ID (для приватных каналов/супергрупп)
+                if (preg_match('/^-?\d+$/', $channel) === 1) {
+                    return $channel;
+                }
+
                 if (!str_starts_with($channel, '@')) {
                     $channel = '@' . $channel;
                 }
+
                 return $channel;
             }, $this->channels);
 
@@ -423,7 +434,11 @@ class ChannelSubscriptionChecker
     {
         $list = [];
         foreach ($this->channels as $channel) {
-            $list[] = "• {$channel}";
+            if (preg_match('/^-?\d+$/', $channel) === 1) {
+                $list[] = "• ID: {$channel}";
+            } else {
+                $list[] = "• {$channel}";
+            }
         }
 
         return implode("\n", $list);
