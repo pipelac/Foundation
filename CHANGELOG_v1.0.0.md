@@ -64,11 +64,11 @@ use App\Component\Exception\Email\EmailException;
 
 ### Обновление версии
 
-Добавлена версия `1.0.0` в `composer.json`:
+Добавлена версия `v1.0.0` в `composer.json`:
 ```json
 {
     "name": "app/basic-utilities",
-    "version": "1.0.0",
+    "version": "v1.0.0",
     ...
 }
 ```
