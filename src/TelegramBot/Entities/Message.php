@@ -26,6 +26,8 @@ class Message
      * @param Media|null $voice Голосовое сообщение
      * @param Media|null $videoNote Видео-сообщение
      * @param string|null $caption Подпись к медиа-контенту
+     * @param Contact|null $contact Контакт (при отправке контакта)
+     * @param Location|null $location Локация (при отправке локации)
      * @param Message|null $replyToMessage Сообщение, на которое ответили
      * @param int|null $editDate Дата последнего редактирования (Unix timestamp)
      * @param string|null $forwardFrom Оригинальный отправитель (для пересланных сообщений)
@@ -44,6 +46,8 @@ class Message
         public readonly ?Media $voice = null,
         public readonly ?Media $videoNote = null,
         public readonly ?string $caption = null,
+        public readonly ?Contact $contact = null,
+        public readonly ?Location $location = null,
         public readonly ?Message $replyToMessage = null,
         public readonly ?int $editDate = null,
         public readonly ?string $forwardFrom = null,
@@ -77,6 +81,8 @@ class Message
             voice: isset($data['voice']) ? Media::fromDocument($data['voice']) : null,
             videoNote: isset($data['video_note']) ? Media::fromVideo($data['video_note']) : null,
             caption: isset($data['caption']) ? (string)$data['caption'] : null,
+            contact: isset($data['contact']) ? Contact::fromArray($data['contact']) : null,
+            location: isset($data['location']) ? Location::fromArray($data['location']) : null,
             replyToMessage: isset($data['reply_to_message']) ? self::fromArray($data['reply_to_message']) : null,
             editDate: isset($data['edit_date']) ? (int)$data['edit_date'] : null,
             forwardFrom: isset($data['forward_from']['username']) ? (string)$data['forward_from']['username'] : null,
@@ -149,6 +155,22 @@ class Message
     }
 
     /**
+     * Проверяет, содержит ли сообщение контакт
+     */
+    public function hasContact(): bool
+    {
+        return $this->contact !== null;
+    }
+
+    /**
+     * Проверяет, содержит ли сообщение локацию
+     */
+    public function hasLocation(): bool
+    {
+        return $this->location !== null;
+    }
+
+    /**
      * Возвращает лучшее качество фото (если есть)
      */
     public function getBestPhoto(): ?Media
@@ -188,6 +210,8 @@ class Message
             'voice' => $this->voice?->toArray(),
             'video_note' => $this->videoNote?->toArray(),
             'caption' => $this->caption,
+            'contact' => $this->contact,
+            'location' => $this->location,
             'reply_to_message' => $this->replyToMessage?->toArray(),
             'edit_date' => $this->editDate,
             'forward_from' => $this->forwardFrom,
