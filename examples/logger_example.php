@@ -68,7 +68,7 @@ try {
         'email_on_levels' => ['CRITICAL'],
     ]);
     
-    $loggerWithEmail->info('Приложение запущено', ['version' => '1.0.0']);
+    $loggerWithEmail->info('Приложение запущено', ['version' => 'v1.0.0']);
     $loggerWithEmail->warning('Низкая производительность', ['response_time' => 5.2]);
     
     // Эта запись отправит email администратору
