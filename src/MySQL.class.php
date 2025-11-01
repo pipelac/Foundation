@@ -991,9 +991,13 @@ class MySQL
         $columnsStr = implode(', ', array_map(fn($col) => "`{$col}`", $columns));
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
         
+        // Формируем UPDATE часть с явными значениями (MySQL 8.0+ совместимость)
         $updateParts = [];
-        foreach (array_keys($updateData) as $column) {
-            $updateParts[] = sprintf('`%s` = VALUES(`%s`)', $column, $column);
+        $params = array_values($data);
+        
+        foreach ($updateData as $column => $value) {
+            $updateParts[] = sprintf('`%s` = ?', $column);
+            $params[] = $value;
         }
         $updateStr = implode(', ', $updateParts);
         
@@ -1006,7 +1010,7 @@ class MySQL
         );
 
         try {
-            $this->prepareAndExecute($query, array_values($data));
+            $this->prepareAndExecute($query, $params);
             $lastId = $this->getLastInsertId();
 
             $this->logDebug('Выполнен UPSERT запрос', [
