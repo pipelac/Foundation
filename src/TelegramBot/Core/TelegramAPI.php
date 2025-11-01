@@ -6,6 +6,7 @@ namespace App\Component\TelegramBot\Core;
 
 use App\Component\Http;
 use App\Component\Logger;
+use App\Component\TelegramBot\Entities\ChatMember;
 use App\Component\TelegramBot\Entities\Message;
 use App\Component\TelegramBot\Entities\User;
 use App\Component\TelegramBot\Exceptions\ApiException;
@@ -71,6 +72,28 @@ class TelegramAPI
     {
         $response = $this->sendRequest('getMe');
         return User::fromArray($response);
+    }
+
+    /**
+     * Получает информацию о члене чата
+     *
+     * @param string|int $chatId Идентификатор чата или username канала (@channel)
+     * @param int $userId ID пользователя
+     * @return ChatMember Информация о члене чата
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function getChatMember(string|int $chatId, int $userId): ChatMember
+    {
+        Validator::validateChatId($chatId);
+
+        $params = [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ];
+
+        $response = $this->sendRequest('getChatMember', $params);
+        return ChatMember::fromArray($response);
     }
 
     /**
