@@ -1,3 +1,5 @@
-
-✅ Тестирование завершено! Проверьте логи и сообщения в Telegram.
-Лог файл: logs/telegram_bot_polling_test.log
+PHP Fatal error:  Uncaught TypeError: App\Component\TelegramBot\Core\TelegramAPI::sendMessage(): Argument #3 ($options) must be of type array, string given, called in /home/engine/project/comprehensive_polling_test.php on line 109 and defined in /home/engine/project/src/TelegramBot/Core/TelegramAPI.php:86
+Stack trace:
+#0 /home/engine/project/comprehensive_polling_test.php(109): App\Component\TelegramBot\Core\TelegramAPI->sendMessage()
+#1 {main}
+  thrown in /home/engine/project/src/TelegramBot/Core/TelegramAPI.php on line 86
