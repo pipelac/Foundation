@@ -921,5 +921,128 @@ class TelegramAPI
 
         return $message;
     }
+
+    /**
+     * Отправляет сообщение с анимированным счетчиком от одного числа до другого
+     * 
+     * Отображает счетчик, который изменяется от начального значения до конечного
+     * с интервалом ровно 1 секунда между обновлениями. Поддерживает как обычные цифры,
+     * так и emoji представление цифр.
+     * 
+     * Эмодзи цифры: 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param int $start Начальное значение счетчика
+     * @param int $end Конечное значение счетчика
+     * @param bool $useEmoji Использовать эмодзи цифры вместо обычных (по умолчанию false)
+     * @param array<string, mixed> $options Дополнительные параметры (parse_mode, reply_markup и т.д.)
+     * @return Message Финальное отправленное сообщение
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function sendCounter(
+        string|int $chatId,
+        int $start,
+        int $end,
+        bool $useEmoji = false,
+        array $options = []
+    ): Message {
+        Validator::validateChatId($chatId);
+
+        if ($start === $end) {
+            throw new ValidationException(
+                'Начальное и конечное значения счетчика не могут быть одинаковыми',
+                'start/end',
+                ['start' => $start, 'end' => $end]
+            );
+        }
+
+        $this->logger?->info('Начало отправки счетчика', [
+            'chat_id' => $chatId,
+            'start' => $start,
+            'end' => $end,
+            'use_emoji' => $useEmoji,
+        ]);
+
+        // Определяем направление счетчика
+        $isAscending = $end > $start;
+        $step = $isAscending ? 1 : -1;
+
+        // Отправляем первое сообщение со стартовым значением
+        $currentValue = $start;
+        $currentText = $this->formatCounterValue($currentValue, $useEmoji);
+        $message = $this->sendMessage($chatId, $currentText, $options);
+        $messageId = $message->messageId;
+
+        // Интервал 1 секунда (1000000 микросекунд)
+        $delayMicroseconds = 1000000;
+
+        // Анимация счетчика с интервалом 1 секунда
+        while ($currentValue !== $end) {
+            usleep($delayMicroseconds);
+
+            $currentValue += $step;
+            $currentText = $this->formatCounterValue($currentValue, $useEmoji);
+
+            try {
+                $message = $this->editMessageText($chatId, $messageId, $currentText, $options);
+            } catch (ApiException $e) {
+                $this->logger?->warning('Ошибка при редактировании счетчика', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'error' => $e->getMessage(),
+                    'current_value' => $currentValue,
+                ]);
+            }
+        }
+
+        $this->logger?->info('Счетчик завершен', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'start' => $start,
+            'end' => $end,
+        ]);
+
+        return $message;
+    }
+
+    /**
+     * Форматирует числовое значение для счетчика (обычные цифры или эмодзи)
+     *
+     * @param int $value Числовое значение
+     * @param bool $useEmoji Использовать эмодзи цифры
+     * @return string Отформатированное значение
+     */
+    private function formatCounterValue(int $value, bool $useEmoji): string
+    {
+        if (!$useEmoji) {
+            return (string)$value;
+        }
+
+        // Карта эмодзи цифр
+        $emojiDigits = [
+            '0' => '0️⃣',
+            '1' => '1️⃣',
+            '2' => '2️⃣',
+            '3' => '3️⃣',
+            '4' => '4️⃣',
+            '5' => '5️⃣',
+            '6' => '6️⃣',
+            '7' => '7️⃣',
+            '8' => '8️⃣',
+            '9' => '9️⃣',
+            '-' => '➖',
+        ];
+
+        $valueStr = (string)$value;
+        $result = '';
+
+        for ($i = 0; $i < strlen($valueStr); $i++) {
+            $digit = $valueStr[$i];
+            $result .= $emojiDigits[$digit] ?? $digit;
+        }
+
+        return $result;
+    }
 }
 
