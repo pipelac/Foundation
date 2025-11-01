@@ -187,7 +187,8 @@ class Message
             return null;
         }
 
-        return end($this->photo);
+        $photos = $this->photo;
+        return end($photos);
     }
 
     /**
