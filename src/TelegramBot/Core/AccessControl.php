@@ -32,6 +32,11 @@ class AccessControl
     private string $accessDeniedMessage;
 
     /**
+     * Динамическое сообщение об отказе (формируется во время проверки)
+     */
+    private ?string $dynamicAccessDeniedMessage = null;
+
+    /**
      * Список пользователей [chat_id => user_data]
      * @var array<int|string, array<string, mixed>>
      */
@@ -44,13 +49,20 @@ class AccessControl
     private array $roles;
 
     /**
+     * Проверка подписки на каналы
+     */
+    private ?ChannelSubscriptionChecker $subscriptionChecker = null;
+
+    /**
      * @param string $configPath Путь к конфигурационному файлу
      * @param Logger|null $logger Логгер
+     * @param TelegramAPI|null $api API клиент (для проверки подписки на каналы)
      * @throws AccessControlException При ошибке загрузки конфигурации
      */
     public function __construct(
         string $configPath,
         private readonly ?Logger $logger = null,
+        private readonly ?TelegramAPI $api = null,
     ) {
         $this->loadConfig($configPath);
     }
@@ -73,6 +85,8 @@ class AccessControl
             $this->enabled = $config['enabled'] ?? false;
             $this->defaultRole = $config['default_role'] ?? 'default';
             $this->accessDeniedMessage = $config['access_denied_message'] ?? 'У вас нет доступа к этой команде.';
+            $this->dynamicAccessDeniedMessage = null;
+            $this->subscriptionChecker = null;
 
             if ($this->enabled) {
                 $usersFile = $config['users_file'] ?? null;
@@ -85,13 +99,32 @@ class AccessControl
                 $this->users = $this->loadJsonFile($usersFile);
                 $this->roles = $this->loadJsonFile($rolesFile);
 
+                // Инициализация проверки подписки на каналы (если указана конфигурация)
+                if (isset($config['channel_subscription'])) {
+                    $subscriptionConfig = $config['channel_subscription'];
+
+                    if (($subscriptionConfig['enabled'] ?? false) === true && $this->api === null) {
+                        throw new AccessControlException('Для проверки подписки на каналы необходимо передать экземпляр TelegramAPI в AccessControl.');
+                    }
+
+                    if ($this->api !== null) {
+                        $this->subscriptionChecker = new ChannelSubscriptionChecker(
+                            $this->api,
+                            $subscriptionConfig,
+                            $this->logger
+                        );
+                    }
+                }
+
                 $this->logger?->info('Контроль доступа TelegramBot активирован', [
                     'users_count' => count($this->users),
                     'roles_count' => count($this->roles),
+                    'subscription_check_enabled' => $this->subscriptionChecker?->isEnabled() ?? false,
                 ]);
             } else {
                 $this->users = [];
                 $this->roles = [];
+                $this->subscriptionChecker = null;
                 $this->logger?->info('Контроль доступа TelegramBot деактивирован');
             }
         } catch (AccessControlException $e) {
@@ -150,9 +183,40 @@ class AccessControl
      */
     public function checkAccess(int $chatId, string $command): bool
     {
+        // Сбрасываем динамическое сообщение
+        $this->dynamicAccessDeniedMessage = null;
+
         // Если контроль доступа выключен - разрешаем все
         if (!$this->enabled) {
             return true;
+        }
+
+        // Проверяем подписку на каналы (если включена проверка)
+        if ($this->subscriptionChecker !== null && $this->subscriptionChecker->isEnabled()) {
+            $subscribed = $this->subscriptionChecker->checkSubscription($chatId);
+            
+            if (!$subscribed) {
+                // Формируем сообщение об отказе с указанием каналов
+                $channels = $this->subscriptionChecker->formatChannelsList();
+                $mode = $this->subscriptionChecker->getMode();
+                
+                $modeText = match ($mode) {
+                    ChannelSubscriptionChecker::MODE_ALL => 'все каналы',
+                    ChannelSubscriptionChecker::MODE_ANY => 'хотя бы на один из каналов',
+                    default => 'канал',
+                };
+                
+                $this->dynamicAccessDeniedMessage = $this->subscriptionChecker->getAccessDeniedMessage();
+                $this->dynamicAccessDeniedMessage .= "\n\nНеобходимо подписаться на {$modeText}:\n{$channels}";
+                
+                $this->logger?->info('Доступ запрещен: не подписан на каналы', [
+                    'chat_id' => $chatId,
+                    'command' => $command,
+                    'mode' => $mode,
+                ]);
+                
+                return false;
+            }
         }
 
         // Нормализуем команду (добавляем / если отсутствует)
@@ -285,7 +349,7 @@ class AccessControl
      */
     public function getAccessDeniedMessage(): string
     {
-        return $this->accessDeniedMessage;
+        return $this->dynamicAccessDeniedMessage ?? $this->accessDeniedMessage;
     }
 
     /**
@@ -476,5 +540,50 @@ class AccessControl
         }
 
         return $roleInfo['disable_sound_notification'] ?? null;
+    }
+
+    /**
+     * Получает объект проверки подписки на каналы
+     *
+     * @return ChannelSubscriptionChecker|null
+     */
+    public function getSubscriptionChecker(): ?ChannelSubscriptionChecker
+    {
+        return $this->subscriptionChecker;
+    }
+
+    /**
+     * Проверяет, включена ли проверка подписки на каналы
+     *
+     * @return bool True если включена
+     */
+    public function isSubscriptionCheckEnabled(): bool
+    {
+        return $this->subscriptionChecker !== null && $this->subscriptionChecker->isEnabled();
+    }
+
+    /**
+     * Получает детальную информацию о подписках пользователя на каналы
+     *
+     * @param int $chatId ID чата пользователя
+     * @return array<string, bool>|null Массив [channel => is_subscribed] или null если проверка отключена
+     */
+    public function getUserSubscriptionDetails(int $chatId): ?array
+    {
+        if ($this->subscriptionChecker === null) {
+            return null;
+        }
+
+        return $this->subscriptionChecker->getSubscriptionDetails($chatId);
+    }
+
+    /**
+     * Очищает кеш проверки подписки
+     *
+     * @param int|null $chatId ID чата пользователя (null - очистить весь кеш)
+     */
+    public function clearSubscriptionCache(?int $chatId = null): void
+    {
+        $this->subscriptionChecker?->clearCache($chatId);
     }
 }

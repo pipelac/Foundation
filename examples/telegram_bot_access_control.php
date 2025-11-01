@@ -35,7 +35,8 @@ $api = new TelegramAPI($telegramConfig['token'], $http, $logger);
 // Создание системы контроля доступа
 $accessControl = new AccessControl(
     __DIR__ . '/../config/telegram_bot_access_control.json',
-    $logger
+    $logger,
+    $api
 );
 
 // Создание middleware
