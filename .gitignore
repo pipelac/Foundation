@@ -38,3 +38,19 @@
 # Временные файлы, включая сгенерированные аудиофайлы
 # Создаются при тестировании примеров OpenRouter (text2audio)
 /temp/
+
+# Тестовые и временные файлы
+test_*.php
+demo_*.php
+send_*.php
+*_TEST_*.md
+*_SUMMARY*.md
+*_REPORT*.md
+*.log
+phpunit.xml
+.phpunit.cache
+test_data_*/
+test_assets/
+test_media_real/
+logs_*/
+mysql/
