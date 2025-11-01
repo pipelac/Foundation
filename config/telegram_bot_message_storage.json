@@ -1,6 +1,6 @@
 {
     "message_storage": {
-        "enabled": false,
+        "enabled": true,
         "storage_level": "standard",
         "store_incoming": true,
         "store_outgoing": true,
