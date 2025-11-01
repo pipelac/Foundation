@@ -1,5 +1,0 @@
-PHP Fatal error:  Uncaught Error: Cannot use object of type App\Component\TelegramBot\Entities\Media as array in /home/engine/project/comprehensive_polling_test.php:494
-Stack trace:
-#0 /home/engine/project/comprehensive_polling_test.php(591): {closure}()
-#1 {main}
-  thrown in /home/engine/project/comprehensive_polling_test.php on line 494
