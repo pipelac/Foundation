@@ -134,6 +134,24 @@ class Media
     }
 
     /**
+     * Создает объект Media из массива данных Telegram API для Voice
+     *
+     * @param array<string, mixed> $data Данные от Telegram API
+     * @return self
+     */
+    public static function fromVoice(array $data): self
+    {
+        return new self(
+            fileId: (string)$data['file_id'],
+            fileUniqueId: (string)$data['file_unique_id'],
+            type: self::TYPE_VOICE,
+            fileSize: isset($data['file_size']) ? (int)$data['file_size'] : null,
+            duration: isset($data['duration']) ? (int)$data['duration'] : null,
+            mimeType: isset($data['mime_type']) ? (string)$data['mime_type'] : null,
+        );
+    }
+
+    /**
      * Проверяет, является ли медиа изображением
      */
     public function isPhoto(): bool
@@ -163,6 +181,14 @@ class Media
     public function isDocument(): bool
     {
         return $this->type === self::TYPE_DOCUMENT;
+    }
+
+    /**
+     * Проверяет, является ли медиа голосовым сообщением
+     */
+    public function isVoice(): bool
+    {
+        return $this->type === self::TYPE_VOICE;
     }
 
     /**

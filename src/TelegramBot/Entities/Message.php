@@ -78,7 +78,7 @@ class Message
             video: isset($data['video']) ? Media::fromVideo($data['video']) : null,
             audio: isset($data['audio']) ? Media::fromAudio($data['audio']) : null,
             document: isset($data['document']) ? Media::fromDocument($data['document']) : null,
-            voice: isset($data['voice']) ? Media::fromDocument($data['voice']) : null,
+            voice: isset($data['voice']) ? Media::fromVoice($data['voice']) : null,
             videoNote: isset($data['video_note']) ? Media::fromVideo($data['video_note']) : null,
             caption: isset($data['caption']) ? (string)$data['caption'] : null,
             contact: isset($data['contact']) ? Contact::fromArray($data['contact']) : null,
@@ -128,6 +128,14 @@ class Message
     public function hasDocument(): bool
     {
         return $this->document !== null;
+    }
+
+    /**
+     * Проверяет, содержит ли сообщение голосовое сообщение
+     */
+    public function hasVoice(): bool
+    {
+        return $this->voice !== null;
     }
 
     /**
