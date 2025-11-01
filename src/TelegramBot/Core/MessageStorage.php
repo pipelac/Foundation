@@ -154,7 +154,7 @@ class MessageStorage
             $storageLevel = $this->config['storage_level'] ?? self::LEVEL_STANDARD;
             $this->addFieldsByStorageLevel($data, $storageLevel, $params, $response);
 
-            $id = $this->db->insert(self::TABLE_NAME, $data);
+            $id = $this->insertData(self::TABLE_NAME, $data);
 
             $this->logger?->debug('Исходящее сообщение сохранено', [
                 'id' => $id,
@@ -209,7 +209,7 @@ class MessageStorage
             $storageLevel = $this->config['storage_level'] ?? self::LEVEL_STANDARD;
             $this->addIncomingFieldsByStorageLevel($data, $storageLevel, $message);
 
-            $id = $this->db->insert(self::TABLE_NAME, $data);
+            $id = $this->insertData(self::TABLE_NAME, $data);
 
             $this->logger?->debug('Входящее сообщение сохранено', [
                 'id' => $id,
@@ -344,11 +344,11 @@ class MessageStorage
         try {
             // Проверка существования таблицы
             $exists = $this->db->queryOne(
-                "SHOW TABLES LIKE ?",
+                "SELECT COUNT(*) as count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
                 [self::TABLE_NAME]
             );
 
-            if (!empty($exists)) {
+            if (!empty($exists) && $exists['count'] > 0) {
                 $this->logger?->debug('Таблица уже существует', ['table' => self::TABLE_NAME]);
                 return true;
             }
@@ -414,6 +414,28 @@ class MessageStorage
         }
     }
 
+    /**
+     * Вспомогательный метод для вставки данных в таблицу
+     *
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для вставки
+     * @return int ID вставленной записи
+     */
+    private function insertData(string $table, array $data): int
+    {
+        $columns = array_keys($data);
+        $placeholders = array_fill(0, count($columns), '?');
+        
+        $sql = sprintf(
+            'INSERT INTO `%s` (%s) VALUES (%s)',
+            $table,
+            implode(', ', array_map(fn($col) => "`{$col}`", $columns)),
+            implode(', ', $placeholders)
+        );
+        
+        return $this->db->insert($sql, array_values($data));
+    }
+    
     /**
      * Добавляет поля в зависимости от уровня хранения (для исходящих)
      *
