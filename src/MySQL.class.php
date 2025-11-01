@@ -574,6 +574,376 @@ class MySQL
     }
 
     /**
+     * Выполняет SELECT запрос и возвращает значения одного столбца в виде массива
+     * 
+     * Удобно для получения списка ID, имен и других значений одного поля.
+     * 
+     * @param string $query SQL запрос с плейсхолдерами для параметров
+     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
+     * 
+     * @return array<int, mixed> Массив значений первого столбца
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function queryColumn(string $query, array $params = []): array
+    {
+        try {
+            $statement = $this->prepareAndExecute($query, $params);
+            $result = $statement->fetchAll(PDO::FETCH_COLUMN, 0);
+
+            $this->logDebug('Выполнен SELECT запрос (столбец)', [
+                'query' => $this->sanitizeQueryForLog($query),
+                'rows' => count($result),
+            ]);
+
+            return $result;
+        } catch (PDOException $e) {
+            $this->logError('Ошибка выполнения SELECT запроса (столбец)', [
+                'query' => $this->sanitizeQueryForLog($query),
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка выполнения SELECT запроса: %s', $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Проверяет существование записей по заданному условию
+     * 
+     * Эффективнее, чем COUNT(*) для проверки наличия данных.
+     * 
+     * @param string $query SQL запрос с плейсхолдерами (рекомендуется SELECT 1 FROM ...)
+     * @param array<string|int, mixed> $params Параметры для подготовленного запроса
+     * 
+     * @return bool True, если запись существует, иначе false
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function exists(string $query, array $params = []): bool
+    {
+        try {
+            $statement = $this->prepareAndExecute($query, $params);
+            $exists = $statement->fetch() !== false;
+
+            $this->logDebug('Проверка существования записи', [
+                'query' => $this->sanitizeQueryForLog($query),
+                'exists' => $exists,
+            ]);
+
+            return $exists;
+        } catch (PDOException $e) {
+            $this->logError('Ошибка проверки существования записи', [
+                'query' => $this->sanitizeQueryForLog($query),
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка проверки существования записи: %s', $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Подсчитывает количество записей в таблице по заданным условиям
+     * 
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $conditions Условия WHERE в формате ['column' => 'value']
+     * 
+     * @return int Количество записей
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function count(string $table, array $conditions = []): int
+    {
+        $query = sprintf('SELECT COUNT(*) FROM `%s`', $table);
+        
+        if (!empty($conditions)) {
+            $where = [];
+            $params = [];
+            
+            foreach ($conditions as $column => $value) {
+                $where[] = sprintf('`%s` = ?', $column);
+                $params[] = $value;
+            }
+            
+            $query .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        try {
+            $count = (int)$this->queryScalar($query, $params ?? []);
+
+            $this->logDebug('Подсчет записей в таблице', [
+                'table' => $table,
+                'conditions' => $conditions,
+                'count' => $count,
+            ]);
+
+            return $count;
+        } catch (MySQLException $e) {
+            $this->logError('Ошибка подсчета записей', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Быстро очищает таблицу (удаляет все записи)
+     * 
+     * Использует TRUNCATE TABLE, что быстрее, чем DELETE FROM.
+     * Внимание: сбрасывает счетчик AUTO_INCREMENT.
+     * 
+     * @param string $table Имя таблицы для очистки
+     * 
+     * @return int Всегда возвращает 0 (TRUNCATE не возвращает количество удаленных строк)
+     * 
+     * @throws MySQLException Если операция завершилась с ошибкой
+     */
+    public function truncate(string $table): int
+    {
+        $query = sprintf('TRUNCATE TABLE `%s`', $table);
+
+        try {
+            $result = $this->execute($query);
+
+            $this->logDebug('Таблица очищена', ['table' => $table]);
+
+            return $result;
+        } catch (MySQLException $e) {
+            $this->logError('Ошибка очистки таблицы', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка очистки таблицы "%s": %s', $table, $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Проверяет существование таблицы в базе данных
+     * 
+     * @param string $table Имя таблицы для проверки
+     * 
+     * @return bool True, если таблица существует, иначе false
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function tableExists(string $table): bool
+    {
+        try {
+            $query = 'SELECT 1 FROM information_schema.tables 
+                      WHERE table_schema = DATABASE() 
+                      AND table_name = ? 
+                      LIMIT 1';
+            
+            $exists = $this->exists($query, [$table]);
+
+            $this->logDebug('Проверка существования таблицы', [
+                'table' => $table,
+                'exists' => $exists,
+            ]);
+
+            return $exists;
+        } catch (MySQLException $e) {
+            $this->logError('Ошибка проверки существования таблицы', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Возвращает ID последней вставленной записи
+     * 
+     * Полезно после выполнения INSERT запроса через execute() или другие методы.
+     * 
+     * @return int ID последней вставленной записи (0 для таблиц без AUTO_INCREMENT)
+     */
+    public function getLastInsertId(): int
+    {
+        return (int)$this->connection->lastInsertId();
+    }
+
+    /**
+     * Выполняет INSERT IGNORE запрос для игнорирования дубликатов
+     * 
+     * Полезно, когда нужно вставить запись, но игнорировать ошибку дубликата.
+     * 
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для вставки в формате ['column' => 'value']
+     * 
+     * @return int ID вставленной записи (0 если запись была проигнорирована)
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function insertIgnore(string $table, array $data): int
+    {
+        if (empty($data)) {
+            throw new MySQLException('Нет данных для вставки');
+        }
+
+        $columns = array_keys($data);
+        $columnsStr = implode(', ', array_map(fn($col) => "`{$col}`", $columns));
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        
+        $query = sprintf(
+            'INSERT IGNORE INTO `%s` (%s) VALUES (%s)',
+            $table,
+            $columnsStr,
+            $placeholders
+        );
+
+        try {
+            $this->prepareAndExecute($query, array_values($data));
+            $lastId = $this->getLastInsertId();
+
+            $this->logDebug('Выполнен INSERT IGNORE запрос', [
+                'table' => $table,
+                'last_insert_id' => $lastId,
+            ]);
+
+            return $lastId;
+        } catch (PDOException $e) {
+            $this->logError('Ошибка выполнения INSERT IGNORE запроса', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка выполнения INSERT IGNORE запроса: %s', $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Выполняет REPLACE запрос (удаляет существующую запись и вставляет новую)
+     * 
+     * Работает аналогично INSERT, но если запись с таким ключом существует, 
+     * она будет удалена и вставлена новая.
+     * 
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для замены в формате ['column' => 'value']
+     * 
+     * @return int ID вставленной/замененной записи
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function replace(string $table, array $data): int
+    {
+        if (empty($data)) {
+            throw new MySQLException('Нет данных для замены');
+        }
+
+        $columns = array_keys($data);
+        $columnsStr = implode(', ', array_map(fn($col) => "`{$col}`", $columns));
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        
+        $query = sprintf(
+            'REPLACE INTO `%s` (%s) VALUES (%s)',
+            $table,
+            $columnsStr,
+            $placeholders
+        );
+
+        try {
+            $this->prepareAndExecute($query, array_values($data));
+            $lastId = $this->getLastInsertId();
+
+            $this->logDebug('Выполнен REPLACE запрос', [
+                'table' => $table,
+                'last_insert_id' => $lastId,
+            ]);
+
+            return $lastId;
+        } catch (PDOException $e) {
+            $this->logError('Ошибка выполнения REPLACE запроса', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка выполнения REPLACE запроса: %s', $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Выполняет INSERT ... ON DUPLICATE KEY UPDATE запрос
+     * 
+     * Вставляет новую запись или обновляет существующую при конфликте ключей.
+     * 
+     * @param string $table Имя таблицы
+     * @param array<string, mixed> $data Данные для вставки в формате ['column' => 'value']
+     * @param array<string, mixed> $updateData Данные для обновления при конфликте (если пусто, используется $data)
+     * 
+     * @return int ID вставленной/обновленной записи
+     * 
+     * @throws MySQLException Если запрос завершился с ошибкой
+     */
+    public function upsert(string $table, array $data, array $updateData = []): int
+    {
+        if (empty($data)) {
+            throw new MySQLException('Нет данных для вставки');
+        }
+
+        // Если не указаны данные для обновления, используем данные для вставки
+        if (empty($updateData)) {
+            $updateData = $data;
+        }
+
+        $columns = array_keys($data);
+        $columnsStr = implode(', ', array_map(fn($col) => "`{$col}`", $columns));
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        
+        $updateParts = [];
+        foreach (array_keys($updateData) as $column) {
+            $updateParts[] = sprintf('`%s` = VALUES(`%s`)', $column, $column);
+        }
+        $updateStr = implode(', ', $updateParts);
+        
+        $query = sprintf(
+            'INSERT INTO `%s` (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s',
+            $table,
+            $columnsStr,
+            $placeholders,
+            $updateStr
+        );
+
+        try {
+            $this->prepareAndExecute($query, array_values($data));
+            $lastId = $this->getLastInsertId();
+
+            $this->logDebug('Выполнен UPSERT запрос', [
+                'table' => $table,
+                'last_insert_id' => $lastId,
+            ]);
+
+            return $lastId;
+        } catch (PDOException $e) {
+            $this->logError('Ошибка выполнения UPSERT запроса', [
+                'table' => $table,
+                'error' => $e->getMessage(),
+            ]);
+            throw new MySQLException(
+                sprintf('Ошибка выполнения UPSERT запроса: %s', $e->getMessage()),
+                (int)$e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
      * Начинает новую транзакцию
      * 
      * @throws MySQLTransactionException Если транзакция уже активна или не удалось начать
