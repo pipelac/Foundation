@@ -1044,5 +1044,159 @@ class TelegramAPI
 
         return $result;
     }
+
+    /**
+     * Отправляет сообщение с анимированным прогресс-баром
+     * 
+     * Отображает визуальный прогресс-бар, который заполняется от начального 
+     * значения до конечного с интервалом ровно 1 секунда между обновлениями.
+     * Прогресс-бар состоит из заполненных и пустых символов с отображением процента.
+     * 
+     * Пример: [▰▰▰▰▰▰▱▱▱▱] 60%
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param int $start Начальное значение (обычно 0)
+     * @param int $end Конечное значение (обычно 100)
+     * @param string $filledChar Символ заполненной части прогресс-бара (по умолчанию '▰')
+     * @param string $emptyChar Символ пустой части прогресс-бара (по умолчанию '▱')
+     * @param int $barLength Длина прогресс-бара в символах (по умолчанию 10)
+     * @param array<string, mixed> $options Дополнительные параметры (parse_mode, reply_markup и т.д.)
+     * @return Message Финальное отправленное сообщение
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function sendProgressBar(
+        string|int $chatId,
+        int $start,
+        int $end,
+        string $filledChar = '▰',
+        string $emptyChar = '▱',
+        int $barLength = 10,
+        array $options = []
+    ): Message {
+        Validator::validateChatId($chatId);
+
+        if ($start === $end) {
+            throw new ValidationException(
+                'Начальное и конечное значения прогресс-бара не могут быть одинаковыми',
+                'start/end',
+                ['start' => $start, 'end' => $end]
+            );
+        }
+
+        if ($barLength < 5 || $barLength > 50) {
+            throw new ValidationException(
+                'Длина прогресс-бара должна быть от 5 до 50 символов',
+                'barLength',
+                $barLength
+            );
+        }
+
+        $this->logger?->info('Начало отправки прогресс-бара', [
+            'chat_id' => $chatId,
+            'start' => $start,
+            'end' => $end,
+            'bar_length' => $barLength,
+        ]);
+
+        // Определяем направление
+        $isAscending = $end > $start;
+        $step = $isAscending ? 1 : -1;
+        $total = abs($end - $start);
+
+        // Отправляем первое сообщение со стартовым значением
+        $currentValue = $start;
+        $currentText = $this->formatProgressBar(
+            $currentValue,
+            $start,
+            $end,
+            $total,
+            $filledChar,
+            $emptyChar,
+            $barLength
+        );
+        $message = $this->sendMessage($chatId, $currentText, $options);
+        $messageId = $message->messageId;
+
+        // Интервал 1 секунда (1000000 микросекунд)
+        $delayMicroseconds = 1000000;
+
+        // Анимация прогресс-бара с интервалом 1 секунда
+        while ($currentValue !== $end) {
+            usleep($delayMicroseconds);
+
+            $currentValue += $step;
+            $currentText = $this->formatProgressBar(
+                $currentValue,
+                $start,
+                $end,
+                $total,
+                $filledChar,
+                $emptyChar,
+                $barLength
+            );
+
+            try {
+                $message = $this->editMessageText($chatId, $messageId, $currentText, $options);
+            } catch (ApiException $e) {
+                $this->logger?->warning('Ошибка при редактировании прогресс-бара', [
+                    'chat_id' => $chatId,
+                    'message_id' => $messageId,
+                    'error' => $e->getMessage(),
+                    'current_value' => $currentValue,
+                ]);
+            }
+        }
+
+        $this->logger?->info('Прогресс-бар завершен', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'start' => $start,
+            'end' => $end,
+        ]);
+
+        return $message;
+    }
+
+    /**
+     * Форматирует текущее состояние прогресс-бара
+     *
+     * @param int $currentValue Текущее значение
+     * @param int $start Начальное значение
+     * @param int $end Конечное значение
+     * @param int $total Общее количество шагов
+     * @param string $filledChar Символ заполненной части
+     * @param string $emptyChar Символ пустой части
+     * @param int $barLength Длина прогресс-бара
+     * @return string Отформатированный прогресс-бар
+     */
+    private function formatProgressBar(
+        int $currentValue,
+        int $start,
+        int $end,
+        int $total,
+        string $filledChar,
+        string $emptyChar,
+        int $barLength
+    ): string {
+        // Вычисляем прогресс (сколько шагов прошло)
+        $progress = abs($currentValue - $start);
+        
+        // Вычисляем процент завершения
+        $percentage = $total > 0 ? round(($progress / $total) * 100) : 0;
+        
+        // Вычисляем количество заполненных символов
+        $filledCount = $total > 0 ? (int)round(($progress / $total) * $barLength) : 0;
+        $emptyCount = $barLength - $filledCount;
+
+        // Формируем прогресс-бар
+        $bar = '[' 
+            . str_repeat($filledChar, $filledCount) 
+            . str_repeat($emptyChar, $emptyCount) 
+            . ']';
+
+        // Возвращаем прогресс-бар с процентами
+        return sprintf("%s %d%%", $bar, $percentage);
+    }
 }
 
