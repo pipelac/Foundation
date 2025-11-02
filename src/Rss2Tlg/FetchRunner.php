@@ -7,13 +7,12 @@ namespace App\Rss2Tlg;
 use App\Component\Http;
 use App\Component\Logger;
 use App\Component\MySQL;
+use App\Component\Rss;
 use App\Rss2Tlg\DTO\FeedConfig;
 use App\Rss2Tlg\DTO\FeedState;
 use App\Rss2Tlg\DTO\FetchResult;
 use App\Rss2Tlg\DTO\RawItem;
-use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
-use SimplePie\SimplePie;
 
 /**
  * Основной класс для опроса RSS/Atom источников
@@ -21,7 +20,7 @@ use SimplePie\SimplePie;
  * Реализует конвейер обработки:
  * 1. Проверка расписания и backoff
  * 2. HTTP запрос с Conditional GET (ETag, Last-Modified)
- * 3. Парсинг через SimplePie при 200 OK
+ * 3. Парсинг через готовый класс Rss при 200 OK
  * 4. Нормализация элементов в RawItem
  * 5. Обновление состояния источника
  * 6. Сбор метрик и логирование
@@ -35,7 +34,7 @@ class FetchRunner
      * Конструктор FetchRunner
      * 
      * @param MySQL $db Подключение к БД
-     * @param string $cacheDir Директория для кеша SimplePie
+     * @param string $cacheDir Директория для кеша RSS
      * @param Logger|null $logger Логгер для отладки
      */
     public function __construct(
@@ -394,7 +393,7 @@ class FetchRunner
     }
 
     /**
-     * Парсит RSS/Atom ленту через SimplePie
+     * Парсит RSS/Atom ленту через готовый класс Rss
      * 
      * @param string $xmlContent XML контент ленты
      * @param FeedConfig $config Конфигурация источника
@@ -403,60 +402,57 @@ class FetchRunner
      */
     private function parseFeed(string $xmlContent, FeedConfig $config): array
     {
-        $feed = new SimplePie();
+        // Временный файл для XML контента (Rss класс работает с URL или файлом)
+        $tempFile = tempnam(sys_get_temp_dir(), 'rss_');
+        file_put_contents($tempFile, $xmlContent);
+        
+        try {
+            // Конфигурация Rss класса
+            $rssConfig = [
+                'timeout' => $config->timeout,
+                'max_content_size' => strlen($xmlContent) + 1024,
+                'enable_cache' => $config->parserOptions['enable_cache'] ?? true,
+                'cache_directory' => $this->cacheDir,
+            ];
 
-        // Настройка кеширования
-        $enableCache = $config->parserOptions['enable_cache'] ?? true;
-        if ($enableCache && is_dir($this->cacheDir) && is_writable($this->cacheDir)) {
-            $feed->set_cache_location($this->cacheDir);
-            $feed->enable_cache(true);
-        } else {
-            $feed->enable_cache(false);
-        }
+            $rss = new Rss($rssConfig, $this->logger);
+            
+            // Парсим через готовый класс
+            $feedData = $rss->fetch('file://' . $tempFile);
+            
+            // Извлекаем элементы
+            $feedItems = $feedData['items'] ?? [];
+            
+            // Применяем лимит max_items
+            $maxItems = $config->parserOptions['max_items'] ?? null;
+            if ($maxItems !== null && $maxItems > 0) {
+                $feedItems = array_slice($feedItems, 0, $maxItems);
+            }
 
-        // Настройки парсера
-        $feed->set_timeout($config->timeout);
-        $feed->enable_order_by_date(true);
-
-        // Загружаем XML контент
-        $feed->set_raw_data($xmlContent);
-
-        // Инициализация парсера
-        if (!$feed->init()) {
-            $error = $feed->error();
-            throw new \Exception('Ошибка инициализации SimplePie: ' . ($error ?: 'Неизвестная ошибка'));
-        }
-
-        // Извлекаем элементы
-        $simplePieItems = $feed->get_items();
-        if ($simplePieItems === null) {
-            return [];
-        }
-
-        // Применяем лимит max_items
-        $maxItems = $config->parserOptions['max_items'] ?? null;
-        if ($maxItems !== null && $maxItems > 0) {
-            $simplePieItems = array_slice($simplePieItems, 0, $maxItems);
-        }
-
-        // Конвертируем в RawItem
-        $items = [];
-        foreach ($simplePieItems as $simplePieItem) {
-            try {
-                $rawItem = RawItem::fromSimplePieItem($simplePieItem);
-                if ($rawItem->isValid()) {
-                    $items[] = $rawItem;
+            // Конвертируем в RawItem
+            $items = [];
+            foreach ($feedItems as $item) {
+                try {
+                    $rawItem = RawItem::fromRssArray($item);
+                    if ($rawItem->isValid()) {
+                        $items[] = $rawItem;
+                    }
+                } catch (\Exception $e) {
+                    $this->logWarning('Ошибка обработки элемента ленты', [
+                        'error' => $e->getMessage(),
+                    ]);
+                    continue;
                 }
-            } catch (\Exception $e) {
-                $this->logWarning('Ошибка обработки элемента ленты', [
-                    'error' => $e->getMessage(),
-                ]);
-                // Пропускаем проблемный элемент
-                continue;
+            }
+
+            return $items;
+            
+        } finally {
+            // Удаляем временный файл
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
             }
         }
-
-        return $items;
     }
 
     /**

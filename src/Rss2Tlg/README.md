@@ -26,7 +26,7 @@ Fetch Pipeline:
 │      FetchRunner                 │
 │  1. Проверка backoff             │
 │  2. HTTP GET + Conditional GET   │
-│  3. Парсинг через SimplePie      │
+│  3. Парсинг через Rss.class.php  │
 │  4. Нормализация в RawItem[]     │
 │  5. Обновление FeedState         │
 └──────────────────────────────────┘
@@ -43,6 +43,15 @@ Fetch Pipeline:
                   - Дедупликация
                   - Публикация в Telegram
 ```
+
+## Интеграция с существующими компонентами
+
+Модуль использует готовые production-ready компоненты проекта:
+
+- **App\Component\Rss** — парсинг RSS/Atom лент (на базе SimplePie)
+- **App\Component\Http** — HTTP клиент с retry и timeout (на базе Guzzle)
+- **App\Component\MySQL** — обёртка над PDO для работы с БД
+- **App\Component\Logger** — логирование событий и ошибок
 
 ## Структура модуля
 

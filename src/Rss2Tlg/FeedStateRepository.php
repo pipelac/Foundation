@@ -100,17 +100,32 @@ class FeedStateRepository
     public function save(int $feedId, string $url, FeedState $state): bool
     {
         try {
-            $backoffUntilValue = $state->backoffUntil !== null
+            // Используем прямой SQL для обхода бага в MySQL.class.php
+            $backoffUntilSql = $state->backoffUntil !== null
                 ? "FROM_UNIXTIME({$state->backoffUntil})"
                 : 'NULL';
+            
+            $etagSql = $state->etag !== null 
+                ? "'" . $this->db->escape($state->etag) . "'" 
+                : 'NULL';
+            
+            $lastModifiedSql = $state->lastModified !== null 
+                ? "'" . $this->db->escape($state->lastModified) . "'" 
+                : 'NULL';
 
-            $sql = sprintf(
-                "INSERT INTO %s (
+            $sql = "INSERT INTO " . self::TABLE_NAME . " (
                     feed_id, url, etag, last_modified, last_status, 
                     error_count, backoff_until, fetched_at, updated_at
                 ) VALUES (
-                    %d, '%s', %s, %s, %d,
-                    %d, %s, FROM_UNIXTIME(%d), NOW()
+                    {$feedId}, 
+                    '" . $this->db->escape($url) . "', 
+                    {$etagSql}, 
+                    {$lastModifiedSql}, 
+                    {$state->lastStatus},
+                    {$state->errorCount}, 
+                    {$backoffUntilSql}, 
+                    FROM_UNIXTIME({$state->fetchedAt}), 
+                    NOW()
                 ) ON DUPLICATE KEY UPDATE
                     etag = VALUES(etag),
                     last_modified = VALUES(last_modified),
@@ -118,17 +133,7 @@ class FeedStateRepository
                     error_count = VALUES(error_count),
                     backoff_until = VALUES(backoff_until),
                     fetched_at = VALUES(fetched_at),
-                    updated_at = NOW()",
-                self::TABLE_NAME,
-                $feedId,
-                $this->db->escape($url),
-                $state->etag !== null ? "'" . $this->db->escape($state->etag) . "'" : 'NULL',
-                $state->lastModified !== null ? "'" . $this->db->escape($state->lastModified) . "'" : 'NULL',
-                $state->lastStatus,
-                $state->errorCount,
-                $backoffUntilValue,
-                $state->fetchedAt
-            );
+                    updated_at = NOW()";
 
             $this->db->execute($sql);
 

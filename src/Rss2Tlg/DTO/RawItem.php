@@ -41,6 +41,101 @@ class RawItem
     }
 
     /**
+     * Создаёт экземпляр из массива данных класса Rss
+     * 
+     * @param array<string, mixed> $item Массив с данными элемента
+     * @return self Экземпляр RawItem
+     */
+    public static function fromRssArray(array $item): self
+    {
+        // Извлекаем GUID
+        $guid = $item['id'] ?? null;
+        if ($guid !== null && trim($guid) === '') {
+            $guid = null;
+        }
+
+        // Извлекаем ссылку
+        $link = $item['link'] ?? null;
+        if ($link !== null && trim($link) === '') {
+            $link = null;
+        }
+
+        // Извлекаем заголовок
+        $title = $item['title'] ?? null;
+        if ($title !== null) {
+            $title = html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $title = trim($title);
+            if ($title === '') {
+                $title = null;
+            }
+        }
+
+        // Извлекаем краткое описание
+        $summary = $item['description'] ?? null;
+        if ($summary !== null) {
+            $summary = html_entity_decode(strip_tags($summary), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $summary = trim($summary);
+            if ($summary === '') {
+                $summary = null;
+            }
+        }
+
+        // Извлекаем полный контент
+        $content = $item['content'] ?? null;
+        if ($content !== null) {
+            $content = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $content = trim($content);
+            if ($content === '') {
+                $content = null;
+            }
+        }
+
+        // Извлекаем авторов
+        $authors = [];
+        $authorString = $item['author'] ?? '';
+        if ($authorString !== '' && trim($authorString) !== '') {
+            $authors[] = trim($authorString);
+        }
+
+        // Извлекаем категории
+        $categories = $item['categories'] ?? [];
+
+        // Извлекаем enclosure
+        $enclosure = null;
+        $enclosures = $item['enclosures'] ?? [];
+        if (!empty($enclosures) && is_array($enclosures[0] ?? null)) {
+            $firstEnclosure = $enclosures[0];
+            $enclosure = [
+                'url' => $firstEnclosure['url'] ?? '',
+                'type' => $firstEnclosure['type'] ?? 'application/octet-stream',
+                'length' => $firstEnclosure['length'] ?? 0,
+            ];
+        }
+
+        // Извлекаем дату публикации
+        $pubDate = null;
+        if (isset($item['published_at']) && $item['published_at'] instanceof \DateTimeImmutable) {
+            $pubDate = $item['published_at']->getTimestamp();
+        }
+
+        // Вычисляем хэш контента
+        $contentHash = self::calculateContentHash($guid, $link, $title, $summary, $content);
+
+        return new self(
+            guid: $guid,
+            link: $link,
+            title: $title,
+            summary: $summary,
+            content: $content,
+            authors: $authors,
+            categories: $categories,
+            enclosure: $enclosure,
+            pubDate: $pubDate,
+            contentHash: $contentHash
+        );
+    }
+
+    /**
      * Создаёт экземпляр из данных SimplePie Item
      * 
      * @param \SimplePie\Item $item Элемент SimplePie
