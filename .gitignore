@@ -52,8 +52,3 @@ test_assets/
 test_media_real/
 logs_*/
 mysql/
-
-# Исключения: важные артефакты тестирования
-!TESTING_RESULTS.md
-!TESTING_SUMMARY.md
-!TEST_SUBSCRIPTION_README.md
