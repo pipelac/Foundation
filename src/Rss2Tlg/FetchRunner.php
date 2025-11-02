@@ -393,7 +393,7 @@ class FetchRunner
     }
 
     /**
-     * Парсит RSS/Atom ленту через SimplePie
+     * Парсит RSS/Atom ленту через готовый класс Rss
      * 
      * @param string $xmlContent XML контент ленты
      * @param FeedConfig $config Конфигурация источника
@@ -402,32 +402,23 @@ class FetchRunner
      */
     private function parseFeed(string $xmlContent, FeedConfig $config): array
     {
-        // Парсим напрямую через SimplePie
-        $feed = new \SimplePie\SimplePie();
+        // Конфигурация Rss класса
+        $rssConfig = [
+            'timeout' => $config->timeout,
+            'max_content_size' => strlen($xmlContent) + 1024,
+            'enable_cache' => $config->parserOptions['enable_cache'] ?? true,
+            'cache_directory' => $this->cacheDir,
+            'cache_duration' => $config->parserOptions['cache_duration'] ?? 3600,
+        ];
+
+        // Используем готовый класс Rss с методом parseXml()
+        $rss = new Rss($rssConfig, $this->logger);
         
-        // Настраиваем SimplePie
-        if ($config->parserOptions['enable_cache'] ?? true) {
-            $feed->enable_cache(true);
-            $feed->set_cache_location($this->cacheDir);
-            $feed->set_cache_duration($config->parserOptions['cache_duration'] ?? 3600);
-        } else {
-            $feed->enable_cache(false);
-        }
-        
-        $feed->enable_order_by_date(true);
-        $feed->set_stupidly_fast(true);
-        
-        // Устанавливаем сырые XML данные
-        $feed->set_raw_data($xmlContent);
-        
-        // Инициализируем парсинг
-        if (!$feed->init()) {
-            $error = $feed->error();
-            throw new \Exception('Ошибка парсинга RSS ленты: ' . ($error ?: 'Неизвестная ошибка'));
-        }
+        // Парсим XML контент
+        $feedData = $rss->parseXml($xmlContent);
         
         // Извлекаем элементы
-        $feedItems = $feed->get_items() ?? [];
+        $feedItems = $feedData['items'] ?? [];
         
         // Применяем лимит max_items
         $maxItems = $config->parserOptions['max_items'] ?? null;
@@ -439,7 +430,7 @@ class FetchRunner
         $items = [];
         foreach ($feedItems as $item) {
             try {
-                $rawItem = RawItem::fromSimplePieItem($item);
+                $rawItem = RawItem::fromRssArray($item);
                 if ($rawItem->isValid()) {
                     $items[] = $rawItem;
                 }

@@ -7,7 +7,6 @@ namespace App\Rss2Tlg;
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Rss2Tlg\DTO\FeedState;
-use PDO;
 
 /**
  * Репозиторий для работы с состоянием RSS/Atom источников в БД
@@ -71,9 +70,8 @@ class FeedStateRepository
     public function getByUrl(string $url): ?FeedState
     {
         try {
-            $stmt = $this->db->prepare(sprintf("SELECT * FROM %s WHERE url = ? LIMIT 1", self::TABLE_NAME));
-            $stmt->execute([$url]);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $sql = sprintf("SELECT * FROM %s WHERE url = ? LIMIT 1", self::TABLE_NAME);
+            $result = $this->db->query($sql, [$url]);
 
             if (empty($result)) {
                 return null;
@@ -100,15 +98,12 @@ class FeedStateRepository
     public function save(int $feedId, string $url, FeedState $state): bool
     {
         try {
-            // Получаем PDO соединение для экранирования
-            $pdo = $this->db->getConnection();
-            
-            // Экранируем строковые значения
-            $urlEscaped = $pdo->quote($url);
-            $etagEscaped = $state->etag !== null ? $pdo->quote($state->etag) : 'NULL';
-            $lastModifiedEscaped = $state->lastModified !== null ? $pdo->quote($state->lastModified) : 'NULL';
+            // Экранируем строковые значения через готовый метод MySQL::escape()
+            $urlEscaped = $this->db->escape($url);
+            $etagEscaped = $state->etag !== null ? $this->db->escape($state->etag) : 'NULL';
+            $lastModifiedEscaped = $state->lastModified !== null ? $this->db->escape($state->lastModified) : 'NULL';
             $backoffUntilEscaped = $state->backoffUntil !== null 
-                ? $pdo->quote(date('Y-m-d H:i:s', $state->backoffUntil))
+                ? $this->db->escape(date('Y-m-d H:i:s', $state->backoffUntil))
                 : 'NULL';
 
             $sql = sprintf(

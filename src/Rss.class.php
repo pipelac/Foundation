@@ -227,6 +227,63 @@ class Rss
     }
 
     /**
+     * Парсит RSS/Atom ленту из готового XML контента
+     * 
+     * Используется когда XML контент уже загружен вне класса.
+     * Позволяет использовать Conditional GET и другие продвинутые HTTP техники.
+     *
+     * @param string $xmlContent XML контент ленты
+     * @return array<string, mixed> Структурированные данные ленты (аналогично fetch())
+     * @throws RssException Если не удалось распарсить ленту
+     */
+    public function parseXml(string $xmlContent): array
+    {
+        try {
+            $this->validateContentSize($xmlContent);
+            
+            $this->logInfo('Начало парсинга RSS из XML контента', [
+                'content_size' => strlen($xmlContent),
+            ]);
+            
+            $feed = $this->createSimplePieInstance();
+            $this->configureSimplePie($feed);
+            
+            // Парсим контент через SimplePie
+            $feed->set_raw_data($xmlContent);
+            
+            if (!$feed->init()) {
+                $error = $feed->error();
+                $this->logError('SimplePie не смог инициализировать ленту', [
+                    'error' => $error,
+                ]);
+                throw new RssException('Ошибка парсинга RSS ленты: ' . ($error ?: 'Неизвестная ошибка'));
+            }
+
+            $normalizedData = $this->normalizeFeed($feed);
+            
+            $this->logInfo('RSS лента успешно распарсена', [
+                'type' => $normalizedData['type'],
+                'items_count' => count($normalizedData['items']),
+            ]);
+
+            return $normalizedData;
+            
+        } catch (RssException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            $this->logError('Критическая ошибка парсинга ленты', [
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+            throw new RssException(
+                'Критическая ошибка при парсинге ленты: ' . $e->getMessage(), 
+                0, 
+                $e
+            );
+        }
+    }
+
+    /**
      * Создает экземпляр SimplePie
      * 
      * @return SimplePie Новый экземпляр SimplePie
