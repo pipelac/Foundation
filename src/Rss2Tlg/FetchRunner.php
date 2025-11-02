@@ -393,7 +393,7 @@ class FetchRunner
     }
 
     /**
-     * Парсит RSS/Atom ленту через готовый класс Rss
+     * Парсит RSS/Atom ленту через SimplePie
      * 
      * @param string $xmlContent XML контент ленты
      * @param FeedConfig $config Конфигурация источника
@@ -402,57 +402,56 @@ class FetchRunner
      */
     private function parseFeed(string $xmlContent, FeedConfig $config): array
     {
-        // Временный файл для XML контента (Rss класс работает с URL или файлом)
-        $tempFile = tempnam(sys_get_temp_dir(), 'rss_');
-        file_put_contents($tempFile, $xmlContent);
+        // Парсим напрямую через SimplePie
+        $feed = new \SimplePie\SimplePie();
         
-        try {
-            // Конфигурация Rss класса
-            $rssConfig = [
-                'timeout' => $config->timeout,
-                'max_content_size' => strlen($xmlContent) + 1024,
-                'enable_cache' => $config->parserOptions['enable_cache'] ?? true,
-                'cache_directory' => $this->cacheDir,
-            ];
+        // Настраиваем SimplePie
+        if ($config->parserOptions['enable_cache'] ?? true) {
+            $feed->enable_cache(true);
+            $feed->set_cache_location($this->cacheDir);
+            $feed->set_cache_duration($config->parserOptions['cache_duration'] ?? 3600);
+        } else {
+            $feed->enable_cache(false);
+        }
+        
+        $feed->enable_order_by_date(true);
+        $feed->set_stupidly_fast(true);
+        
+        // Устанавливаем сырые XML данные
+        $feed->set_raw_data($xmlContent);
+        
+        // Инициализируем парсинг
+        if (!$feed->init()) {
+            $error = $feed->error();
+            throw new \Exception('Ошибка парсинга RSS ленты: ' . ($error ?: 'Неизвестная ошибка'));
+        }
+        
+        // Извлекаем элементы
+        $feedItems = $feed->get_items() ?? [];
+        
+        // Применяем лимит max_items
+        $maxItems = $config->parserOptions['max_items'] ?? null;
+        if ($maxItems !== null && $maxItems > 0) {
+            $feedItems = array_slice($feedItems, 0, $maxItems);
+        }
 
-            $rss = new Rss($rssConfig, $this->logger);
-            
-            // Парсим через готовый класс
-            $feedData = $rss->fetch('file://' . $tempFile);
-            
-            // Извлекаем элементы
-            $feedItems = $feedData['items'] ?? [];
-            
-            // Применяем лимит max_items
-            $maxItems = $config->parserOptions['max_items'] ?? null;
-            if ($maxItems !== null && $maxItems > 0) {
-                $feedItems = array_slice($feedItems, 0, $maxItems);
-            }
-
-            // Конвертируем в RawItem
-            $items = [];
-            foreach ($feedItems as $item) {
-                try {
-                    $rawItem = RawItem::fromRssArray($item);
-                    if ($rawItem->isValid()) {
-                        $items[] = $rawItem;
-                    }
-                } catch (\Exception $e) {
-                    $this->logWarning('Ошибка обработки элемента ленты', [
-                        'error' => $e->getMessage(),
-                    ]);
-                    continue;
+        // Конвертируем в RawItem
+        $items = [];
+        foreach ($feedItems as $item) {
+            try {
+                $rawItem = RawItem::fromSimplePieItem($item);
+                if ($rawItem->isValid()) {
+                    $items[] = $rawItem;
                 }
-            }
-
-            return $items;
-            
-        } finally {
-            // Удаляем временный файл
-            if (file_exists($tempFile)) {
-                unlink($tempFile);
+            } catch (\Exception $e) {
+                $this->logWarning('Ошибка обработки элемента ленты', [
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
             }
         }
+
+        return $items;
     }
 
     /**
