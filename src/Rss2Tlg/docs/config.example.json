@@ -1,0 +1,70 @@
+{
+  "feeds": [
+    {
+      "id": 1,
+      "url": "https://news.ycombinator.com/rss",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {
+        "User-Agent": "Rss2Tlg/1.0 (RSS to Telegram Bot)",
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*"
+      },
+      "parser_options": {
+        "max_items": 50,
+        "enable_cache": true
+      },
+      "proxy": null
+    },
+    {
+      "id": 2,
+      "url": "https://habr.com/ru/rss/hub/php/all/",
+      "enabled": true,
+      "timeout": 20,
+      "retries": 2,
+      "polling_interval": 600,
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0; +https://example.com)",
+        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8"
+      },
+      "parser_options": {
+        "max_items": 30,
+        "enable_cache": true
+      },
+      "proxy": null
+    },
+    {
+      "id": 3,
+      "url": "https://www.reddit.com/r/programming/.rss",
+      "enabled": false,
+      "timeout": 25,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {
+        "User-Agent": "Rss2Tlg/1.0"
+      },
+      "parser_options": {
+        "max_items": 100,
+        "enable_cache": false
+      },
+      "proxy": "http://proxy.example.com:8080"
+    }
+  ],
+  "cache": {
+    "directory": "/tmp/rss2tlg_cache",
+    "enabled": true
+  },
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "root",
+    "password": "",
+    "charset": "utf8mb4"
+  },
+  "logging": {
+    "level": "info",
+    "file": "/var/log/rss2tlg/fetch.log"
+  }
+}
