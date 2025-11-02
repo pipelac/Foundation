@@ -201,6 +201,191 @@ class ItemRepository
     }
 
     /**
+     * Помечает контент как извлеченный успешно
+     * 
+     * @param int $itemId ID новости
+     * @param string $extractedContent Извлеченный текст
+     * @param array<int, array<string, mixed>> $extractedImages Массив изображений
+     * @param array<string, mixed> $extractedMetadata Мета-данные
+     * @return bool true при успехе
+     */
+    public function saveExtractedContent(
+        int $itemId,
+        string $extractedContent,
+        array $extractedImages = [],
+        array $extractedMetadata = []
+    ): bool {
+        try {
+            $content = $this->db->escape($extractedContent);
+            $images = $this->db->escape(json_encode($extractedImages, JSON_UNESCAPED_UNICODE));
+            $metadata = $this->db->escape(json_encode($extractedMetadata, JSON_UNESCAPED_UNICODE));
+            
+            $sql = sprintf(
+                "UPDATE %s SET 
+                    extracted_content = %s,
+                    extracted_images = %s,
+                    extracted_metadata = %s,
+                    extraction_status = 'success',
+                    extraction_error = NULL,
+                    extracted_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = %d",
+                self::TABLE_NAME,
+                $content,
+                $images,
+                $metadata,
+                $itemId
+            );
+            
+            $this->db->execute($sql);
+            
+            $this->logDebug('Извлеченный контент сохранен', [
+                'id' => $itemId,
+                'content_length' => strlen($extractedContent),
+                'images_count' => count($extractedImages),
+            ]);
+            
+            return true;
+        } catch (\Exception $e) {
+            $this->logError('Ошибка сохранения извлеченного контента', [
+                'item_id' => $itemId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Помечает попытку извлечения как неудачную
+     * 
+     * @param int $itemId ID новости
+     * @param string $error Сообщение об ошибке
+     * @return bool true при успехе
+     */
+    public function markExtractionFailed(int $itemId, string $error): bool
+    {
+        try {
+            $escapedError = $this->db->escape($error);
+            
+            $sql = sprintf(
+                "UPDATE %s SET 
+                    extraction_status = 'failed',
+                    extraction_error = %s,
+                    extracted_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = %d",
+                self::TABLE_NAME,
+                $escapedError,
+                $itemId
+            );
+            
+            $this->db->execute($sql);
+            
+            $this->logDebug('Извлечение контента помечено как неудачное', [
+                'id' => $itemId,
+                'error' => $error,
+            ]);
+            
+            return true;
+        } catch (\Exception $e) {
+            $this->logError('Ошибка обновления статуса извлечения', [
+                'item_id' => $itemId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Помечает извлечение как пропущенное (контент уже есть в RSS)
+     * 
+     * @param int $itemId ID новости
+     * @return bool true при успехе
+     */
+    public function markExtractionSkipped(int $itemId): bool
+    {
+        try {
+            $sql = sprintf(
+                "UPDATE %s SET 
+                    extraction_status = 'skipped',
+                    extracted_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = %d",
+                self::TABLE_NAME,
+                $itemId
+            );
+            
+            $this->db->execute($sql);
+            return true;
+        } catch (\Exception $e) {
+            $this->logError('Ошибка обновления статуса извлечения', [
+                'item_id' => $itemId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Получает эффективный контент новости (унифицированный доступ)
+     * 
+     * Приоритет:
+     * 1. Извлеченный контент (extracted_content) если extraction_status = 'success'
+     * 2. Полный контент из RSS (content)
+     * 3. Краткое описание из RSS (description)
+     * 
+     * @param array<string, mixed> $item Массив с данными новости из БД
+     * @return string Эффективный контент
+     */
+    public function getEffectiveContent(array $item): string
+    {
+        // Проверяем извлеченный контент
+        if (
+            !empty($item['extracted_content']) && 
+            ($item['extraction_status'] ?? '') === 'success'
+        ) {
+            return (string)$item['extracted_content'];
+        }
+        
+        // Проверяем контент из RSS
+        if (!empty($item['content'])) {
+            return (string)$item['content'];
+        }
+        
+        // Возвращаем описание
+        return (string)($item['description'] ?? '');
+    }
+
+    /**
+     * Получает новости, для которых нужно извлечь контент
+     * 
+     * @param int $limit Максимальное количество новостей
+     * @return array<int, array<string, mixed>> Массив новостей
+     */
+    public function getPendingExtraction(int $limit = 10): array
+    {
+        try {
+            $sql = sprintf(
+                "SELECT * FROM %s 
+                WHERE extraction_status = 'pending' 
+                AND link IS NOT NULL 
+                AND link != ''
+                ORDER BY created_at DESC 
+                LIMIT %d",
+                self::TABLE_NAME,
+                $limit
+            );
+            
+            return $this->db->query($sql);
+        } catch (\Exception $e) {
+            $this->logError('Ошибка получения новостей для извлечения', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Получает статистику по новостям
      * 
      * @return array<string, mixed> Статистика
@@ -213,7 +398,11 @@ class ItemRepository
                     COUNT(*) as total,
                     SUM(CASE WHEN is_published = 1 THEN 1 ELSE 0 END) as published,
                     SUM(CASE WHEN is_published = 0 THEN 1 ELSE 0 END) as unpublished,
-                    COUNT(DISTINCT feed_id) as unique_feeds
+                    COUNT(DISTINCT feed_id) as unique_feeds,
+                    SUM(CASE WHEN extraction_status = 'pending' THEN 1 ELSE 0 END) as extraction_pending,
+                    SUM(CASE WHEN extraction_status = 'success' THEN 1 ELSE 0 END) as extraction_success,
+                    SUM(CASE WHEN extraction_status = 'failed' THEN 1 ELSE 0 END) as extraction_failed,
+                    SUM(CASE WHEN extraction_status = 'skipped' THEN 1 ELSE 0 END) as extraction_skipped
                 FROM %s",
                 self::TABLE_NAME
             );
@@ -285,6 +474,14 @@ class ItemRepository
                     `categories` JSON NULL DEFAULT NULL COMMENT 'Категории (массив)',
                     `enclosures` JSON NULL DEFAULT NULL COMMENT 'Вложения: изображения, аудио, видео',
                     
+                    -- Поля для извлеченного контента через WebtExtractor
+                    `extracted_content` MEDIUMTEXT NULL DEFAULT NULL COMMENT 'Текст статьи, извлеченный с веб-страницы',
+                    `extracted_images` JSON NULL DEFAULT NULL COMMENT 'Массив изображений из статьи',
+                    `extracted_metadata` JSON NULL DEFAULT NULL COMMENT 'Мета-данные страницы (Open Graph, Twitter Cards)',
+                    `extraction_status` ENUM('pending', 'success', 'failed', 'skipped') NOT NULL DEFAULT 'pending' COMMENT 'Статус извлечения контента',
+                    `extraction_error` TEXT NULL DEFAULT NULL COMMENT 'Сообщение об ошибке при извлечении',
+                    `extracted_at` DATETIME NULL DEFAULT NULL COMMENT 'Дата и время извлечения контента',
+                    
                     `is_published` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Флаг публикации в Telegram',
                     
                     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания записи',
@@ -295,9 +492,10 @@ class ItemRepository
                     KEY `idx_feed_id` (`feed_id`),
                     KEY `idx_is_published` (`is_published`),
                     KEY `idx_pub_date` (`pub_date`),
-                    KEY `idx_feed_published` (`feed_id`, `is_published`)
+                    KEY `idx_feed_published` (`feed_id`, `is_published`),
+                    KEY `idx_extraction_status` (`extraction_status`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                COMMENT='Новости из RSS/Atom источников'";
+                COMMENT='Новости из RSS/Atom источников с извлеченным контентом'";
 
                 $this->db->execute($sql);
 
