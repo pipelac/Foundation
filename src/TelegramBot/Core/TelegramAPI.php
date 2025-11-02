@@ -388,6 +388,72 @@ class TelegramAPI
     }
 
     /**
+     * Закрепляет сообщение в чате
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param int $messageId Идентификатор сообщения
+     * @param bool $disableNotification Отключить уведомление о закреплении
+     * @return bool True при успешном закреплении
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function pinChatMessage(string|int $chatId, int $messageId, bool $disableNotification = false): bool
+    {
+        Validator::validateChatId($chatId);
+
+        $params = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'disable_notification' => $disableNotification,
+        ];
+
+        return $this->sendRequest('pinChatMessage', $params);
+    }
+
+    /**
+     * Открепляет сообщение в чате
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @param int|null $messageId Идентификатор сообщения
+     * @return bool True при успешном открепении
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function unpinChatMessage(string|int $chatId, ?int $messageId = null): bool
+    {
+        Validator::validateChatId($chatId);
+
+        $params = [
+            'chat_id' => $chatId,
+        ];
+
+        if ($messageId !== null) {
+            $params['message_id'] = $messageId;
+        }
+
+        return $this->sendRequest('unpinChatMessage', $params);
+    }
+
+    /**
+     * Открепляет все сообщения в чате
+     *
+     * @param string|int $chatId Идентификатор чата
+     * @return bool True при успешном открепении
+     * @throws ValidationException При некорректных параметрах
+     * @throws ApiException При ошибке API
+     */
+    public function unpinAllChatMessages(string|int $chatId): bool
+    {
+        Validator::validateChatId($chatId);
+
+        $params = [
+            'chat_id' => $chatId,
+        ];
+
+        return $this->sendRequest('unpinAllChatMessages', $params);
+    }
+
+    /**
      * Отправляет индикатор активности
      * 
      * Показывает пользователю, что бот печатает или выполняет другое действие.
