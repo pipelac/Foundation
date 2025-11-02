@@ -506,8 +506,10 @@ class RSS2TLGStressTest {
         try {
             ColorOutput::section("    Публикация в Telegram канал");
             
-            // Извлечение полного текста
+            // Извлечение полного текста и медиа
             $fullText = '';
+            $extractedImages = [];
+            
             if ($item->link) {
                 ColorOutput::info("    Извлечение контента из: {$item->link}");
                 try {
@@ -524,8 +526,14 @@ class RSS2TLGStressTest {
                         $this->stats->increment('content_failed');
                         $fullText = $item->summary ?? $item->content ?? '';
                     }
+                    
+                    // Извлекаем изображения
+                    if (!empty($extractResult['images'])) {
+                        $extractedImages = $extractResult['images'];
+                        ColorOutput::info("    Найдено изображений: " . count($extractedImages));
+                    }
                 } catch (\Exception $e) {
-                    ColorOutput::warning("    Ошибка извлечения: " . $e->getMessage());
+                    ColorOutput::warning("    Ошибка извлечения: " . $e->getMessage()}");
                     $this->stats->increment('content_failed');
                     $fullText = $item->summary ?? $item->content ?? '';
                 }
@@ -553,37 +561,215 @@ class RSS2TLGStressTest {
             $message .= "<b>{$itemTitle}</b>\n\n";
             $message .= $fullText;
             
-            // Ограничение длины сообщения Telegram (4096 символов)
-            if (mb_strlen($message) > 4000) {
-                $message = mb_substr($message, 0, 3900) . '...';
+            // Ограничение длины сообщения Telegram (1024 для caption, 4096 для text)
+            $maxLength = 1000; // Оставляем запас для caption
+            if (mb_strlen($message) > $maxLength) {
+                $message = mb_substr($message, 0, $maxLength - 20) . '...';
             }
             
-            // Отправка в канал
-            $sentMessage = $this->channelBot->sendMessage(
-                $this->config['telegram']['channel_id'],
-                $message,
-                [
-                    'parse_mode' => 'HTML',
-                    'disable_web_page_preview' => true,
-                ]
-            );
+            // Сбор медиа из разных источников
+            $mediaUrls = $this->collectMediaUrls($item, $extractedImages);
             
-            ColorOutput::success("    ✓ Опубликовано в канал (message_id: {$sentMessage->messageId})");
+            // Публикация с медиа или без
+            $sentMessage = null;
             
-            // Сохранение информации о публикации
-            $this->pubRepo->record(
-                $itemId,
-                $feedConfig['id'],
-                'channel',
-                $this->config['telegram']['channel_id'],
-                $sentMessage->messageId
-            );
+            if (!empty($mediaUrls['photos'])) {
+                // Есть фото - отправляем с медиа
+                $sentMessage = $this->publishWithMedia($mediaUrls, $message);
+            } elseif (!empty($mediaUrls['videos'])) {
+                // Есть видео - отправляем первое видео с текстом
+                $sentMessage = $this->publishWithVideo($mediaUrls['videos'][0], $message);
+            } else {
+                // Нет медиа - отправляем только текст
+                $sentMessage = $this->channelBot->sendMessage(
+                    $this->config['telegram']['channel_id'],
+                    $message,
+                    [
+                        'parse_mode' => 'HTML',
+                        'disable_web_page_preview' => true,
+                    ]
+                );
+            }
             
-            return true;
+            if ($sentMessage) {
+                ColorOutput::success("    ✓ Опубликовано в канал (message_id: {$sentMessage->messageId})");
+                
+                // Сохранение информации о публикации
+                $this->pubRepo->record(
+                    $itemId,
+                    $feedConfig['id'],
+                    'channel',
+                    $this->config['telegram']['channel_id'],
+                    $sentMessage->messageId
+                );
+                
+                return true;
+            }
+            
+            return false;
             
         } catch (\Exception $e) {
             ColorOutput::error("    Ошибка публикации: {$e->getMessage()}");
             return false;
+        }
+    }
+    
+    /**
+     * Собирает URL медиа из всех доступных источников
+     */
+    private function collectMediaUrls($item, array $extractedImages): array {
+        $photos = [];
+        $videos = [];
+        
+        // 1. Из enclosures RSS (приоритет)
+        if (isset($item->enclosure) && is_array($item->enclosure)) {
+            foreach ($item->enclosure as $enc) {
+                $url = $enc['url'] ?? $enc['href'] ?? null;
+                $type = $enc['type'] ?? '';
+                
+                if (!$url) continue;
+                
+                if (str_starts_with($type, 'image/')) {
+                    $photos[] = $url;
+                    ColorOutput::info("    📷 Фото из RSS enclosure: " . mb_substr($url, 0, 60));
+                } elseif (str_starts_with($type, 'video/')) {
+                    $videos[] = $url;
+                    ColorOutput::info("    🎥 Видео из RSS enclosure: " . mb_substr($url, 0, 60));
+                }
+            }
+        }
+        
+        // 2. Из извлеченных изображений (если нет фото из RSS)
+        if (empty($photos) && !empty($extractedImages)) {
+            foreach (array_slice($extractedImages, 0, 10) as $img) { // Максимум 10 фото
+                $url = null;
+                
+                if (is_array($img)) {
+                    $url = $img['url'] ?? $img['src'] ?? null;
+                } elseif (is_string($img)) {
+                    $url = $img;
+                }
+                
+                if ($url && $this->isValidImageUrl($url)) {
+                    $photos[] = $url;
+                    ColorOutput::info("    📷 Фото извлечено: " . mb_substr($url, 0, 60));
+                }
+            }
+        }
+        
+        return [
+            'photos' => array_values(array_unique($photos)),
+            'videos' => array_values(array_unique($videos)),
+        ];
+    }
+    
+    /**
+     * Проверяет валидность URL изображения
+     */
+    private function isValidImageUrl(string $url): bool {
+        // Проверяем, что это абсолютный URL
+        if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+            return false;
+        }
+        
+        // Проверяем расширение
+        $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+        $validExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        if (in_array($ext, $validExts)) {
+            return true;
+        }
+        
+        // Если нет расширения, но есть image в URL
+        if (stripos($url, 'image') !== false || stripos($url, 'photo') !== false) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Публикует с медиа (одно или несколько фото)
+     */
+    private function publishWithMedia(array $mediaUrls, string $caption) {
+        $photos = $mediaUrls['photos'];
+        $channelId = $this->config['telegram']['channel_id'];
+        
+        if (count($photos) === 1) {
+            // Одно фото - используем sendPhoto
+            ColorOutput::info("    📤 Отправка 1 фото с текстом");
+            try {
+                return $this->channelBot->sendPhoto(
+                    $channelId,
+                    $photos[0],
+                    [
+                        'caption' => $caption,
+                        'parse_mode' => 'HTML',
+                    ]
+                );
+            } catch (\Exception $e) {
+                ColorOutput::warning("    ⚠️  Ошибка отправки фото: {$e->getMessage()}");
+                // Fallback на текст без фото
+                return $this->channelBot->sendMessage($channelId, $caption, ['parse_mode' => 'HTML']);
+            }
+        } else {
+            // Несколько фото - используем sendMediaGroup
+            ColorOutput::info("    📤 Отправка " . count($photos) . " фото группой");
+            
+            // Ограничиваем до 10 фото (лимит Telegram)
+            $photos = array_slice($photos, 0, 10);
+            
+            try {
+                // sendMediaGroup не поддерживается напрямую в нашем API
+                // Отправим первое фото с caption, остальные без
+                $firstMessage = $this->channelBot->sendPhoto(
+                    $channelId,
+                    $photos[0],
+                    [
+                        'caption' => $caption,
+                        'parse_mode' => 'HTML',
+                    ]
+                );
+                
+                // Отправляем остальные фото
+                foreach (array_slice($photos, 1, 9) as $photoUrl) {
+                    try {
+                        $this->channelBot->sendPhoto($channelId, $photoUrl, []);
+                        usleep(500000); // 0.5 сек между фото
+                    } catch (\Exception $e) {
+                        ColorOutput::warning("    ⚠️  Ошибка отправки доп. фото: {$e->getMessage()}");
+                    }
+                }
+                
+                return $firstMessage;
+            } catch (\Exception $e) {
+                ColorOutput::warning("    ⚠️  Ошибка отправки медиа группы: {$e->getMessage()}");
+                // Fallback на текст без фото
+                return $this->channelBot->sendMessage($channelId, $caption, ['parse_mode' => 'HTML']);
+            }
+        }
+    }
+    
+    /**
+     * Публикует с видео
+     */
+    private function publishWithVideo(string $videoUrl, string $caption) {
+        ColorOutput::info("    📤 Отправка видео");
+        $channelId = $this->config['telegram']['channel_id'];
+        
+        try {
+            return $this->channelBot->sendVideo(
+                $channelId,
+                $videoUrl,
+                [
+                    'caption' => $caption,
+                    'parse_mode' => 'HTML',
+                ]
+            );
+        } catch (\Exception $e) {
+            ColorOutput::warning("    ⚠️  Ошибка отправки видео: {$e->getMessage()}");
+            // Fallback на текст без видео
+            return $this->channelBot->sendMessage($channelId, $caption, ['parse_mode' => 'HTML']);
         }
     }
     
