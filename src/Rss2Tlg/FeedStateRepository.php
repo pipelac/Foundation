@@ -23,11 +23,16 @@ class FeedStateRepository
      * 
      * @param MySQL $db Подключение к БД
      * @param Logger|null $logger Логгер для отладки
+     * @param bool $autoCreateTables Автоматическое создание таблиц (по умолчанию true)
      */
     public function __construct(
         private readonly MySQL $db,
-        private readonly ?Logger $logger = null
+        private readonly ?Logger $logger = null,
+        bool $autoCreateTables = true
     ) {
+        if ($autoCreateTables) {
+            $this->createTableIfNotExist();
+        }
     }
 
     /**
@@ -279,6 +284,60 @@ class FeedStateRepository
     {
         if ($this->logger !== null) {
             $this->logger->error($message, $context);
+        }
+    }
+
+    /**
+     * Создаёт таблицу состояния источников если она не существует
+     * 
+     * @return bool true при успехе
+     */
+    private function createTableIfNotExist(): bool
+    {
+        try {
+            // Проверяем существование таблицы
+            $tableExists = $this->db->queryOne(
+                "SELECT COUNT(*) as count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+                [self::TABLE_NAME]
+            );
+
+            if (empty($tableExists) || $tableExists['count'] == 0) {
+                $sql = "CREATE TABLE `" . self::TABLE_NAME . "` (
+                    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Первичный ключ',
+                    `feed_id` INT UNSIGNED NOT NULL COMMENT 'Идентификатор источника (из конфигурации)',
+                    `url` VARCHAR(512) NOT NULL COMMENT 'URL RSS/Atom ленты',
+                    
+                    `etag` VARCHAR(255) NULL DEFAULT NULL COMMENT 'ETag из последнего успешного ответа',
+                    `last_modified` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Last-Modified из последнего успешного ответа',
+                    
+                    `last_status` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'HTTP статус код последнего запроса (0 = сетевая ошибка)',
+                    `error_count` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Счётчик последовательных ошибок',
+                    `backoff_until` DATETIME NULL DEFAULT NULL COMMENT 'Время до которого запросы заблокированы (exponential backoff)',
+                    
+                    `fetched_at` DATETIME NOT NULL COMMENT 'Время последнего запроса',
+                    `updated_at` DATETIME NOT NULL COMMENT 'Время последнего обновления записи',
+                    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания записи',
+                    
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `idx_feed_id` (`feed_id`),
+                    UNIQUE KEY `idx_url` (`url`),
+                    KEY `idx_backoff_until` (`backoff_until`),
+                    KEY `idx_error_count` (`error_count`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                COMMENT='Состояние RSS/Atom источников для модуля fetch'";
+
+                $this->db->execute($sql);
+
+                $this->logDebug('Таблица состояния источников создана', ['table' => self::TABLE_NAME]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            $this->logError('Ошибка создания таблицы состояния источников', [
+                'table' => self::TABLE_NAME,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
         }
     }
 }
