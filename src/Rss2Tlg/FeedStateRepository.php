@@ -7,7 +7,6 @@ namespace App\Rss2Tlg;
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Rss2Tlg\DTO\FeedState;
-use PDO;
 
 /**
  * Репозиторий для работы с состоянием RSS/Atom источников в БД
@@ -71,9 +70,8 @@ class FeedStateRepository
     public function getByUrl(string $url): ?FeedState
     {
         try {
-            $stmt = $this->db->prepare(sprintf("SELECT * FROM %s WHERE url = ? LIMIT 1", self::TABLE_NAME));
-            $stmt->execute([$url]);
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $sql = sprintf("SELECT * FROM %s WHERE url = ? LIMIT 1", self::TABLE_NAME);
+            $result = $this->db->query($sql, [$url]);
 
             if (empty($result)) {
                 return null;
@@ -100,32 +98,20 @@ class FeedStateRepository
     public function save(int $feedId, string $url, FeedState $state): bool
     {
         try {
-            // Используем прямой SQL для обхода бага в MySQL.class.php
-            $backoffUntilSql = $state->backoffUntil !== null
-                ? "FROM_UNIXTIME({$state->backoffUntil})"
-                : 'NULL';
-            
-            $etagSql = $state->etag !== null 
-                ? "'" . $this->db->escape($state->etag) . "'" 
-                : 'NULL';
-            
-            $lastModifiedSql = $state->lastModified !== null 
-                ? "'" . $this->db->escape($state->lastModified) . "'" 
+            // Экранируем строковые значения через готовый метод MySQL::escape()
+            $urlEscaped = $this->db->escape($url);
+            $etagEscaped = $state->etag !== null ? $this->db->escape($state->etag) : 'NULL';
+            $lastModifiedEscaped = $state->lastModified !== null ? $this->db->escape($state->lastModified) : 'NULL';
+            $backoffUntilEscaped = $state->backoffUntil !== null 
+                ? $this->db->escape(date('Y-m-d H:i:s', $state->backoffUntil))
                 : 'NULL';
 
-            $sql = "INSERT INTO " . self::TABLE_NAME . " (
+            $sql = sprintf(
+                "INSERT INTO %s (
                     feed_id, url, etag, last_modified, last_status, 
                     error_count, backoff_until, fetched_at, updated_at
                 ) VALUES (
-                    {$feedId}, 
-                    '" . $this->db->escape($url) . "', 
-                    {$etagSql}, 
-                    {$lastModifiedSql}, 
-                    {$state->lastStatus},
-                    {$state->errorCount}, 
-                    {$backoffUntilSql}, 
-                    FROM_UNIXTIME({$state->fetchedAt}), 
-                    NOW()
+                    %d, %s, %s, %s, %d, %d, %s, FROM_UNIXTIME(%d), NOW()
                 ) ON DUPLICATE KEY UPDATE
                     etag = VALUES(etag),
                     last_modified = VALUES(last_modified),
@@ -133,7 +119,17 @@ class FeedStateRepository
                     error_count = VALUES(error_count),
                     backoff_until = VALUES(backoff_until),
                     fetched_at = VALUES(fetched_at),
-                    updated_at = NOW()";
+                    updated_at = NOW()",
+                self::TABLE_NAME,
+                $feedId,
+                $urlEscaped,
+                $etagEscaped,
+                $lastModifiedEscaped,
+                $state->lastStatus,
+                $state->errorCount,
+                $backoffUntilEscaped,
+                $state->fetchedAt
+            );
 
             $this->db->execute($sql);
 

@@ -402,57 +402,47 @@ class FetchRunner
      */
     private function parseFeed(string $xmlContent, FeedConfig $config): array
     {
-        // Временный файл для XML контента (Rss класс работает с URL или файлом)
-        $tempFile = tempnam(sys_get_temp_dir(), 'rss_');
-        file_put_contents($tempFile, $xmlContent);
+        // Конфигурация Rss класса
+        $rssConfig = [
+            'timeout' => $config->timeout,
+            'max_content_size' => strlen($xmlContent) + 1024,
+            'enable_cache' => $config->parserOptions['enable_cache'] ?? true,
+            'cache_directory' => $this->cacheDir,
+            'cache_duration' => $config->parserOptions['cache_duration'] ?? 3600,
+        ];
+
+        // Используем готовый класс Rss с методом parseXml()
+        $rss = new Rss($rssConfig, $this->logger);
         
-        try {
-            // Конфигурация Rss класса
-            $rssConfig = [
-                'timeout' => $config->timeout,
-                'max_content_size' => strlen($xmlContent) + 1024,
-                'enable_cache' => $config->parserOptions['enable_cache'] ?? true,
-                'cache_directory' => $this->cacheDir,
-            ];
+        // Парсим XML контент
+        $feedData = $rss->parseXml($xmlContent);
+        
+        // Извлекаем элементы
+        $feedItems = $feedData['items'] ?? [];
+        
+        // Применяем лимит max_items
+        $maxItems = $config->parserOptions['max_items'] ?? null;
+        if ($maxItems !== null && $maxItems > 0) {
+            $feedItems = array_slice($feedItems, 0, $maxItems);
+        }
 
-            $rss = new Rss($rssConfig, $this->logger);
-            
-            // Парсим через готовый класс
-            $feedData = $rss->fetch('file://' . $tempFile);
-            
-            // Извлекаем элементы
-            $feedItems = $feedData['items'] ?? [];
-            
-            // Применяем лимит max_items
-            $maxItems = $config->parserOptions['max_items'] ?? null;
-            if ($maxItems !== null && $maxItems > 0) {
-                $feedItems = array_slice($feedItems, 0, $maxItems);
-            }
-
-            // Конвертируем в RawItem
-            $items = [];
-            foreach ($feedItems as $item) {
-                try {
-                    $rawItem = RawItem::fromRssArray($item);
-                    if ($rawItem->isValid()) {
-                        $items[] = $rawItem;
-                    }
-                } catch (\Exception $e) {
-                    $this->logWarning('Ошибка обработки элемента ленты', [
-                        'error' => $e->getMessage(),
-                    ]);
-                    continue;
+        // Конвертируем в RawItem
+        $items = [];
+        foreach ($feedItems as $item) {
+            try {
+                $rawItem = RawItem::fromRssArray($item);
+                if ($rawItem->isValid()) {
+                    $items[] = $rawItem;
                 }
-            }
-
-            return $items;
-            
-        } finally {
-            // Удаляем временный файл
-            if (file_exists($tempFile)) {
-                unlink($tempFile);
+            } catch (\Exception $e) {
+                $this->logWarning('Ошибка обработки элемента ленты', [
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
             }
         }
+
+        return $items;
     }
 
     /**
