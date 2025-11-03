@@ -423,17 +423,38 @@ class MessageStorage
      */
     private function insertData(string $table, array $data): int
     {
-        $columns = array_keys($data);
-        $placeholders = array_fill(0, count($columns), '?');
+        $columns = [];
+        $values = [];
+        
+        foreach ($data as $col => $val) {
+            $columns[] = "`{$col}`";
+            
+            if ($val === null) {
+                $values[] = 'NULL';
+            } elseif (is_bool($val)) {
+                $values[] = $val ? '1' : '0';
+            } elseif (is_int($val) || is_float($val)) {
+                $values[] = $val;
+            } else {
+                // Экранирование строк для безопасности
+                $escaped = str_replace(
+                    ["\\", "\0", "\n", "\r", "'", '"', "\x1a"],
+                    ["\\\\", "\\0", "\\n", "\\r", "\\'", '\\"', "\\Z"],
+                    (string)$val
+                );
+                $values[] = "'{$escaped}'";
+            }
+        }
         
         $sql = sprintf(
             'INSERT INTO `%s` (%s) VALUES (%s)',
             $table,
-            implode(', ', array_map(fn($col) => "`{$col}`", $columns)),
-            implode(', ', $placeholders)
+            implode(', ', $columns),
+            implode(', ', $values)
         );
         
-        return $this->db->insert($sql, array_values($data));
+        $this->db->execute($sql);
+        return $this->db->getLastInsertId();
     }
     
     /**
