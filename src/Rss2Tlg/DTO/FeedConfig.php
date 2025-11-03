@@ -17,6 +17,7 @@ class FeedConfig
      * 
      * @param int $id Уникальный идентификатор источника
      * @param string $url URL RSS/Atom ленты
+     * @param string|null $name Название источника (опционально)
      * @param bool $enabled Флаг активности источника (false - пропускать опрос)
      * @param int $timeout Таймаут HTTP запроса в секундах
      * @param int $retries Количество повторных попыток при ошибках
@@ -28,12 +29,13 @@ class FeedConfig
     public function __construct(
         public readonly int $id,
         public readonly string $url,
-        public readonly bool $enabled,
-        public readonly int $timeout,
-        public readonly int $retries,
-        public readonly int $pollingInterval,
-        public readonly array $headers,
-        public readonly array $parserOptions,
+        public readonly ?string $name = null,
+        public readonly bool $enabled = true,
+        public readonly int $timeout = 30,
+        public readonly int $retries = 3,
+        public readonly int $pollingInterval = 300,
+        public readonly array $headers = [],
+        public readonly array $parserOptions = [],
         public readonly ?string $proxy = null
     ) {
     }
@@ -52,6 +54,7 @@ class FeedConfig
         return new self(
             id: (int)$data['id'],
             url: (string)$data['url'],
+            name: isset($data['name']) ? (string)$data['name'] : null,
             enabled: (bool)($data['enabled'] ?? true),
             timeout: (int)($data['timeout'] ?? 30),
             retries: (int)($data['retries'] ?? 3),
@@ -100,6 +103,7 @@ class FeedConfig
         return [
             'id' => $this->id,
             'url' => $this->url,
+            'name' => $this->name,
             'enabled' => $this->enabled,
             'timeout' => $this->timeout,
             'retries' => $this->retries,
