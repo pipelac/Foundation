@@ -422,6 +422,8 @@ function sendTelegramNotification(
 /**
  * Публикация в канал с медиа и индикацией прогресса
  * 
+ * ИСПРАВЛЕНО: медиа и текст публикуются вместе в одном сообщении
+ * 
  * @param TelegramAPI $telegram
  * @param int $chatIdForProgress ID чата для прогресс-бара (админ бот)
  * @param string $channelId ID канала для публикации
@@ -445,24 +447,26 @@ function publishToChannel(
     int $totalItems
 ): ?array {
     try {
-        // 1. Показываем прогресс-бар ПЕРЕД публикацией
+        // 1. Показываем прогресс БЕЗ анимации (простое обновление текста)
         try {
-            $telegram->sendProgressBar(
-                $chatIdForProgress,
-                $currentItem - 1,
-                $currentItem,
-                '█', // Заполненный блок (одинаковый размер)
-                '░', // Пустой блок (одинаковый размер)
-                20, // Длина прогресс-бара
-                ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]
-            );
+            $percent = round(($currentItem / $totalItems) * 100);
+            $filledBars = (int)(($currentItem / $totalItems) * 20);
+            $emptyBars = 20 - $filledBars;
+            $progressBar = str_repeat('█', $filledBars) . str_repeat('░', $emptyBars);
+            
+            $progressMessage = "📊 <b>Публикация новостей</b>\n\n" .
+                               "$progressBar\n" .
+                               "Опубликовано: <b>$currentItem</b> из <b>$totalItems</b> ($percent%)";
+            
+            // Простая отправка без анимации
+            $telegram->sendMessage($chatIdForProgress, $progressMessage, ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]);
         } catch (\Exception $e) {
             // Игнорируем ошибки прогресс-бара
         }
         
+        // 2. Формируем сообщение с медиа (если есть) - ВСЁ В ОДНОМ ПОСТЕ
         $message = "<b>📰 $feedName</b>\n\n<b>$title</b>\n\n$content";
         
-        // 2. Публикуем с медиа (если есть) используя streaming для caption
         if ($media !== null && !empty($media['url'])) {
             $mediaUrl = $media['url'];
             
@@ -473,62 +477,31 @@ function publishToChannel(
             
             if ($media['type'] === 'photo') {
                 $telegram->sendChatAction($channelId, 'upload_photo');
-                usleep(800000); // 0.8 сек
                 
-                // Отправляем фото с caption в режиме streaming
-                // Сначала отправляем фото с коротким caption
-                $shortCaption = "<b>📰 $feedName</b>\n\n<b>$title</b>";
+                // ИСПРАВЛЕНО: отправляем фото с ПОЛНЫМ caption в одном сообщении
                 $result = $telegram->sendPhoto(
                     $channelId,
                     $mediaUrl,
                     [
-                        'caption' => $shortCaption,
+                        'caption' => $caption,
                         'parse_mode' => TelegramAPI::PARSE_MODE_HTML
                     ]
                 );
                 
-                // Затем отправляем полный текст отдельным сообщением в streaming режиме
-                // БЕЗ HTML для совместимости со streaming
-                if (!empty($content)) {
-                    sleep(1);
-                    $telegram->sendMessageStreaming(
-                        $channelId,
-                        $content,
-                        [], // БЕЗ parse_mode - plain text для корректного streaming
-                        20, // символов за обновление
-                        40, // задержка мс
-                        true // показывать typing
-                    );
-                }
-                
             } elseif ($media['type'] === 'video') {
                 $telegram->sendChatAction($channelId, 'upload_video');
-                usleep(1000000); // 1 сек
                 
-                // Аналогично для видео
-                $shortCaption = "<b>📰 $feedName</b>\n\n<b>$title</b>";
+                // ИСПРАВЛЕНО: отправляем видео с ПОЛНЫМ caption в одном сообщении
                 $result = $telegram->sendVideo(
                     $channelId,
                     $mediaUrl,
                     [
-                        'caption' => $shortCaption,
+                        'caption' => $caption,
                         'parse_mode' => TelegramAPI::PARSE_MODE_HTML
                     ]
                 );
-                
-                if (!empty($content)) {
-                    sleep(1);
-                    $telegram->sendMessageStreaming(
-                        $channelId,
-                        $content,
-                        [], // БЕЗ parse_mode - plain text
-                        20,
-                        40,
-                        true
-                    );
-                }
             } else {
-                // Fallback: отправляем текстом БЕЗ STREAMING (т.к. есть HTML)
+                // Fallback: отправляем текстом
                 $result = $telegram->sendMessage(
                     $channelId, 
                     $message, 
@@ -536,12 +509,26 @@ function publishToChannel(
                 );
             }
         } else {
-            // 3. Без медиа - отправляем БЕЗ STREAMING (т.к. есть HTML)
-            $result = $telegram->sendMessage(
-                $channelId, 
-                $message, 
-                ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]
-            );
+            // 3. Без медиа - отправляем текстом (можно использовать streaming)
+            // ИСПРАВЛЕНО: используем streaming только для чисто текстовых постов
+            if (mb_strlen($message) > 300) {
+                // Для длинных текстов используем streaming
+                $result = $telegram->sendMessageStreaming(
+                    $channelId,
+                    strip_tags($message), // Убираем HTML для streaming
+                    [],
+                    20, // символов за обновление
+                    30, // задержка мс (быстрее)
+                    true // показывать typing
+                );
+            } else {
+                // Короткие тексты отправляем сразу
+                $result = $telegram->sendMessage(
+                    $channelId, 
+                    $message, 
+                    ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]
+                );
+            }
         }
         
         return $result->toArray();
@@ -710,20 +697,15 @@ $test1Start = microtime(true);
 // Fetch новостей
 echo colorize("📥 Получение новостей...", 'yellow') . "\n\n";
 
-// Показываем прогресс-бар в Telegram (от 0 до количества лент)
-// Используем одинаковые по размеру символы
+// ИСПРАВЛЕНО: показываем простой статус загрузки БЕЗ анимированного прогресс-бара
 try {
-    $progressMessage = $telegram->sendProgressBar(
+    $telegram->sendMessage(
         $config['telegram']['chat_id'],
-        0,
-        count($test1Feeds),
-        '█', // Заполненный блок (Block Elements)
-        '░', // Пустой блок (Light Shade)
-        20, // Увеличена длина для лучшей видимости
+        "📥 <b>Загрузка новостей</b>\n\nОбрабатывается " . count($test1Feeds) . " источников...",
         ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]
     );
 } catch (\Exception $e) {
-    echo colorize("⚠️ Ошибка отправки прогресс-бара: " . $e->getMessage(), 'yellow') . "\n";
+    echo colorize("⚠️ Ошибка отправки уведомления: " . $e->getMessage(), 'yellow') . "\n";
 }
 
 $fetchResults = $fetchRunner->runForAllFeeds($test1Feeds);
