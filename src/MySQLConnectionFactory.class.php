@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Component;
 
-use App\Component\Exception\MySQLException;
+use App\Component\Exception\MySQL\MySQLException;
 
 /**
  * Фабрика соединений MySQL с кешированием для работы с несколькими БД

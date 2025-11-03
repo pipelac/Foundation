@@ -423,17 +423,7 @@ class MessageStorage
      */
     private function insertData(string $table, array $data): int
     {
-        $columns = array_keys($data);
-        $placeholders = array_fill(0, count($columns), '?');
-        
-        $sql = sprintf(
-            'INSERT INTO `%s` (%s) VALUES (%s)',
-            $table,
-            implode(', ', array_map(fn($col) => "`{$col}`", $columns)),
-            implode(', ', $placeholders)
-        );
-        
-        return $this->db->insert($sql, array_values($data));
+        return $this->db->insert($table, $data);
     }
     
     /**
