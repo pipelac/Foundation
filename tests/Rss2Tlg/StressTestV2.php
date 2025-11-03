@@ -42,11 +42,11 @@ $testId = 'RSS2TLG-STRESS-TEST-002';
 
 $config = [
     'database' => [
-        'host' => 'localhost',
+        'host' => '127.0.0.1',
         'port' => 3306,
         'database' => 'rss2tlg',
-        'username' => 'root',
-        'password' => '',
+        'username' => 'rss2tlg_user',
+        'password' => 'rss2tlg_pass',
         'charset' => 'utf8mb4',
     ],
     'telegram' => [
@@ -351,16 +351,26 @@ function publishToChannel(
                     ]
                 );
             } else {
-                // Fallback: отправляем текстом
-                $telegram->sendChatAction($channelId, 'typing');
-                usleep(500000);
-                $result = $telegram->sendMessage($channelId, $message, ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]);
+                // Fallback: отправляем текстом с STREAMING
+                $result = $telegram->sendMessageStreaming(
+                    $channelId, 
+                    $message, 
+                    ['parse_mode' => TelegramAPI::PARSE_MODE_HTML],
+                    10, // символов за обновление
+                    80, // задержка мс
+                    true // показывать typing
+                );
             }
         } else {
-            // Без медиа - просто текст с индикацией
-            $telegram->sendChatAction($channelId, 'typing');
-            usleep(500000);
-            $result = $telegram->sendMessage($channelId, $message, ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]);
+            // Без медиа - отправляем с STREAMING для демонстрации эффекта печати
+            $result = $telegram->sendMessageStreaming(
+                $channelId, 
+                $message, 
+                ['parse_mode' => TelegramAPI::PARSE_MODE_HTML],
+                10, // символов за обновление
+                80, // задержка мс
+                true // показывать typing
+            );
         }
         
         return $result->toArray();
@@ -528,6 +538,22 @@ $test1Start = microtime(true);
 
 // Fetch новостей
 echo colorize("📥 Получение новостей...", 'yellow') . "\n\n";
+
+// Показываем прогресс-бар в Telegram (от 0 до количества лент)
+try {
+    $progressMessage = $telegram->sendProgressBar(
+        $config['telegram']['chat_id'],
+        0,
+        count($test1Feeds),
+        '▰',
+        '▱',
+        15,
+        ['parse_mode' => TelegramAPI::PARSE_MODE_HTML]
+    );
+} catch (\Exception $e) {
+    echo colorize("⚠️ Ошибка отправки прогресс-бара: " . $e->getMessage(), 'yellow') . "\n";
+}
+
 $fetchResults = $fetchRunner->runForAllFeeds($test1Feeds);
 
 $feedIndex = 0;
@@ -613,13 +639,16 @@ foreach ($test1Feeds as $feedConfig) {
         
         $content = $itemRepo->getEffectiveContent($item);
         
-        // Обрезаем текст
-        $wordCount = str_word_count(strip_tags($content));
+        // Обрезаем текст и ПОЛНОСТЬЮ очищаем от HTML
+        $content = strip_tags($content); // Удаляем все HTML теги
+        $wordCount = str_word_count($content);
+        
         if (mb_strlen($content) > 800) {
-            $content = mb_substr(strip_tags($content), 0, 800) . "...\n\n📊 Полный текст: $wordCount слов";
-        } else {
-            $content = strip_tags($content);
+            $content = mb_substr($content, 0, 800) . "...\n\n📊 Полный текст: $wordCount слов";
         }
+        
+        // Экранируем HTML спецсимволы для безопасной передачи в Telegram
+        $content = htmlspecialchars($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         
         $mediaInfo = $media ? " [{$media['type']}]" : "";
         echo colorize("    📄 $title$mediaInfo", 'white') . "\n";
