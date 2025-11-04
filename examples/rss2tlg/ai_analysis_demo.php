@@ -17,7 +17,7 @@ require_once __DIR__ . '/../../autoload.php';
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Component\OpenRouter;
-use App\Component\Config\ConfigLoader;
+use App\Config\ConfigLoader;
 use App\Rss2Tlg\ItemRepository;
 use App\Rss2Tlg\AIAnalysisService;
 use App\Rss2Tlg\AIAnalysisRepository;
@@ -49,9 +49,11 @@ $config = $configLoader->load($configPath);
 
 // Инициализация логгера
 $logger = new Logger([
-    'log_file' => $logFile,
-    'log_level' => Logger::LEVEL_DEBUG,
-    'rotation' => true,
+    'directory' => dirname($logFile),
+    'file_name' => basename($logFile),
+    'max_files' => 10,
+    'max_file_size' => 100,
+    'enabled' => true,
 ]);
 
 echo "✓ Логгер инициализирован: {$logFile}\n";

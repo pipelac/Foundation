@@ -450,6 +450,78 @@
         "enable_cache": true
       },
       "proxy": null
+    },
+    {
+      "id": 27,
+      "url": "https://www.spiegel.de/schlagzeilen/index.rss",
+      "title": "Der Spiegel (DE)",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
+      },
+      "parser_options": {
+        "max_items": 25,
+        "enable_cache": true
+      },
+      "proxy": null
+    },
+    {
+      "id": 28,
+      "url": "https://www.heise.de/rss/heise-atom.xml",
+      "title": "Heise Online (DE)",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
+      },
+      "parser_options": {
+        "max_items": 25,
+        "enable_cache": true
+      },
+      "proxy": null
+    },
+    {
+      "id": 29,
+      "url": "https://www.lemonde.fr/rss/une.xml",
+      "title": "Le Monde (FR)",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
+      },
+      "parser_options": {
+        "max_items": 25,
+        "enable_cache": true
+      },
+      "proxy": null
+    },
+    {
+      "id": 30,
+      "url": "https://www.lefigaro.fr/rss/figaro_actualites.xml",
+      "title": "Le Figaro (FR)",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
+      },
+      "parser_options": {
+        "max_items": 25,
+        "enable_cache": true
+      },
+      "proxy": null
     }
   ],
   "cache": {
@@ -457,11 +529,11 @@
     "enabled": true
   },
   "database": {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "port": 3306,
-    "database": "rss2tlg_test",
-    "username": "root",
-    "password": "",
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_pass",
     "charset": "utf8mb4"
   },
   "telegram": {
