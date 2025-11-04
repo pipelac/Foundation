@@ -721,11 +721,11 @@
     },
     "ai_analysis": {
         "enabled": true,
-        "api_key": "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",
-        "default_model": "google/gemini-2.0-flash-001:free",
+        "api_key": "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",
+        "default_model": "deepseek/deepseek-chat-v3.1",
         "fallback_models": [
-            "meta-llama/llama-3.2-3b-instruct:free",
-            "qwen/qwen-2.5-7b-instruct:free"
+            "qwen/qwen3-235b-a22b-thinking-2507",
+            "qwen/qwen3-30b-a3b-thinking-2507"
         ],
         "timeout": 180,
         "temperature": 0.25,
