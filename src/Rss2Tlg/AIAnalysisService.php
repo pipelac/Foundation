@@ -360,6 +360,13 @@ class AIAnalysisService
     }
 
     /**
+     * Последний полный ответ от OpenRouter с метриками
+     * 
+     * @var array<string, mixed>|null
+     */
+    private ?array $lastApiResponse = null;
+
+    /**
      * Отправляет запрос к OpenRouter API
      * 
      * @param string $model Модель AI
@@ -369,14 +376,20 @@ class AIAnalysisService
     private function sendRequestToOpenRouter(string $model, array $options): ?string
     {
         try {
-            // Используем метод text2text с messages
+            // Используем метод text2textWithMetrics с messages
             $messages = $options['messages'] ?? [];
             unset($options['messages']);
 
             // Формируем промпт из messages
             $prompt = $this->formatMessagesForPrompt($messages);
 
-            return $this->openRouter->text2text($model, $prompt, $options);
+            // Получаем полный ответ с метриками
+            $fullResponse = $this->openRouter->text2textWithMetrics($model, $prompt, $options);
+            
+            // Сохраняем для последующего извлечения метрик
+            $this->lastApiResponse = $fullResponse;
+
+            return $fullResponse['content'];
         } catch (\Exception $e) {
             $this->logError('Ошибка запроса к OpenRouter', [
                 'model' => $model,
@@ -467,9 +480,16 @@ class AIAnalysisService
      */
     private function extractTokensUsed(string $response): ?int
     {
-        // OpenRouter может возвращать метаданные о токенах
-        // Пока возвращаем примерную оценку на основе длины
-        return (int)(strlen($response) / 4);
+        if ($this->lastApiResponse === null) {
+            return null;
+        }
+
+        $usage = $this->lastApiResponse['usage'] ?? null;
+        if ($usage === null) {
+            return null;
+        }
+
+        return (int)($usage['total_tokens'] ?? 0);
     }
 
     /**
@@ -480,10 +500,23 @@ class AIAnalysisService
      */
     private function wasCacheHit(string $response): bool
     {
-        // Логика определения cache hit зависит от реализации API
-        // Для DeepSeek/Qwen кеширование прозрачно
-        // Можем считать, что кеш работает для всех запросов после первого
-        return false; // Placeholder
+        if ($this->lastApiResponse === null) {
+            return false;
+        }
+
+        // OpenRouter может возвращать информацию о кешировании в usage
+        $usage = $this->lastApiResponse['usage'] ?? [];
+        return isset($usage['cached_tokens']) && $usage['cached_tokens'] > 0;
+    }
+
+    /**
+     * Получает детальные метрики из последнего API ответа
+     * 
+     * @return array<string, mixed>|null Метрики или null
+     */
+    public function getLastApiMetrics(): ?array
+    {
+        return $this->lastApiResponse;
     }
 
     /**

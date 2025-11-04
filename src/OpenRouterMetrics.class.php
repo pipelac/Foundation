@@ -523,6 +523,293 @@ class OpenRouterMetrics
     }
 
     /**
+     * Извлекает детальные метрики из заголовков ответа OpenRouter
+     * 
+     * Парсит специфичные для OpenRouter заголовки, содержащие информацию о
+     * стоимости, токенах, кешировании и производительности.
+     *
+     * @param array<string, mixed> $responseHeaders Массив заголовков HTTP ответа
+     * @return array<string, mixed> Массив детальных метрик:
+     *                              - model_used (string|null): Фактически использованная модель
+     *                              - tokens (array): Детализация токенов (prompt, completion, total, cached)
+     *                              - cost (array): Детализация стоимости (prompt, completion, total)
+     *                              - cache (array): Метрики кеширования (hit_rate, hits, misses)
+     *                              - timing (array): Временные метрики (queue_time, processing_time)
+     *                              - generation_id (string|null): ID генерации для отслеживания
+     */
+    public function extractMetricsFromHeaders(array $responseHeaders): array
+    {
+        $metrics = [
+            'model_used' => $this->getHeaderValue($responseHeaders, 'x-openrouter-model'),
+            'tokens' => [
+                'prompt_tokens' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-tokens-prompt', 0),
+                'completion_tokens' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-tokens-completion', 0),
+                'total_tokens' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-tokens-total', 0),
+                'cached_tokens' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-tokens-cached', 0),
+            ],
+            'cost' => [
+                'prompt_cost' => (float)$this->getHeaderValue($responseHeaders, 'x-openrouter-cost-prompt', 0.0),
+                'completion_cost' => (float)$this->getHeaderValue($responseHeaders, 'x-openrouter-cost-completion', 0.0),
+                'total_cost' => (float)$this->getHeaderValue($responseHeaders, 'x-openrouter-cost-total', 0.0),
+            ],
+            'cache' => [
+                'hit_rate' => (float)$this->getHeaderValue($responseHeaders, 'x-openrouter-cache-hit-rate', 0.0),
+                'hits' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-cache-hits', 0),
+                'misses' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-cache-misses', 0),
+            ],
+            'timing' => [
+                'queue_time_ms' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-queue-time', 0),
+                'processing_time_ms' => (int)$this->getHeaderValue($responseHeaders, 'x-openrouter-processing-time', 0),
+            ],
+            'generation_id' => $this->getHeaderValue($responseHeaders, 'x-request-id'),
+        ];
+
+        // Вычисляем производные метрики
+        if ($metrics['tokens']['total_tokens'] > 0 && $metrics['tokens']['cached_tokens'] > 0) {
+            $metrics['cache']['calculated_hit_rate'] = round(
+                ($metrics['tokens']['cached_tokens'] / $metrics['tokens']['total_tokens']) * 100,
+                2
+            );
+        } else {
+            $metrics['cache']['calculated_hit_rate'] = 0.0;
+        }
+
+        $this->logInfo('Метрики OpenRouter извлечены из заголовков', $metrics);
+
+        return $metrics;
+    }
+
+    /**
+     * Получает значение заголовка из массива заголовков (case-insensitive)
+     *
+     * @param array<string, mixed> $headers Массив заголовков
+     * @param string $headerName Название заголовка
+     * @param mixed $default Значение по умолчанию
+     * @return mixed Значение заголовка или значение по умолчанию
+     */
+    private function getHeaderValue(array $headers, string $headerName, $default = null)
+    {
+        $headerNameLower = strtolower($headerName);
+        
+        foreach ($headers as $key => $value) {
+            if (strtolower($key) === $headerNameLower) {
+                return is_array($value) ? $value[0] : $value;
+            }
+        }
+        
+        return $default;
+    }
+
+    /**
+     * Создает детальный отчет по метрикам использования AI моделей
+     * 
+     * Агрегирует метрики из нескольких запросов и создает сводный отчет
+     * с группировкой по моделям, временным периодам и другим параметрам.
+     *
+     * @param array<int, array<string, mixed>> $requestMetrics Массив метрик отдельных запросов
+     * @return array<string, mixed> Детальный отчет:
+     *                              - summary (array): Общая статистика
+     *                              - by_model (array): Группировка по моделям
+     *                              - cache_efficiency (array): Эффективность кеширования
+     *                              - cost_breakdown (array): Детализация стоимости
+     *                              - performance (array): Метрики производительности
+     */
+    public function createDetailedReport(array $requestMetrics): array
+    {
+        $report = [
+            'summary' => [
+                'total_requests' => count($requestMetrics),
+                'total_tokens' => 0,
+                'total_cost' => 0.0,
+                'cached_tokens' => 0,
+                'average_processing_time_ms' => 0,
+            ],
+            'by_model' => [],
+            'cache_efficiency' => [
+                'total_cacheable_tokens' => 0,
+                'cached_tokens' => 0,
+                'cache_hit_rate' => 0.0,
+                'estimated_savings' => 0.0,
+            ],
+            'cost_breakdown' => [
+                'prompt_cost' => 0.0,
+                'completion_cost' => 0.0,
+                'total_cost' => 0.0,
+            ],
+            'performance' => [
+                'total_queue_time_ms' => 0,
+                'total_processing_time_ms' => 0,
+                'average_queue_time_ms' => 0,
+                'average_processing_time_ms' => 0,
+                'min_processing_time_ms' => PHP_INT_MAX,
+                'max_processing_time_ms' => 0,
+            ],
+        ];
+
+        foreach ($requestMetrics as $metrics) {
+            // Summary
+            $report['summary']['total_tokens'] += $metrics['tokens']['total_tokens'] ?? 0;
+            $report['summary']['total_cost'] += $metrics['cost']['total_cost'] ?? 0.0;
+            $report['summary']['cached_tokens'] += $metrics['tokens']['cached_tokens'] ?? 0;
+
+            // By model
+            $model = $metrics['model_used'] ?? 'unknown';
+            if (!isset($report['by_model'][$model])) {
+                $report['by_model'][$model] = [
+                    'requests' => 0,
+                    'total_tokens' => 0,
+                    'total_cost' => 0.0,
+                ];
+            }
+            $report['by_model'][$model]['requests']++;
+            $report['by_model'][$model]['total_tokens'] += $metrics['tokens']['total_tokens'] ?? 0;
+            $report['by_model'][$model]['total_cost'] += $metrics['cost']['total_cost'] ?? 0.0;
+
+            // Cache efficiency
+            $report['cache_efficiency']['total_cacheable_tokens'] += $metrics['tokens']['total_tokens'] ?? 0;
+            $report['cache_efficiency']['cached_tokens'] += $metrics['tokens']['cached_tokens'] ?? 0;
+
+            // Cost breakdown
+            $report['cost_breakdown']['prompt_cost'] += $metrics['cost']['prompt_cost'] ?? 0.0;
+            $report['cost_breakdown']['completion_cost'] += $metrics['cost']['completion_cost'] ?? 0.0;
+            $report['cost_breakdown']['total_cost'] += $metrics['cost']['total_cost'] ?? 0.0;
+
+            // Performance
+            $processingTime = $metrics['timing']['processing_time_ms'] ?? 0;
+            $queueTime = $metrics['timing']['queue_time_ms'] ?? 0;
+            
+            $report['performance']['total_processing_time_ms'] += $processingTime;
+            $report['performance']['total_queue_time_ms'] += $queueTime;
+            
+            if ($processingTime > 0) {
+                $report['performance']['min_processing_time_ms'] = min(
+                    $report['performance']['min_processing_time_ms'],
+                    $processingTime
+                );
+                $report['performance']['max_processing_time_ms'] = max(
+                    $report['performance']['max_processing_time_ms'],
+                    $processingTime
+                );
+            }
+        }
+
+        // Вычисляем средние значения
+        $totalRequests = $report['summary']['total_requests'];
+        if ($totalRequests > 0) {
+            $report['summary']['average_processing_time_ms'] = round(
+                $report['performance']['total_processing_time_ms'] / $totalRequests,
+                2
+            );
+            $report['performance']['average_processing_time_ms'] = $report['summary']['average_processing_time_ms'];
+            $report['performance']['average_queue_time_ms'] = round(
+                $report['performance']['total_queue_time_ms'] / $totalRequests,
+                2
+            );
+        }
+
+        // Вычисляем cache hit rate
+        if ($report['cache_efficiency']['total_cacheable_tokens'] > 0) {
+            $report['cache_efficiency']['cache_hit_rate'] = round(
+                ($report['cache_efficiency']['cached_tokens'] / 
+                 $report['cache_efficiency']['total_cacheable_tokens']) * 100,
+                2
+            );
+        }
+
+        // Оцениваем сэкономленные средства (примерно)
+        if ($report['summary']['total_tokens'] > 0) {
+            $avgCostPerToken = $report['cost_breakdown']['total_cost'] / $report['summary']['total_tokens'];
+            $report['cache_efficiency']['estimated_savings'] = round(
+                $report['summary']['cached_tokens'] * $avgCostPerToken,
+                6
+            );
+        }
+
+        // Корректируем min_processing_time
+        if ($report['performance']['min_processing_time_ms'] === PHP_INT_MAX) {
+            $report['performance']['min_processing_time_ms'] = 0;
+        }
+
+        $this->logInfo('Создан детальный отчет по метрикам', [
+            'total_requests' => $totalRequests,
+            'total_cost' => $report['cost_breakdown']['total_cost'],
+            'cache_hit_rate' => $report['cache_efficiency']['cache_hit_rate'],
+        ]);
+
+        return $report;
+    }
+
+    /**
+     * Форматирует отчет в читаемый текстовый формат
+     *
+     * @param array<string, mixed> $report Отчет от createDetailedReport()
+     * @return string Форматированный текстовый отчет
+     */
+    public function formatReportAsText(array $report): string
+    {
+        $output = "╔══════════════════════════════════════════════════════════════╗\n";
+        $output .= "║           ДЕТАЛЬНЫЙ ОТЧЕТ ПО OPENROUTER МЕТРИКАМ            ║\n";
+        $output .= "╚══════════════════════════════════════════════════════════════╝\n\n";
+
+        // Summary
+        $output .= "📊 ОБЩАЯ СТАТИСТИКА:\n";
+        $output .= sprintf("  • Всего запросов: %d\n", $report['summary']['total_requests']);
+        $output .= sprintf("  • Всего токенов: %d\n", $report['summary']['total_tokens']);
+        $output .= sprintf("  • Кешированных токенов: %d\n", $report['summary']['cached_tokens']);
+        $output .= sprintf("  • Общая стоимость: $%.6f\n", $report['cost_breakdown']['total_cost']);
+        $output .= sprintf("  • Среднее время обработки: %d мс\n\n", 
+            (int)$report['summary']['average_processing_time_ms']);
+
+        // By Model
+        $output .= "🤖 ПО МОДЕЛЯМ:\n";
+        foreach ($report['by_model'] as $model => $stats) {
+            $output .= sprintf("  • %s:\n", $model);
+            $output .= sprintf("    - Запросов: %d\n", $stats['requests']);
+            $output .= sprintf("    - Токенов: %d\n", $stats['total_tokens']);
+            $output .= sprintf("    - Стоимость: $%.6f\n", $stats['total_cost']);
+        }
+        $output .= "\n";
+
+        // Cache Efficiency
+        $output .= "💾 ЭФФЕКТИВНОСТЬ КЕШИРОВАНИЯ:\n";
+        $output .= sprintf("  • Cache Hit Rate: %.2f%%\n", $report['cache_efficiency']['cache_hit_rate']);
+        $output .= sprintf("  • Сэкономлено (оценка): $%.6f\n\n", 
+            $report['cache_efficiency']['estimated_savings']);
+
+        // Cost Breakdown
+        $output .= "💰 ДЕТАЛИЗАЦИЯ СТОИМОСТИ:\n";
+        $output .= sprintf("  • Промпты: $%.6f\n", $report['cost_breakdown']['prompt_cost']);
+        $output .= sprintf("  • Ответы: $%.6f\n", $report['cost_breakdown']['completion_cost']);
+        $output .= sprintf("  • Всего: $%.6f\n\n", $report['cost_breakdown']['total_cost']);
+
+        // Performance
+        $output .= "⚡ ПРОИЗВОДИТЕЛЬНОСТЬ:\n";
+        $output .= sprintf("  • Среднее время в очереди: %d мс\n", 
+            (int)$report['performance']['average_queue_time_ms']);
+        $output .= sprintf("  • Среднее время обработки: %d мс\n", 
+            (int)$report['performance']['average_processing_time_ms']);
+        $output .= sprintf("  • Мин. время обработки: %d мс\n", 
+            $report['performance']['min_processing_time_ms']);
+        $output .= sprintf("  • Макс. время обработки: %d мс\n", 
+            $report['performance']['max_processing_time_ms']);
+
+        return $output;
+    }
+
+    /**
+     * Записывает информационное сообщение в лог при наличии логгера
+     *
+     * @param string $message Информационное сообщение
+     * @param array<string, mixed> $context Контекст сообщения
+     */
+    private function logInfo(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->info($message, $context);
+        }
+    }
+
+    /**
      * Записывает ошибку в лог при наличии логгера
      *
      * @param string $message Сообщение об ошибке
