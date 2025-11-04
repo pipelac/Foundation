@@ -159,10 +159,22 @@ class AIAnalysisService
         $this->metrics['total_analyzed']++;
 
         try {
-            // Проверяем, не анализировалась ли уже эта новость
-            if ($this->repository->exists((int)$item['id'])) {
-                $this->logDebug('Новость уже проанализирована', ['item_id' => $item['id']]);
-                return $this->repository->getByItemId((int)$item['id']);
+            // Проверяем, не анализировалась ли уже эта новость УСПЕШНО
+            $existingAnalysis = $this->repository->getByItemId((int)$item['id']);
+            if ($existingAnalysis !== null) {
+                if ($existingAnalysis['analysis_status'] === 'success') {
+                    $this->logDebug('Новость уже успешно проанализирована', ['item_id' => $item['id']]);
+                    return $existingAnalysis;
+                }
+                
+                // Если статус failed - удаляем запись для повторной попытки
+                if ($existingAnalysis['analysis_status'] === 'failed') {
+                    $this->logDebug('Удаляем failed запись для повторной попытки', [
+                        'item_id' => $item['id'],
+                        'analysis_id' => $existingAnalysis['id']
+                    ]);
+                    $this->db->execute("DELETE FROM rss2tlg_ai_analysis WHERE id = ?", [$existingAnalysis['id']]);
+                }
             }
 
             // Получаем эффективный контент новости

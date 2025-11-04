@@ -682,10 +682,11 @@
     "ai_analysis": {
         "enabled": true,
         "provider": "openrouter",
-        "api_key": "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",
-        "default_model": "qwen/qwen3-235b-a22b:free",
+        "api_key": "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",
+        "default_model": "google/gemini-2.0-flash-001:free",
         "fallback_models": [
-            "deepseek/deepseek-r1:free"
+            "anthropic/claude-3-5-haiku",
+            "meta-llama/llama-3.2-3b-instruct:free"
         ],
         "temperature": 0.25,
         "top_p": 0.85,

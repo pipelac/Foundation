@@ -113,6 +113,28 @@ class ItemRepository
     }
 
     /**
+     * Получает новость по ID
+     * 
+     * @param int $id ID новости
+     * @return array<string, mixed>|null Массив с данными новости или null
+     */
+    public function getById(int $id): ?array
+    {
+        try {
+            $sql = sprintf("SELECT * FROM %s WHERE id = ? LIMIT 1", self::TABLE_NAME);
+            $result = $this->db->query($sql, [$id]);
+            
+            return !empty($result) ? $result[0] : null;
+        } catch (\Exception $e) {
+            $this->logError('Ошибка получения новости по ID', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Получает новость по content_hash
      * 
      * @param string $contentHash Хеш контента
