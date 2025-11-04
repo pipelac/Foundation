@@ -402,19 +402,40 @@ class AIAnalysisService
      */
     private function parseAnalysisResponse(string $response): array
     {
+        // Удаляем reasoning теги (deepseek-r1 и другие reasoning модели)
+        $cleanedResponse = preg_replace('/<think>.*?<\/think>/s', '', $response);
+        $cleanedResponse = preg_replace('/<thinking>.*?<\/thinking>/s', '', $cleanedResponse ?? $response);
+        $cleanedResponse = $cleanedResponse ?? $response;
+        
         // Извлекаем JSON из ответа (может быть обернут в markdown блок)
         $jsonMatch = [];
-        if (preg_match('/```json\s*(\{.+?\})\s*```/s', $response, $jsonMatch)) {
+        
+        // 1. Проверяем markdown блок с json
+        if (preg_match('/```json\s*(\{.*\})\s*```/s', $cleanedResponse, $jsonMatch)) {
             $jsonString = $jsonMatch[1];
-        } elseif (preg_match('/(\{.+\})/s', $response, $jsonMatch)) {
+        }
+        // 2. Проверяем обычный markdown блок
+        elseif (preg_match('/```\s*(\{.*\})\s*```/s', $cleanedResponse, $jsonMatch)) {
             $jsonString = $jsonMatch[1];
-        } else {
-            $jsonString = $response;
+        }
+        // 3. Ищем JSON объект в тексте (жадно до последней })
+        elseif (preg_match('/\{.*\}/s', $cleanedResponse, $jsonMatch)) {
+            $jsonString = $jsonMatch[0];
+        }
+        // 4. Используем весь ответ как есть
+        else {
+            $jsonString = trim($cleanedResponse);
         }
 
         $data = json_decode($jsonString, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
+            // Логируем первые 500 символов для отладки
+            $preview = mb_substr($jsonString, 0, 500);
+            $this->logError('JSON parsing error', [
+                'error' => json_last_error_msg(),
+                'preview' => $preview,
+            ]);
             throw new \RuntimeException('Не удалось распарсить JSON ответ: ' . json_last_error_msg());
         }
 

@@ -58,7 +58,21 @@ class AIAnalysisRepository
     ): ?int {
         try {
             // Извлекаем основные поля из analysisData
-            $status = $analysisData['analysis_status'] ?? 'success';
+            $rawStatus = $analysisData['analysis_status'] ?? 'success';
+            
+            // Маппинг статусов из AI в ENUM БД
+            $statusMapping = [
+                'completed' => 'success',
+                'rejected' => 'failed',
+                'translation_issues' => 'success', // Успешный анализ, но с проблемами перевода
+                'success' => 'success',
+                'failed' => 'failed',
+                'pending' => 'pending',
+                'processing' => 'processing',
+            ];
+            
+            $status = $statusMapping[$rawStatus] ?? 'success';
+            
             $articleLanguage = $analysisData['article_language'] ?? null;
             $translationStatus = $analysisData['translation_status'] ?? null;
             $translationQualityScore = $analysisData['translation_quality']['overall_score'] ?? null;

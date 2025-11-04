@@ -1,617 +1,802 @@
 {
-  "feeds": [
-    {
-      "id": 1,
-      "url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
-      "title": "РИА Новости",
-      "language": "ru",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
+    "feeds": [
+        {
+            "id": 1,
+            "url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
+            "title": "РИА Новости",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 2,
+            "url": "https://www.vedomosti.ru/rss/rubric/technology.xml",
+            "title": "Ведомости - Технологии",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 3,
+            "url": "https://habr.com/ru/rss/hub/php/all/",
+            "title": "Habr - PHP",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 25,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 30,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 4,
+            "url": "https://tass.ru/rss/v2.xml",
+            "title": "ТАСС",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 5,
+            "url": "https://www.kommersant.ru/rss/main",
+            "title": "Коммерсантъ",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 6,
+            "url": "https://rg.ru/xml/index.xml",
+            "title": "Российская Газета",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 7,
+            "url": "https://arstechnica.com/ai/feed",
+            "title": "Ars Technica - AI",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 8,
+            "url": "https://techcrunch.com/startups/feed",
+            "title": "TechCrunch - Startups",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 9,
+            "url": "https://www.wired.com/feed/rss",
+            "title": "Wired",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 10,
+            "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+            "title": "BBC News - Technology",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 11,
+            "url": "https://www.theverge.com/rss/index.xml",
+            "title": "The Verge",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 12,
+            "url": "https://www.engadget.com/rss.xml",
+            "title": "Engadget",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 13,
+            "url": "https://www.lemonde.fr/sciences/rss_full.xml",
+            "title": "Le Monde - Sciences",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 14,
+            "url": "https://www.france24.com/fr/technology/rss",
+            "title": "France 24 - Technology",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 15,
+            "url": "https://www.numerama.com/feed/",
+            "title": "Numerama",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 16,
+            "url": "https://www.clubic.com/feed/",
+            "title": "Clubic",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 17,
+            "url": "https://www.01net.com/feed/",
+            "title": "01net",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 18,
+            "url": "https://www.nextinpact.com/rss/news.xml",
+            "title": "Next INpact",
+            "language": "fr",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 19,
+            "url": "https://www.heise.de/rss/heise-atom.xml",
+            "title": "Heise Online",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 20,
+            "url": "https://www.tagesschau.de/xml/rss2/",
+            "title": "Tagesschau",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 21,
+            "url": "https://www.golem.de/rss.php?feed=RSS2.0",
+            "title": "Golem.de",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 22,
+            "url": "https://www.pcwelt.de/feed",
+            "title": "PC-WELT",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 23,
+            "url": "https://www.computerbase.de/rss/news.xml",
+            "title": "ComputerBase",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 24,
+            "url": "https://rss.dw.com/xml/rss-de-all",
+            "title": "Deutsche Welle",
+            "language": "de",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 25,
+            "url": "https://www.chinadaily.com.cn/rss/world_rss.xml",
+            "title": "China Daily - World",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 26,
+            "url": "http://english.cri.cn/rss/news.xml",
+            "title": "China Radio International",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 27,
+            "url": "https://news.sina.com.cn/rss/topnews.xml",
+            "title": "Sina News",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 25,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 28,
+            "url": "https://www.scmp.com/rss/91/feed",
+            "title": "South China Morning Post - Tech",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 29,
+            "url": "https://www.globaltimes.cn/rss/outbrain.xml",
+            "title": "Global Times",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 30,
+            "url": "https://www.shine.cn/rss/tech.xml",
+            "title": "Shine - Tech",
+            "language": "zh",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-r1:free",
+                "google/gemini-2.5-flash-lite-preview-09-2025",
+                "qwen/qwen3-235b-a22b:free",
+                "qwen/qwen3-30b-a3b-thinking-2507",
+                "z-ai/glm-4.5-air:free"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 20,
+                "enable_cache": true
+            }
+        }
+    ],
+    "database": {
+        "host": "127.0.0.1",
+        "port": 3306,
+        "name": "rss2tlg",
+        "user": "rss2tlg_user",
+        "password": "rss2tlg_pass",
+        "charset": "utf8mb4"
     },
-    {
-      "id": 2,
-      "url": "https://www.vedomosti.ru/rss/rubric/technology.xml",
-      "title": "Ведомости - Технологии",
-      "language": "ru",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
+    "cache": {
+        "directory": "/home/engine/project/cache/rss",
+        "ttl": 3600,
+        "enabled": true
     },
-    {
-      "id": 3,
-      "url": "https://habr.com/ru/rss/hub/php/all/",
-      "title": "Habr - PHP",
-      "language": "ru",
-      "enabled": true,
-      "timeout": 25,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 30,
-        "enable_cache": true
-      }
+    "extraction": {
+        "enabled": true,
+        "timeout": 30,
+        "retries": 2
     },
-    {
-      "id": 4,
-      "url": "https://tass.ru/rss/v2.xml",
-      "title": "ТАСС",
-      "language": "ru",
+    "ai_analysis": {
       "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
+      "provider": "openrouter",
+      "api_key": "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",
+      "default_model": "qwen/qwen3-235b-a22b:free",
+      "fallback_models": [
+        "google/gemini-2.5-flash-lite-preview-09-2025",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-30b-a3b-thinking-2507",
+        "z-ai/glm-4.5-air:free"
+      ],
+      "cache_system_prompt": true,
+      "batch_delay_ms": 1500,
+      "importance_threshold": 10
     },
-    {
-      "id": 5,
-      "url": "https://www.kommersant.ru/rss/main",
-      "title": "Коммерсантъ",
-      "language": "ru",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
+    "telegram": {
+        "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+        "chat_id": "366442475",
+        "channel_id": "@kompasDaily",
+        "mode": "polling",
+        "notifications_enabled": true,
+        "publications_enabled": true
     },
-    {
-      "id": 6,
-      "url": "https://rg.ru/xml/index.xml",
-      "title": "Российская Газета",
-      "language": "ru",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 7,
-      "url": "https://arstechnica.com/ai/feed",
-      "title": "Ars Technica - AI",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 8,
-      "url": "https://techcrunch.com/startups/feed",
-      "title": "TechCrunch - Startups",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 9,
-      "url": "https://www.wired.com/feed/rss",
-      "title": "Wired",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 10,
-      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
-      "title": "BBC News - Technology",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 11,
-      "url": "https://www.theverge.com/rss/index.xml",
-      "title": "The Verge",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 12,
-      "url": "https://www.engadget.com/rss.xml",
-      "title": "Engadget",
-      "language": "en",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 13,
-      "url": "https://www.lemonde.fr/sciences/rss_full.xml",
-      "title": "Le Monde - Sciences",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 14,
-      "url": "https://www.france24.com/fr/technology/rss",
-      "title": "France 24 - Technology",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 15,
-      "url": "https://www.numerama.com/feed/",
-      "title": "Numerama",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 16,
-      "url": "https://www.clubic.com/feed/",
-      "title": "Clubic",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 17,
-      "url": "https://www.01net.com/feed/",
-      "title": "01net",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 18,
-      "url": "https://www.nextinpact.com/rss/news.xml",
-      "title": "Next INpact",
-      "language": "fr",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 19,
-      "url": "https://www.heise.de/rss/heise-atom.xml",
-      "title": "Heise Online",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 20,
-      "url": "https://www.tagesschau.de/xml/rss2/",
-      "title": "Tagesschau",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 21,
-      "url": "https://www.golem.de/rss.php?feed=RSS2.0",
-      "title": "Golem.de",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 22,
-      "url": "https://www.pcwelt.de/feed",
-      "title": "PC-WELT",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 23,
-      "url": "https://www.computerbase.de/rss/news.xml",
-      "title": "ComputerBase",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 24,
-      "url": "https://rss.dw.com/xml/rss-de-all",
-      "title": "Deutsche Welle",
-      "language": "de",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 25,
-      "url": "https://www.chinadaily.com.cn/rss/world_rss.xml",
-      "title": "China Daily - World",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 26,
-      "url": "http://english.cri.cn/rss/news.xml",
-      "title": "China Radio International",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 27,
-      "url": "https://news.sina.com.cn/rss/topnews.xml",
-      "title": "Sina News",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 25,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 28,
-      "url": "https://www.scmp.com/rss/91/feed",
-      "title": "South China Morning Post - Tech",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 29,
-      "url": "https://www.globaltimes.cn/rss/outbrain.xml",
-      "title": "Global Times",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
-    },
-    {
-      "id": 30,
-      "url": "https://www.shine.cn/rss/tech.xml",
-      "title": "Shine - Tech",
-      "language": "zh",
-      "enabled": true,
-      "timeout": 30,
-      "retries": 3,
-      "polling_interval": 300,
-      "prompt_id": "INoT_v1",
-      "ai_models": ["meta-llama/llama-3.2-3b-instruct:free"],
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
-      },
-      "parser_options": {
-        "max_items": 20,
-        "enable_cache": true
-      }
+    "logging": {
+        "directory": "/home/engine/project/logs",
+        "file_name": "rss2tlg_ai_v2.log",
+        "max_files": 10,
+        "max_file_size": 100,
+        "enabled": true
     }
-  ],
-  "database": {
-    "host": "127.0.0.1",
-    "port": 3306,
-    "name": "rss2tlg",
-    "user": "rss2tlg_user",
-    "password": "rss2tlg_pass",
-    "charset": "utf8mb4"
-  },
-  "cache": {
-    "directory": "/home/engine/project/cache/rss",
-    "ttl": 3600,
-    "enabled": true
-  },
-  "extraction": {
-    "enabled": true,
-    "timeout": 30,
-    "retries": 2
-  },
-  "ai_analysis": {
-    "enabled": true,
-    "provider": "openrouter",
-    "api_key": "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",
-    "default_model": "meta-llama/llama-3.2-3b-instruct:free",
-    "fallback_models": ["meta-llama/llama-3.2-1b-instruct:free", "google/gemini-flash-1.5-8b:free"],
-    "cache_system_prompt": true,
-    "batch_delay_ms": 1000,
-    "importance_threshold": 10
-  },
-  "telegram": {
-    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
-    "chat_id": "366442475",
-    "channel_id": "@kompasDaily",
-    "mode": "polling",
-    "notifications_enabled": true,
-    "publications_enabled": true
-  },
-  "logging": {
-    "directory": "/home/engine/project/logs",
-    "file_name": "rss2tlg_ai_v2.log",
-    "max_files": 10,
-    "max_file_size": 100,
-    "enabled": true
-  }
 }

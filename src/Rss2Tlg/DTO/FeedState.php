@@ -23,6 +23,7 @@ class FeedState
      * @param int $errorCount Счётчик последовательных ошибок
      * @param int|null $backoffUntil Unix timestamp до которого запросы заблокированы (backoff)
      * @param int $fetchedAt Unix timestamp последнего запроса
+     * @param string|null $lastError Текст последней ошибки (если была)
      */
     public function __construct(
         public readonly ?string $etag,
@@ -30,7 +31,8 @@ class FeedState
         public readonly int $lastStatus,
         public readonly int $errorCount,
         public readonly ?int $backoffUntil,
-        public readonly int $fetchedAt
+        public readonly int $fetchedAt,
+        public readonly ?string $lastError = null
     ) {
     }
 
@@ -65,7 +67,8 @@ class FeedState
             lastStatus: (int)($data['last_status'] ?? 0),
             errorCount: (int)($data['error_count'] ?? 0),
             backoffUntil: isset($data['backoff_until']) ? (int)$data['backoff_until'] : null,
-            fetchedAt: (int)($data['fetched_at'] ?? 0)
+            fetchedAt: (int)($data['fetched_at'] ?? 0),
+            lastError: isset($data['last_error']) ? (string)$data['last_error'] : null
         );
     }
 
@@ -85,7 +88,8 @@ class FeedState
             lastStatus: $statusCode,
             errorCount: 0, // Сбрасываем счётчик ошибок
             backoffUntil: null, // Снимаем блокировку
-            fetchedAt: time()
+            fetchedAt: time(),
+            lastError: null // Сбрасываем ошибку
         );
     }
 
@@ -93,10 +97,11 @@ class FeedState
      * Создаёт новое состояние с ошибкой запроса
      * 
      * @param int $statusCode HTTP статус код
+     * @param string|null $errorMessage Текст ошибки
      * @param int|null $backoffSeconds Количество секунд для backoff (если null - вычисляется автоматически)
      * @return self Новый экземпляр с увеличенным счётчиком ошибок
      */
-    public function withFailedFetch(int $statusCode, ?int $backoffSeconds = null): self
+    public function withFailedFetch(int $statusCode, ?string $errorMessage = null, ?int $backoffSeconds = null): self
     {
         $newErrorCount = $this->errorCount + 1;
         
@@ -110,7 +115,8 @@ class FeedState
             lastStatus: $statusCode,
             errorCount: $newErrorCount,
             backoffUntil: time() + $backoff,
-            fetchedAt: time()
+            fetchedAt: time(),
+            lastError: $errorMessage
         );
     }
 
@@ -156,6 +162,7 @@ class FeedState
             'error_count' => $this->errorCount,
             'backoff_until' => $this->backoffUntil,
             'fetched_at' => $this->fetchedAt,
+            'last_error' => $this->lastError,
         ];
     }
 }
