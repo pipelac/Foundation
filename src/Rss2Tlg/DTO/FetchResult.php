@@ -27,6 +27,40 @@ class FetchResult
         public readonly array $metrics = []
     ) {
     }
+    
+    /**
+     * Возвращает строковый статус результата
+     * 
+     * @return string Статус: 'success', 'not_modified', 'error'
+     */
+    public function getStatus(): string
+    {
+        if ($this->isNotModified()) {
+            return 'not_modified';
+        }
+        
+        if ($this->isError()) {
+            return 'error';
+        }
+        
+        return 'success';
+    }
+    
+    /**
+     * Магический метод для доступа к свойствам
+     * Поддержка обратной совместимости с устаревшими тестами
+     * 
+     * @param string $name Имя свойства
+     * @return mixed Значение свойства
+     */
+    public function __get(string $name): mixed
+    {
+        return match($name) {
+            'status' => $this->getStatus(),
+            'error' => $this->state->lastError,
+            default => null
+        };
+    }
 
     /**
      * Создаёт результат для успешного fetch с новыми элементами (200 OK)
