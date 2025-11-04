@@ -28,6 +28,8 @@ class AIAnalysisService
         'total_tokens' => 0,
         'total_time_ms' => 0,
         'cache_hits' => 0,
+        'model_attempts' => [],
+        'fallback_used' => 0,
     ];
 
     /**
@@ -51,6 +53,91 @@ class AIAnalysisService
         $this->openRouter = $openRouter;
         $this->db = $db;
         $this->logger = $logger;
+    }
+
+    /**
+     * Анализирует новость через AI с поддержкой fallback моделей
+     * 
+     * @param array<string, mixed> $item Данные новости из БД
+     * @param string $promptId ID промпта для анализа
+     * @param array<string>|null $models Список моделей в порядке приоритета (null = использовать из конфига)
+     * @param array<string, mixed> $options Дополнительные опции для API
+     * @return array<string, mixed>|null Результат анализа или null при ошибке
+     */
+    public function analyzeWithFallback(
+        array $item,
+        string $promptId,
+        ?array $models = null,
+        array $options = []
+    ): ?array {
+        // Если модели не указаны, используем значение по умолчанию
+        if ($models === null || empty($models)) {
+            $models = ['deepseek/deepseek-chat-v3.1:free'];
+        }
+
+        $lastError = null;
+        $attemptNumber = 0;
+
+        foreach ($models as $model) {
+            $attemptNumber++;
+            
+            $this->logDebug('Попытка анализа с моделью', [
+                'item_id' => $item['id'],
+                'model' => $model,
+                'attempt' => $attemptNumber,
+                'total_models' => count($models),
+            ]);
+
+            // Увеличиваем счетчик попыток для модели
+            if (!isset($this->metrics['model_attempts'][$model])) {
+                $this->metrics['model_attempts'][$model] = 0;
+            }
+            $this->metrics['model_attempts'][$model]++;
+
+            try {
+                $result = $this->analyze($item, $promptId, $model, $options);
+                
+                if ($result !== null) {
+                    if ($attemptNumber > 1) {
+                        $this->metrics['fallback_used']++;
+                        $this->logDebug('Fallback успешен', [
+                            'item_id' => $item['id'],
+                            'successful_model' => $model,
+                            'attempt' => $attemptNumber,
+                        ]);
+                    }
+                    return $result;
+                }
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                $this->logError('Ошибка при анализе с моделью', [
+                    'item_id' => $item['id'],
+                    'model' => $model,
+                    'attempt' => $attemptNumber,
+                    'error' => $lastError,
+                ]);
+
+                // Если это не последняя модель, пробуем следующую
+                if ($attemptNumber < count($models)) {
+                    $retryDelayMs = $options['retry_delay_ms'] ?? 1000;
+                    $this->logDebug('Переход к следующей модели', [
+                        'next_model' => $models[$attemptNumber] ?? 'unknown',
+                        'delay_ms' => $retryDelayMs,
+                    ]);
+                    usleep($retryDelayMs * 1000);
+                    continue;
+                }
+            }
+        }
+
+        // Все модели не сработали
+        $this->logError('Все модели не смогли проанализировать новость', [
+            'item_id' => $item['id'],
+            'models_tried' => $models,
+            'last_error' => $lastError,
+        ]);
+
+        return null;
     }
 
     /**
@@ -250,6 +337,8 @@ class AIAnalysisService
             'total_tokens' => 0,
             'total_time_ms' => 0,
             'cache_hits' => 0,
+            'model_attempts' => [],
+            'fallback_used' => 0,
         ];
     }
 

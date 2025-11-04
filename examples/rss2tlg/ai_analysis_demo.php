@@ -31,9 +31,11 @@ $configPath = __DIR__ . '/../../config/rss2tlg_stress_test.json';
 $promptsDir = __DIR__ . '/../../prompts';
 $logFile = __DIR__ . '/../../logs/ai_analysis_demo.log';
 
-// Модель для анализа (можно выбрать из: deepseek/deepseek-chat, qwen/qwen-2.5-72b-instruct)
-$aiModel = 'deepseek/deepseek-chat';
+// Промпт для анализа
 $promptId = 'INoT_v1';
+
+// Модели для анализа (с fallback) - будут браться из конфига, но можно переопределить
+$aiModels = null; // null = использовать из конфига
 
 // ============================================================================
 // ИНИЦИАЛИЗАЦИЯ КОМПОНЕНТОВ
@@ -105,6 +107,28 @@ if (!$promptManager->hasPrompt($promptId)) {
 echo "\n✓ Используемый промпт: {$promptId}\n\n";
 
 // ============================================================================
+// ЗАГРУЗКА КОНФИГУРАЦИИ AI-АНАЛИЗА
+// ============================================================================
+
+echo "=== Конфигурация AI-анализа ===\n";
+
+// Получаем модели из конфига (с fallback по умолчанию)
+if ($aiModels === null && isset($config['ai_analysis']['models'])) {
+    $aiModels = $config['ai_analysis']['models'];
+}
+
+// Если модели все еще не указаны, используем значение по умолчанию
+if ($aiModels === null || empty($aiModels)) {
+    $aiModels = ['deepseek/deepseek-chat-v3.1:free'];
+}
+
+echo "Модели для анализа (в порядке приоритета):\n";
+foreach ($aiModels as $index => $model) {
+    echo "  " . ($index + 1) . ". {$model}\n";
+}
+echo "\n";
+
+// ============================================================================
 // ПОЛУЧЕНИЕ НОВОСТЕЙ ДЛЯ АНАЛИЗА
 // ============================================================================
 
@@ -134,13 +158,13 @@ foreach ($pendingItems as $index => $item) {
     
     echo "--- Новость #{$itemId} (Feed #{$feedId}) ---\n";
     echo "Заголовок: " . mb_substr($title, 0, 80) . "...\n";
-    echo "Модель: {$aiModel}\n";
+    echo "Модели: " . implode(', ', $aiModels) . "\n";
     echo "Промпт: {$promptId}\n\n";
     
     $startTime = microtime(true);
     
-    // Выполняем анализ
-    $analysis = $analysisService->analyze($item, $promptId, $aiModel);
+    // Выполняем анализ с fallback
+    $analysis = $analysisService->analyzeWithFallback($item, $promptId, $aiModels);
     
     $processingTime = round((microtime(true) - $startTime) * 1000);
     
@@ -188,7 +212,16 @@ echo "  - Успешно: {$serviceMetrics['successful']}\n";
 echo "  - Ошибки: {$serviceMetrics['failed']}\n";
 echo "  - Всего токенов: {$serviceMetrics['total_tokens']}\n";
 echo "  - Среднее время: " . round($serviceMetrics['total_time_ms'] / max(1, $serviceMetrics['total_analyzed'])) . " мс\n";
-echo "  - Cache hits: {$serviceMetrics['cache_hits']}\n\n";
+echo "  - Cache hits: {$serviceMetrics['cache_hits']}\n";
+echo "  - Fallback использований: {$serviceMetrics['fallback_used']}\n";
+
+if (!empty($serviceMetrics['model_attempts'])) {
+    echo "  - Попытки по моделям:\n";
+    foreach ($serviceMetrics['model_attempts'] as $model => $attempts) {
+        echo "    * {$model}: {$attempts}\n";
+    }
+}
+echo "\n";
 
 $repoStats = $analysisRepository->getStats();
 echo "Репозиторий анализов:\n";
