@@ -298,6 +298,7 @@ foreach ($pendingItems as $index => $item) {
             echo "  • Категория: {$analysis['category_primary']}\n";
             echo "  • Важность: {$analysis['importance_rating']}/20\n";
             echo "  • Язык: {$analysis['article_language']}\n";
+            echo "  • Статус перевода: {$analysis['translation_status']}\n";
             
             // Получаем сохраненные метрики из БД
             $savedAnalysis = $analysisRepository->getByItemId($itemId);
@@ -306,35 +307,116 @@ foreach ($pendingItems as $index => $item) {
                 $tokensUsed = (int)($savedAnalysis['tokens_used'] ?? 0);
                 $processingTimeMs = (int)($savedAnalysis['processing_time_ms'] ?? $analysisDuration);
                 $modelUsed = $savedAnalysis['model_used'] ?? $config['ai_analysis']['default_model'];
+                $cacheHit = (bool)($savedAnalysis['cache_hit'] ?? false);
+                $translationQualityScore = $savedAnalysis['translation_quality_score'] ?? null;
                 
                 echo "  • Токенов использовано: {$tokensUsed}\n";
                 echo "  • Время обработки: {$processingTimeMs} мс\n";
+                echo "  • Кеш использован: " . ($cacheHit ? "Да" : "Нет") . "\n";
                 
-                // Сохраняем реальные метрики
+                if ($translationQualityScore !== null) {
+                    echo "  • Качество перевода: {$translationQualityScore}/100\n";
+                }
+                
+                // Получаем метрики API из последнего запроса
+                $apiMetrics = $aiAnalysisService->getLastApiMetrics();
+                
+                // Извлекаем данные о токенах из API ответа или БД
+                $promptTokens = 0;
+                $completionTokens = 0;
+                $cachedTokens = 0;
+                
+                if ($apiMetrics !== null && isset($apiMetrics['usage'])) {
+                    $usage = $apiMetrics['usage'];
+                    $promptTokens = (int)($usage['prompt_tokens'] ?? 0);
+                    $completionTokens = (int)($usage['completion_tokens'] ?? 0);
+                    $cachedTokens = (int)($usage['cached_tokens'] ?? 0);
+                    
+                    if ($promptTokens > 0 || $completionTokens > 0) {
+                        echo "  • Промпт токенов: {$promptTokens}\n";
+                        echo "  • Ответ токенов: {$completionTokens}\n";
+                        if ($cachedTokens > 0) {
+                            echo "  • Кешированных токенов: {$cachedTokens}\n";
+                        }
+                    }
+                } else {
+                    // Используем примерную оценку на основе total_tokens
+                    $promptTokens = (int)($tokensUsed * 0.7);
+                    $completionTokens = (int)($tokensUsed * 0.3);
+                }
+                
+                // Вычисляем стоимость для платных моделей
+                $promptCost = 0.0;
+                $completionCost = 0.0;
+                $totalCost = 0.0;
+                
+                // Тарифы для используемых моделей (в USD за 1M токенов)
+                // ПРИМЕЧАНИЕ: Указанные модели (deepseek/deepseek-chat-v3.1 и Qwen) ПЛАТНЫЕ!
+                // Текущий тест использует бесплатные модели для демонстрации работы метрик
+                $modelPricing = [
+                    // Целевые платные модели (указаны в требованиях)
+                    'deepseek/deepseek-chat-v3.1' => ['prompt' => 0.14, 'completion' => 0.28],
+                    'qwen/qwen3-235b-a22b-thinking-2507' => ['prompt' => 1.00, 'completion' => 5.00],
+                    'qwen/qwen3-30b-a3b-thinking-2507' => ['prompt' => 0.50, 'completion' => 2.50],
+                    // Бесплатные модели для тестирования (API ключ недоступен)
+                    'google/gemini-2.0-flash-001:free' => ['prompt' => 0.0, 'completion' => 0.0],
+                    'meta-llama/llama-3.2-3b-instruct:free' => ['prompt' => 0.0, 'completion' => 0.0],
+                    'qwen/qwen-2.5-7b-instruct:free' => ['prompt' => 0.0, 'completion' => 0.0],
+                ];
+                
+                if (isset($modelPricing[$modelUsed])) {
+                    $pricing = $modelPricing[$modelUsed];
+                    $promptCost = ($promptTokens / 1000000) * $pricing['prompt'];
+                    $completionCost = ($completionTokens / 1000000) * $pricing['completion'];
+                    $totalCost = $promptCost + $completionCost;
+                    
+                    echo "  • Стоимость промпта: $" . number_format($promptCost, 6) . "\n";
+                    echo "  • Стоимость ответа: $" . number_format($completionCost, 6) . "\n";
+                    echo "  • Общая стоимость: $" . number_format($totalCost, 6) . "\n";
+                }
+                
+                // Метрики перевода из analysis_data
+                if (!empty($savedAnalysis['analysis_data'])) {
+                    $analysisData = is_string($savedAnalysis['analysis_data']) 
+                        ? json_decode($savedAnalysis['analysis_data'], true) 
+                        : $savedAnalysis['analysis_data'];
+                    
+                    if (isset($analysisData['translation_quality'])) {
+                        $translationQuality = $analysisData['translation_quality'];
+                        echo "  • Метрики перевода:\n";
+                        echo "    - Точность: " . ($translationQuality['accuracy_score'] ?? 'N/A') . "/100\n";
+                        echo "    - Читаемость: " . ($translationQuality['readability_score'] ?? 'N/A') . "/100\n";
+                        echo "    - Полнота: " . ($translationQuality['completeness_score'] ?? 'N/A') . "/100\n";
+                        echo "    - Общий балл: " . ($translationQuality['overall_score'] ?? 'N/A') . "/100\n";
+                    }
+                }
+                
+                // Сохраняем полные метрики для отчета
                 $aiRequestMetrics[] = [
                     'model_used' => $modelUsed,
                     'tokens' => [
-                        'prompt_tokens' => (int)($tokensUsed * 0.7), // Примерная оценка
-                        'completion_tokens' => (int)($tokensUsed * 0.3),
+                        'prompt_tokens' => $promptTokens,
+                        'completion_tokens' => $completionTokens,
                         'total_tokens' => $tokensUsed,
-                        'cached_tokens' => 0,
+                        'cached_tokens' => $cachedTokens,
                     ],
                     'cost' => [
-                        'prompt_cost' => 0.0,
-                        'completion_cost' => 0.0,
-                        'total_cost' => 0.0,
+                        'prompt_cost' => $promptCost,
+                        'completion_cost' => $completionCost,
+                        'total_cost' => $totalCost,
                     ],
                     'cache' => [
-                        'hit_rate' => 0.0,
-                        'hits' => 0,
-                        'misses' => 0,
-                        'calculated_hit_rate' => 0.0,
+                        'hit_rate' => $cachedTokens > 0 ? round(($cachedTokens / $tokensUsed) * 100, 2) : 0.0,
+                        'hits' => $cacheHit ? 1 : 0,
+                        'misses' => $cacheHit ? 0 : 1,
+                        'calculated_hit_rate' => $cachedTokens > 0 ? round(($cachedTokens / $tokensUsed) * 100, 2) : 0.0,
                     ],
                     'timing' => [
                         'queue_time_ms' => 0,
                         'processing_time_ms' => $processingTimeMs,
                     ],
-                    'generation_id' => null,
+                    'generation_id' => $apiMetrics['id'] ?? null,
+                    'translation_quality_score' => $translationQualityScore,
                 ];
             }
         } else {

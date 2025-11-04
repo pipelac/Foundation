@@ -106,6 +106,54 @@ class OpenRouter
     }
 
     /**
+     * Отправляет текстовый запрос и получает полный ответ с метриками (text2textWithMetrics)
+     *
+     * @param string $model Модель ИИ для использования
+     * @param string $prompt Текстовый запрос для модели
+     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @return array<string, mixed> Полный ответ с метриками:
+     *                              - content (string): Текстовый ответ
+     *                              - usage (array): Информация об использованных токенах
+     *                              - model (string): Использованная модель
+     *                              - id (string): ID генерации
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
+     */
+    public function text2textWithMetrics(string $model, string $prompt, array $options = []): array
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($prompt, 'prompt');
+
+        $messages = [
+            ['role' => 'user', 'content' => $prompt],
+        ];
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
+        }
+
+        return [
+            'content' => (string)$response['choices'][0]['message']['content'],
+            'usage' => $response['usage'] ?? [
+                'prompt_tokens' => 0,
+                'completion_tokens' => 0,
+                'total_tokens' => 0,
+            ],
+            'model' => $response['model'] ?? $model,
+            'id' => $response['id'] ?? null,
+            'created' => $response['created'] ?? null,
+        ];
+    }
+
+    /**
      * Генерирует изображение на основе текстового описания (text2image)
      *
      * @param string $model Модель генерации изображений (например, "google/gemini-2.5-flash-image")
