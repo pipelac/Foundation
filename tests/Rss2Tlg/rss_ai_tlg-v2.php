@@ -124,7 +124,7 @@ $openRouterConfig = [
     'api_key' => $config['ai_analysis']['api_key'],
     'base_url' => 'https://openrouter.ai/api/v1',
     'default_model' => $config['ai_analysis']['default_model'],
-    'timeout' => 60,
+    'timeout' => $config['ai_analysis']['timeout'] ?? 180,
 ];
 $openRouter = new OpenRouter($openRouterConfig, $logger);
 
@@ -284,6 +284,16 @@ if (!empty($config['ai_analysis']['fallback_models'])) {
     $aiModels = array_merge($aiModels, $config['ai_analysis']['fallback_models']);
 }
 
+// Опции для AI анализа из конфигурации
+$aiOptions = [
+    'temperature' => $config['ai_analysis']['temperature'] ?? 0.25,
+    'top_p' => $config['ai_analysis']['top_p'] ?? 0.85,
+    'frequency_penalty' => $config['ai_analysis']['frequency_penalty'] ?? 0.15,
+    'presence_penalty' => $config['ai_analysis']['presence_penalty'] ?? 0.10,
+    'max_tokens' => $config['ai_analysis']['max_tokens'] ?? 3000,
+    'min_tokens' => $config['ai_analysis']['min_tokens'] ?? 400,
+];
+
 $progressCounter = 0;
 $progressInterval = 50; // Уведомление каждые 50 новостей
 
@@ -292,7 +302,7 @@ foreach ($pendingItems as $index => $item) {
     
     echo "Анализ #{$itemId}: " . mb_substr($item['title'], 0, 60) . "...\n";
     
-    $analysis = $aiAnalysisService->analyzeWithFallback($item, $promptId, $aiModels);
+    $analysis = $aiAnalysisService->analyzeWithFallback($item, $promptId, $aiModels, $aiOptions);
     
     if ($analysis !== null) {
         $testStats['stage2_analyzed']++;
