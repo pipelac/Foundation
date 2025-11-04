@@ -8,6 +8,8 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "ai_models": null,
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)",
         "Accept": "application/rss+xml, application/atom+xml, application/xml"
@@ -26,6 +28,11 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
+      "ai_models": [
+        "deepseek/deepseek-chat-v3.1:free",
+        "qwen/qwen3-235b-a22b:free"
+      ],
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
       },
@@ -43,6 +50,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
       },
@@ -464,5 +472,18 @@
   "logging": {
     "level": "info",
     "file": "logs/rss2tlg_stress_test.log"
+  },
+  "ai_analysis": {
+    "enabled": true,
+    "models": [
+      "deepseek/deepseek-chat-v3.1:free",
+      "qwen/qwen3-235b-a22b:free",
+      "z-ai/glm-4.5-air:free",
+      "deepseek/deepseek-r1-0528-qwen3-8b:free",
+      "deepseek/deepseek-r1-0528:free"
+    ],
+    "timeout": 60,
+    "retries": 2,
+    "retry_delay_ms": 1000
   }
 }

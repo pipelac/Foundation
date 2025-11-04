@@ -1,0 +1,495 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Rss2Tlg;
+
+use App\Component\Logger;
+use App\Component\MySQL;
+use App\Component\OpenRouter;
+
+/**
+ * Сервис для AI-анализа новостей через OpenRouter API
+ * 
+ * Обрабатывает новости через LLM модели (DeepSeek, Qwen) с поддержкой кеширования.
+ */
+class AIAnalysisService
+{
+    private PromptManager $promptManager;
+    private AIAnalysisRepository $repository;
+    private OpenRouter $openRouter;
+    private MySQL $db;
+    private ?Logger $logger;
+    
+    private array $metrics = [
+        'total_analyzed' => 0,
+        'successful' => 0,
+        'failed' => 0,
+        'total_tokens' => 0,
+        'total_time_ms' => 0,
+        'cache_hits' => 0,
+        'model_attempts' => [],
+        'fallback_used' => 0,
+    ];
+
+    /**
+     * Конструктор сервиса AI-анализа
+     * 
+     * @param PromptManager $promptManager Менеджер промптов
+     * @param AIAnalysisRepository $repository Репозиторий для сохранения результатов
+     * @param OpenRouter $openRouter Клиент OpenRouter API
+     * @param MySQL $db Подключение к БД
+     * @param Logger|null $logger Логгер для отладки
+     */
+    public function __construct(
+        PromptManager $promptManager,
+        AIAnalysisRepository $repository,
+        OpenRouter $openRouter,
+        MySQL $db,
+        ?Logger $logger = null
+    ) {
+        $this->promptManager = $promptManager;
+        $this->repository = $repository;
+        $this->openRouter = $openRouter;
+        $this->db = $db;
+        $this->logger = $logger;
+    }
+
+    /**
+     * Анализирует новость через AI с поддержкой fallback моделей
+     * 
+     * @param array<string, mixed> $item Данные новости из БД
+     * @param string $promptId ID промпта для анализа
+     * @param array<string>|null $models Список моделей в порядке приоритета (null = использовать из конфига)
+     * @param array<string, mixed> $options Дополнительные опции для API
+     * @return array<string, mixed>|null Результат анализа или null при ошибке
+     */
+    public function analyzeWithFallback(
+        array $item,
+        string $promptId,
+        ?array $models = null,
+        array $options = []
+    ): ?array {
+        // Если модели не указаны, используем значение по умолчанию
+        if ($models === null || empty($models)) {
+            $models = ['deepseek/deepseek-chat-v3.1:free'];
+        }
+
+        $lastError = null;
+        $attemptNumber = 0;
+
+        foreach ($models as $model) {
+            $attemptNumber++;
+            
+            $this->logDebug('Попытка анализа с моделью', [
+                'item_id' => $item['id'],
+                'model' => $model,
+                'attempt' => $attemptNumber,
+                'total_models' => count($models),
+            ]);
+
+            // Увеличиваем счетчик попыток для модели
+            if (!isset($this->metrics['model_attempts'][$model])) {
+                $this->metrics['model_attempts'][$model] = 0;
+            }
+            $this->metrics['model_attempts'][$model]++;
+
+            try {
+                $result = $this->analyze($item, $promptId, $model, $options);
+                
+                if ($result !== null) {
+                    if ($attemptNumber > 1) {
+                        $this->metrics['fallback_used']++;
+                        $this->logDebug('Fallback успешен', [
+                            'item_id' => $item['id'],
+                            'successful_model' => $model,
+                            'attempt' => $attemptNumber,
+                        ]);
+                    }
+                    return $result;
+                }
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                $this->logError('Ошибка при анализе с моделью', [
+                    'item_id' => $item['id'],
+                    'model' => $model,
+                    'attempt' => $attemptNumber,
+                    'error' => $lastError,
+                ]);
+
+                // Если это не последняя модель, пробуем следующую
+                if ($attemptNumber < count($models)) {
+                    $retryDelayMs = $options['retry_delay_ms'] ?? 1000;
+                    $this->logDebug('Переход к следующей модели', [
+                        'next_model' => $models[$attemptNumber] ?? 'unknown',
+                        'delay_ms' => $retryDelayMs,
+                    ]);
+                    usleep($retryDelayMs * 1000);
+                    continue;
+                }
+            }
+        }
+
+        // Все модели не сработали
+        $this->logError('Все модели не смогли проанализировать новость', [
+            'item_id' => $item['id'],
+            'models_tried' => $models,
+            'last_error' => $lastError,
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Анализирует новость через AI
+     * 
+     * @param array<string, mixed> $item Данные новости из БД
+     * @param string $promptId ID промпта для анализа
+     * @param string $model Модель AI (например, 'deepseek/deepseek-chat')
+     * @param array<string, mixed> $options Дополнительные опции для API
+     * @return array<string, mixed>|null Результат анализа или null при ошибке
+     */
+    public function analyze(
+        array $item,
+        string $promptId,
+        string $model = 'deepseek/deepseek-chat',
+        array $options = []
+    ): ?array {
+        $startTime = microtime(true);
+        $this->metrics['total_analyzed']++;
+
+        try {
+            // Проверяем, не анализировалась ли уже эта новость
+            if ($this->repository->exists((int)$item['id'])) {
+                $this->logDebug('Новость уже проанализирована', ['item_id' => $item['id']]);
+                return $this->repository->getByItemId((int)$item['id']);
+            }
+
+            // Получаем эффективный контент новости
+            $itemRepository = new ItemRepository(
+                $this->db,
+                $this->logger,
+                false
+            );
+            $effectiveContent = $itemRepository->getEffectiveContent($item);
+
+            // Определяем язык статьи
+            $articleLanguage = $this->detectLanguage($item['title'] ?? '', $effectiveContent);
+
+            // Загружаем системный промпт (будет кешироваться на стороне API)
+            $systemPrompt = $this->promptManager->getSystemPrompt($promptId);
+
+            // Формируем динамическое сообщение пользователя
+            $userMessage = $this->promptManager->buildUserMessage(
+                $item['title'] ?? '',
+                $effectiveContent,
+                $articleLanguage
+            );
+
+            $this->logDebug('Отправка запроса к AI', [
+                'item_id' => $item['id'],
+                'prompt_id' => $promptId,
+                'model' => $model,
+                'article_language' => $articleLanguage,
+                'content_length' => strlen($effectiveContent),
+            ]);
+
+            // Формируем messages для OpenRouter
+            $messages = [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $userMessage],
+            ];
+
+            // Добавляем опции для кеширования и качества
+            $apiOptions = array_merge([
+                'messages' => $messages,
+                'temperature' => 0.3,
+                'max_tokens' => 2000,
+            ], $options);
+
+            // Отправляем запрос к OpenRouter
+            $response = $this->sendRequestToOpenRouter($model, $apiOptions);
+
+            if ($response === null) {
+                throw new \RuntimeException('OpenRouter вернул пустой ответ');
+            }
+
+            // Парсим JSON ответ от модели
+            $analysisData = $this->parseAnalysisResponse($response);
+
+            // Вычисляем метрики
+            $processingTimeMs = (int)((microtime(true) - $startTime) * 1000);
+            $tokensUsed = $this->extractTokensUsed($response);
+            $cacheHit = $this->wasCacheHit($response);
+
+            // Сохраняем результат
+            $analysisId = $this->repository->save(
+                (int)$item['id'],
+                (int)$item['feed_id'],
+                $promptId,
+                $analysisData,
+                $model,
+                $tokensUsed,
+                $processingTimeMs,
+                $cacheHit
+            );
+
+            // Обновляем метрики
+            $this->metrics['successful']++;
+            $this->metrics['total_tokens'] += $tokensUsed ?? 0;
+            $this->metrics['total_time_ms'] += $processingTimeMs;
+            if ($cacheHit) {
+                $this->metrics['cache_hits']++;
+            }
+
+            $this->logDebug('Анализ выполнен успешно', [
+                'analysis_id' => $analysisId,
+                'item_id' => $item['id'],
+                'importance_rating' => $analysisData['importance']['rating'] ?? null,
+                'processing_time_ms' => $processingTimeMs,
+                'tokens_used' => $tokensUsed,
+                'cache_hit' => $cacheHit,
+            ]);
+
+            return $this->repository->getByItemId((int)$item['id']);
+
+        } catch (\Exception $e) {
+            $this->metrics['failed']++;
+
+            $errorMessage = $e->getMessage();
+            $this->logError('Ошибка анализа новости', [
+                'item_id' => $item['id'],
+                'prompt_id' => $promptId,
+                'error' => $errorMessage,
+            ]);
+
+            // Сохраняем ошибку
+            $this->repository->saveError(
+                (int)$item['id'],
+                (int)$item['feed_id'],
+                $promptId,
+                $errorMessage
+            );
+
+            return null;
+        }
+    }
+
+    /**
+     * Пакетный анализ новостей
+     * 
+     * @param array<int, array<string, mixed>> $items Массив новостей
+     * @param string $promptId ID промпта
+     * @param string $model Модель AI
+     * @param array<string, mixed> $options Опции API
+     * @return array<string, mixed> Результаты анализа
+     */
+    public function analyzeBatch(
+        array $items,
+        string $promptId,
+        string $model = 'deepseek/deepseek-chat',
+        array $options = []
+    ): array {
+        $results = [
+            'total' => count($items),
+            'successful' => 0,
+            'failed' => 0,
+            'analyses' => [],
+        ];
+
+        foreach ($items as $item) {
+            $analysis = $this->analyze($item, $promptId, $model, $options);
+            
+            if ($analysis !== null) {
+                $results['successful']++;
+                $results['analyses'][] = $analysis;
+            } else {
+                $results['failed']++;
+            }
+
+            // Задержка между запросами для кеширования (5 мин = 300 сек)
+            // Небольшая задержка чтобы не превысить rate limits
+            usleep(100000); // 100ms между запросами
+        }
+
+        return $results;
+    }
+
+    /**
+     * Получает метрики работы сервиса
+     * 
+     * @return array<string, mixed> Метрики
+     */
+    public function getMetrics(): array
+    {
+        return $this->metrics;
+    }
+
+    /**
+     * Сбрасывает метрики
+     */
+    public function resetMetrics(): void
+    {
+        $this->metrics = [
+            'total_analyzed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'total_tokens' => 0,
+            'total_time_ms' => 0,
+            'cache_hits' => 0,
+            'model_attempts' => [],
+            'fallback_used' => 0,
+        ];
+    }
+
+    /**
+     * Отправляет запрос к OpenRouter API
+     * 
+     * @param string $model Модель AI
+     * @param array<string, mixed> $options Опции запроса
+     * @return string|null Ответ API или null
+     */
+    private function sendRequestToOpenRouter(string $model, array $options): ?string
+    {
+        try {
+            // Используем метод text2text с messages
+            $messages = $options['messages'] ?? [];
+            unset($options['messages']);
+
+            // Формируем промпт из messages
+            $prompt = $this->formatMessagesForPrompt($messages);
+
+            return $this->openRouter->text2text($model, $prompt, $options);
+        } catch (\Exception $e) {
+            $this->logError('Ошибка запроса к OpenRouter', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Форматирует массив messages в единый промпт
+     * 
+     * @param array<int, array<string, string>> $messages Массив сообщений
+     * @return string Отформатированный промпт
+     */
+    private function formatMessagesForPrompt(array $messages): string
+    {
+        $parts = [];
+        
+        foreach ($messages as $message) {
+            $role = $message['role'] ?? 'user';
+            $content = $message['content'] ?? '';
+            
+            if ($role === 'system') {
+                $parts[] = "=== SYSTEM PROMPT (CACHEABLE) ===\n{$content}";
+            } elseif ($role === 'user') {
+                $parts[] = "=== USER INPUT ===\n{$content}";
+            }
+        }
+
+        return implode("\n\n", $parts);
+    }
+
+    /**
+     * Парсит ответ от AI
+     * 
+     * @param string $response Ответ от модели
+     * @return array<string, mixed> Распарсенные данные
+     * @throws \RuntimeException Если не удалось распарсить JSON
+     */
+    private function parseAnalysisResponse(string $response): array
+    {
+        // Извлекаем JSON из ответа (может быть обернут в markdown блок)
+        $jsonMatch = [];
+        if (preg_match('/```json\s*(\{.+?\})\s*```/s', $response, $jsonMatch)) {
+            $jsonString = $jsonMatch[1];
+        } elseif (preg_match('/(\{.+\})/s', $response, $jsonMatch)) {
+            $jsonString = $jsonMatch[1];
+        } else {
+            $jsonString = $response;
+        }
+
+        $data = json_decode($jsonString, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Не удалось распарсить JSON ответ: ' . json_last_error_msg());
+        }
+
+        return $data;
+    }
+
+    /**
+     * Извлекает количество использованных токенов из ответа
+     * 
+     * @param string $response Ответ API
+     * @return int|null Количество токенов или null
+     */
+    private function extractTokensUsed(string $response): ?int
+    {
+        // OpenRouter может возвращать метаданные о токенах
+        // Пока возвращаем примерную оценку на основе длины
+        return (int)(strlen($response) / 4);
+    }
+
+    /**
+     * Проверяет, был ли использован кеш
+     * 
+     * @param string $response Ответ API
+     * @return bool true если кеш был использован
+     */
+    private function wasCacheHit(string $response): bool
+    {
+        // Логика определения cache hit зависит от реализации API
+        // Для DeepSeek/Qwen кеширование прозрачно
+        // Можем считать, что кеш работает для всех запросов после первого
+        return false; // Placeholder
+    }
+
+    /**
+     * Определяет язык статьи
+     * 
+     * @param string $title Заголовок
+     * @param string $content Контент
+     * @return string Код языка (en, ru, и т.д.)
+     */
+    private function detectLanguage(string $title, string $content): string
+    {
+        $text = $title . ' ' . substr($content, 0, 500);
+        
+        // Простая эвристика: проверяем наличие кириллицы
+        if (preg_match('/[\x{0400}-\x{04FF}]/u', $text)) {
+            return 'ru';
+        }
+        
+        return 'en';
+    }
+
+    /**
+     * Логирует отладочную информацию
+     * 
+     * @param string $message Сообщение
+     * @param array<string, mixed> $context Контекст
+     */
+    private function logDebug(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->debug($message, $context);
+        }
+    }
+
+    /**
+     * Логирует ошибку
+     * 
+     * @param string $message Сообщение об ошибке
+     * @param array<string, mixed> $context Контекст
+     */
+    private function logError(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->error($message, $context);
+        }
+    }
+}
