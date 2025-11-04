@@ -201,10 +201,15 @@ class AIAnalysisService
             ];
 
             // Добавляем опции для кеширования и качества
+            // Параметры по умолчанию, могут быть переопределены через $options
             $apiOptions = array_merge([
                 'messages' => $messages,
-                'temperature' => 0.3,
-                'max_tokens' => 2000,
+                'temperature' => 0.25,
+                'top_p' => 0.85,
+                'frequency_penalty' => 0.15,
+                'presence_penalty' => 0.10,
+                'max_tokens' => 3000,
+                'min_tokens' => 400,
             ], $options);
 
             // Отправляем запрос к OpenRouter
