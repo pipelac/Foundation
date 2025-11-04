@@ -11,13 +11,11 @@ use App\Rss2Tlg\DTO\RawItem;
 /**
  * Репозиторий для работы с новостями из RSS/Atom источников в БД
  * 
- * Управляет хранением и дедупликацией новостей по content_hash и Simhash.
+ * Управляет хранением и дедупликацией новостей по content_hash.
  */
 class ItemRepository
 {
     private const TABLE_NAME = 'rss2tlg_items';
-
-    private ?SimhashService $simhashService = null;
 
     /**
      * Конструктор репозитория
@@ -37,30 +35,13 @@ class ItemRepository
     }
 
     /**
-     * Устанавливает сервис Simhash для дедупликации
-     * 
-     * @param SimhashService $simhashService Сервис Simhash
-     */
-    public function setSimhashService(SimhashService $simhashService): void
-    {
-        $this->simhashService = $simhashService;
-    }
-
-    /**
-     * Сохраняет новость в БД с проверкой Simhash дедупликации
+     * Сохраняет новость в БД с проверкой дедупликации по content_hash
      * 
      * @param int $feedId Идентификатор источника
      * @param RawItem $item Новость для сохранения
-     * @param int $deduplicationHours За сколько часов проверять дубликаты (0 = отключено)
-     * @param int $similarityThreshold Порог схожести Хэмминга (0-64)
      * @return int|null ID сохраненной записи или null при ошибке
      */
-    public function save(
-        int $feedId, 
-        RawItem $item, 
-        int $deduplicationHours = 48, 
-        int $similarityThreshold = 3
-    ): ?int {
+    public function save(int $feedId, RawItem $item): ?int {
         try {
             // Проверяем, существует ли новость с таким content_hash
             $existing = $this->getByContentHash($item->contentHash);
@@ -70,43 +51,6 @@ class ItemRepository
                     'existing_id' => $existing['id'],
                 ]);
                 return (int)$existing['id'];
-            }
-
-            // Вычисляем Simhash если сервис подключен
-            $simhash = null;
-            $isDuplicate = 0;
-            $duplicateOfId = null;
-            $hammingDistance = null;
-
-            if ($this->simhashService !== null && $deduplicationHours > 0) {
-                // Формируем текст для Simhash: title + content
-                $textForHash = ($item->title ?? '') . ' ' . ($item->content ?? $item->summary ?? '');
-                $simhash = $this->simhashService->calculate($textForHash);
-
-                $this->logDebug('Simhash вычислен', [
-                    'simhash' => $simhash,
-                    'text_length' => strlen($textForHash),
-                ]);
-
-                // Ищем похожие новости
-                $similar = $this->simhashService->findSimilar(
-                    $simhash, 
-                    $deduplicationHours, 
-                    $similarityThreshold
-                );
-
-                if ($similar !== null) {
-                    $isDuplicate = 1;
-                    $duplicateOfId = (int)$similar['id'];
-                    $hammingDistance = $similar['hamming_distance'];
-
-                    $this->logDebug('Обнаружен дубликат новости', [
-                        'original_id' => $duplicateOfId,
-                        'original_title' => $similar['title'],
-                        'hamming_distance' => $hammingDistance,
-                        'threshold' => $similarityThreshold,
-                    ]);
-                }
             }
 
             // Экранируем данные
@@ -123,20 +67,14 @@ class ItemRepository
             $categories = !empty($item->categories) ? $this->db->escape(json_encode($item->categories)) : 'NULL';
             $enclosures = $item->enclosure !== null ? $this->db->escape(json_encode($item->enclosure)) : 'NULL';
 
-            $simhashValue = $simhash !== null ? $this->db->escape($simhash) : 'NULL';
-            $duplicateOfIdValue = $duplicateOfId !== null ? $duplicateOfId : 'NULL';
-            $hammingDistanceValue = $hammingDistance !== null ? $hammingDistance : 'NULL';
-
             $sql = sprintf(
                 "INSERT INTO %s (
                     feed_id, content_hash, guid, title, link, description, 
                     content, pub_date, author, categories, enclosures,
-                    simhash, is_duplicate, duplicate_of_id, hamming_distance,
                     is_published, created_at, updated_at
                 ) VALUES (
                     %d, %s, %s, %s, %s, %s, 
                     %s, %s, %s, %s, %s,
-                    %s, %d, %s, %s,
                     0, NOW(), NOW()
                 )",
                 self::TABLE_NAME,
@@ -150,11 +88,7 @@ class ItemRepository
                 $pubDate,
                 $author,
                 $categories,
-                $enclosures,
-                $simhashValue,
-                $isDuplicate,
-                $duplicateOfIdValue,
-                $hammingDistanceValue
+                $enclosures
             );
 
             $this->db->execute($sql);
@@ -165,9 +99,6 @@ class ItemRepository
                 'id' => $insertId,
                 'feed_id' => $feedId,
                 'content_hash' => $item->contentHash,
-                'simhash' => $simhash,
-                'is_duplicate' => $isDuplicate,
-                'duplicate_of_id' => $duplicateOfId,
             ]);
 
             return $insertId;
@@ -470,9 +401,7 @@ class ItemRepository
                     SUM(CASE WHEN extraction_status = 'pending' THEN 1 ELSE 0 END) as extraction_pending,
                     SUM(CASE WHEN extraction_status = 'success' THEN 1 ELSE 0 END) as extraction_success,
                     SUM(CASE WHEN extraction_status = 'failed' THEN 1 ELSE 0 END) as extraction_failed,
-                    SUM(CASE WHEN extraction_status = 'skipped' THEN 1 ELSE 0 END) as extraction_skipped,
-                    SUM(CASE WHEN is_duplicate = 1 THEN 1 ELSE 0 END) as duplicates,
-                    SUM(CASE WHEN simhash IS NOT NULL AND simhash != '0' THEN 1 ELSE 0 END) as with_simhash
+                    SUM(CASE WHEN extraction_status = 'skipped' THEN 1 ELSE 0 END) as extraction_skipped
                 FROM %s",
                 self::TABLE_NAME
             );
@@ -481,44 +410,6 @@ class ItemRepository
             return $result ?? [];
         } catch (\Exception $e) {
             $this->logError('Ошибка получения статистики', [
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
-    }
-
-    /**
-     * Получает все дубликаты для отчета
-     * 
-     * @return array<int, array<string, mixed>> Массив дубликатов с информацией об оригинале
-     */
-    public function getDuplicates(): array
-    {
-        try {
-            $sql = sprintf(
-                "SELECT 
-                    d.id as duplicate_id,
-                    d.title as duplicate_title,
-                    d.feed_id as duplicate_feed_id,
-                    d.simhash as duplicate_simhash,
-                    d.hamming_distance,
-                    d.created_at as duplicate_created_at,
-                    o.id as original_id,
-                    o.title as original_title,
-                    o.feed_id as original_feed_id,
-                    o.simhash as original_simhash,
-                    o.created_at as original_created_at
-                FROM %s d
-                LEFT JOIN %s o ON d.duplicate_of_id = o.id
-                WHERE d.is_duplicate = 1
-                ORDER BY d.created_at DESC",
-                self::TABLE_NAME,
-                self::TABLE_NAME
-            );
-            
-            return $this->db->query($sql);
-        } catch (\Exception $e) {
-            $this->logError('Ошибка получения дубликатов', [
                 'error' => $e->getMessage(),
             ]);
             return [];
@@ -590,12 +481,6 @@ class ItemRepository
                     `extraction_error` TEXT NULL DEFAULT NULL COMMENT 'Сообщение об ошибке при извлечении',
                     `extracted_at` DATETIME NULL DEFAULT NULL COMMENT 'Дата и время извлечения контента',
                     
-                    -- Поля для Simhash дедупликации
-                    `simhash` VARCHAR(64) NULL DEFAULT NULL COMMENT 'Simhash значение для дедупликации',
-                    `is_duplicate` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Флаг дубликата',
-                    `duplicate_of_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'ID оригинальной новости',
-                    `hamming_distance` INT NULL DEFAULT NULL COMMENT 'Расстояние Хэмминга до оригинала',
-                    
                     `is_published` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Флаг публикации в Telegram',
                     
                     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания записи',
@@ -607,12 +492,9 @@ class ItemRepository
                     KEY `idx_is_published` (`is_published`),
                     KEY `idx_pub_date` (`pub_date`),
                     KEY `idx_feed_published` (`feed_id`, `is_published`),
-                    KEY `idx_extraction_status` (`extraction_status`),
-                    KEY `idx_simhash` (`simhash`),
-                    KEY `idx_is_duplicate` (`is_duplicate`),
-                    KEY `idx_duplicate_of_id` (`duplicate_of_id`)
+                    KEY `idx_extraction_status` (`extraction_status`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                COMMENT='Новости из RSS/Atom источников с извлеченным контентом и Simhash дедупликацией'";
+                COMMENT='Новости из RSS/Atom источников с извлеченным контентом'";
 
                 $this->db->execute($sql);
 
