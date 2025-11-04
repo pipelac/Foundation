@@ -8,6 +8,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)",
         "Accept": "application/rss+xml, application/atom+xml, application/xml"
@@ -26,6 +27,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
       },
@@ -43,6 +45,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
+      "prompt_id": "INoT_v1",
       "headers": {
         "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/1.0)"
       },
