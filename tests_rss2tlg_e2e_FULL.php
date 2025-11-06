@@ -45,7 +45,7 @@ $stats = ['feeds' => 0, 'items' => 0, 'ai' => 0, 'telegram' => 0, 'errors' => []
 $config = json_decode(file_get_contents(__DIR__ . '/Config/rss2tlg_e2e_test.json'), true);
 
 // ПРАВИЛЬНЫЙ API ключ из задания!
-$config['openrouter']['api_key'] = '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';
+$config['openrouter']['api_key'] = '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';
 
 echo "═══ ЭТАП 1: Инициализация ═══\n\n";
 
@@ -192,15 +192,11 @@ try {
     
     echo "✅ AI компоненты инициализированы\n\n";
     
-    $aiModels = [
-        'qwen/qwen3-235b-a22b:free',  // Недоступна (для теста fallback)
-        'qwen/qwen3-30b-a3b-thinking-2507',  // Доступна
-        'deepseek/deepseek-v3.2-exp'  // Запасная
-    ];
+    $aiModels = $config['openrouter']['models']; // Используем модели из конфига
     
     echo "🤖 Модели для fallback теста:\n";
     foreach ($aiModels as $idx => $model) {
-        echo "   " . ($idx + 1) . ". $model\n";
+        echo "   " . ($idx + 1) . ". {$model}\n";
     }
     echo "\n";
     

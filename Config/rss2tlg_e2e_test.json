@@ -24,11 +24,13 @@
     "mode": "polling"
   },
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "models": [
+      "deepseek/deepseek-r1:free",
+      "qwen/qwen3-235b-a22b:free",
+      "deepseek/deepseek-v3.2-exp",
       "qwen/qwen3-30b-a3b-thinking-2507",
-      "qwen/qwen3-235b-a22b-thinking-2507",
-      "deepseek/deepseek-v3.2-exp"
+      "qwen/qwen3-235b-a22b-thinking-2507"
     ],
     "timeout": 60,
     "max_retries": 2
@@ -46,9 +48,11 @@
       "polling_interval": 300,
       "promptId": 1,
       "aiModels": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-v3.2-exp",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen/qwen3-235b-a22b-thinking-2507",
-        "deepseek/deepseek-v3.2-exp"
+        "qwen/qwen3-235b-a22b-thinking-2507"
       ]
     },
     {
@@ -63,9 +67,11 @@
       "polling_interval": 300,
       "promptId": 1,
       "aiModels": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-v3.2-exp",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen/qwen3-235b-a22b-thinking-2507",
-        "deepseek/deepseek-v3.2-exp"
+        "qwen/qwen3-235b-a22b-thinking-2507"
       ]
     },
     {
@@ -80,9 +86,11 @@
       "polling_interval": 300,
       "promptId": 1,
       "aiModels": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-v3.2-exp",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen/qwen3-235b-a22b-thinking-2507",
-        "deepseek/deepseek-v3.2-exp"
+        "qwen/qwen3-235b-a22b-thinking-2507"
       ]
     },
     {
@@ -97,9 +105,11 @@
       "polling_interval": 300,
       "promptId": 2,
       "aiModels": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-v3.2-exp",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen/qwen3-235b-a22b-thinking-2507",
-        "deepseek/deepseek-v3.2-exp"
+        "qwen/qwen3-235b-a22b-thinking-2507"
       ]
     },
     {
@@ -114,9 +124,11 @@
       "polling_interval": 300,
       "promptId": 2,
       "aiModels": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-v3.2-exp",
         "qwen/qwen3-30b-a3b-thinking-2507",
-        "qwen/qwen3-235b-a22b-thinking-2507",
-        "deepseek/deepseek-v3.2-exp"
+        "qwen/qwen3-235b-a22b-thinking-2507"
       ]
     }
   ]
