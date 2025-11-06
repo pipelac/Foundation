@@ -122,7 +122,7 @@
         "batch_size": 10
     },
     "openrouter": {
-        "api_key": "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",
+        "api_key": "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",
         "base_url": "https://openrouter.ai/api/v1",
         "timeout": 180,
         "temperature": 0.25,
