@@ -64,8 +64,8 @@ class ItemRepository
                 'content' => $item->content,
                 'pub_date' => $item->pubDate !== null ? date('Y-m-d H:i:s', $item->pubDate) : null,
                 'author' => !empty($item->authors) ? $item->authors[0] : null,
-                'categories' => !empty($item->categories) ? json_encode($item->categories) : null,
-                'enclosures' => $item->enclosure !== null ? json_encode($item->enclosure) : null,
+                'categories' => !empty($item->categories) ? json_encode($item->categories, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+                'enclosures' => $item->enclosure !== null ? json_encode($item->enclosure, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
                 'is_published' => 0,
             ];
 
