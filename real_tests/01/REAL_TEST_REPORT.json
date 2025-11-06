@@ -1,290 +1,34 @@
 {
-    "start_time": 1762417505.827716,
+    "start_time": 1762427529.362752,
     "stages": {
         "fetch": {
-            "start_time": 1762417506.635889,
-            "end_time": 1762417528.457826,
-            "duration": 21.82,
+            "start_time": 1762427529.96772,
+            "end_time": 1762427543.941126,
+            "duration": 13.97,
             "feeds_processed": 30,
-            "successful_feeds": 20,
-            "total_items": 481,
-            "errors": 10
+            "successful_feeds": 19,
+            "total_items": 441,
+            "errors": 11
         },
         "process": {
-            "start_time": 1762417528.934296,
-            "end_time": 1762417697.958794,
-            "duration": 169.02,
+            "start_time": 1762427544.270682,
+            "end_time": 1762427552.337714,
+            "duration": 8.07,
             "items_processed": 10,
             "content_extracted": 10,
-            "ai_analyzed": 10,
-            "failed": 0
+            "ai_analyzed": 0,
+            "failed": 10
         },
         "publish": {
-            "start_time": 1762417698.686243,
-            "end_time": 1762417710.302512,
-            "duration": 11.62,
-            "items_analyzed": 7,
-            "published": 7
+            "start_time": 1762427552.738022,
+            "end_time": 1762427552.739536,
+            "duration": 0,
+            "items_analyzed": 0,
+            "published": 0
         }
     },
-    "ai_requests": [
-        {
-            "item_id": 2454,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4161,
-            "processing_time_ms": 21616.06,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Government\",\n    \"confidence\": \"low\",\n    \"secondary\": [\"Finance\"]\n  },\n  \"content\": {\n    \"headline\": \"Управляющий нацбанком в российском регионе оказался в суде\",\n    \"summary\": \"Статья содержит только заголовок без текстового содержания. Заголовок сообщает о судебном разбирательстве, в котором оказался управляющий национальным банком в одном из российских регионов. Причина суда связана с родственником банкира. Без дополнительной информации невозможно оценить детали и значимость события.\",\n    \"keywords\": [\"нацбанк\", \"управляющий\", \"суд\", \"российский регион\", \"родственник\"]\n  },\n  \"importance\": {\n    \"rating\": 1,\n    \"justification\": \"Недостаточная информация для оценки - статья содержит только заголовок без содержания, что делает невозможным объективную оценку масштаба и последствий события\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"управляющий нацбанком\", \"российский регион\"],\n    \"core_event\": \"Управляющий национальным банком в российском регионе оказался в суде из-за родственника\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": [\"банк\", \"суд\", \"родственник\", \"регион\", \"управляющий\"],\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 1,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": false,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": true\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3669,
-                    "completion_tokens": 492,
-                    "total_tokens": 4161
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417530-grmeGzsiKD1kpkncW58x",
-                "created": 1762417530
-            }
-        },
-        {
-            "item_id": 383,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4405,
-            "processing_time_ms": 22028.87,
-            "cache_hit": false,
-            "translation_quality": 9,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"completed\",\n  \"article_language\": \"en\",\n  \"translation_status\": \"translated\",\n  \"translation_quality\": {\n    \"overall_score\": 9,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Government\",\n    \"confidence\": \"high\",\n    \"secondary\": [\"Business\", \"Regulation\"]\n  },\n  \"content\": {\n    \"headline\": \"Министерство коммерции Китая провело круглый стол с иностранными компаниями в Шанхае\",\n    \"summary\": \"5 ноября в Шанхае заместитель министра коммерции Китая Лин Цзи провел круглый стол с иностранными компанией в рамках 8-й Китайской международной импортной выставки. В мероприятии приняли участие представители более 30 иностранных компаний и торговых ассоциаций, включая Alfa Laval, ArcelorMittal, Merck, Intel, Air Products, Nissan, Lego и China-Britain Business Council. Представители Госсовета, Государственного налогового управления и Управления по делам миграции провели разъяснение политики и ответили на вопросы иностранных компаний.\",\n    \"keywords\": [\"иностранные инвестиции\", \"круглый стол\", \"Шанхай\", \"импортная выставка\", \"политика\"]\n  },\n  \"importance\": {\n    \"rating\": 6,\n    \"justification\": \"Умеренное событие локального значения, затрагивающее ограниченный круг иностранных инвесторов в Китае, без значительных отраслевых последствий\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"Министерство коммерции Китая\", \"Лин Цзи\", \"Alfa Laval\", \"ArcelorMittal\", \"Merck\", \"Intel\", \"Nissan\", \"Lego\"],\n    \"core_event\": \"5 ноября 2023 года в Шанхае проведен круглый стол с участием 30+ иностранных компаний для обсуждения политических вопросов\",\n    \"numeric_facts\": [\"5 ноября\", \"30+ компаний\", \"8-я выставка\"],\n    \"semantic_fingerprint\": [\"круглый стол\", \"иностранные компании\", \"политическое разъяснение\", \"Шанхай\", \"импортная выставка\"],\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 3,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": true,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": false,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3758,
-                    "completion_tokens": 647,
-                    "total_tokens": 4405
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417551-oakgMJP8mRzo9EmCoj2r",
-                "created": 1762417552
-            }
-        },
-        {
-            "item_id": 2455,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 3803,
-            "processing_time_ms": 3689.01,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": null,\n  \"content\": null,\n  \"importance\": null,\n  \"deduplication\": null,\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": false,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": false\n  }\n}",
-                "usage": {
-                    "prompt_tokens": 3665,
-                    "completion_tokens": 138,
-                    "total_tokens": 3803,
-                    "prompt_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417574-NikSJITZoHxctvG7M6r4",
-                "created": 1762417574
-            }
-        },
-        {
-            "item_id": 2456,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4124,
-            "processing_time_ms": 19236.91,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Government\",\n    \"confidence\": \"low\",\n    \"secondary\": []\n  },\n  \"content\": {\n    \"headline\": \"Алиев принял делегацию НАТО\",\n    \"summary\": \"Президент Азербайджана Ильхам Алиев провёл встречу с делегацией НАТО. Детали встречи и обсуждаемые вопросы в статье не раскрываются.\",\n    \"keywords\": [\"Алиев\", \"НАТО\", \"делегация\", \"встреча\", \"Азербайджан\"]\n  },\n  \"importance\": {\n    \"rating\": 3,\n    \"justification\": \"Рутинное дипломатическое событие без конкретных деталей о результатах или последствиях, представляет собой стандартный протокольный визит\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"Ильхам Алиев\", \"НАТО\", \"Азербайджан\"],\n    \"core_event\": \"Президент Азербайджана Ильхам Алиев провёл встречу с делегацией НАТО\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": \"дипломатическая_встреча, президент, международная_организация, протокольное_событие\",\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 2,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": true,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3656,
-                    "completion_tokens": 468,
-                    "total_tokens": 4124
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417579-OISnfkj9a3D2zbC7fRZE",
-                "created": 1762417579
-            }
-        },
-        {
-            "item_id": 2457,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4156,
-            "processing_time_ms": 17649.57,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Transportation\",\n    \"confidence\": \"low\",\n    \"secondary\": [\"Healthcare\"]\n  },\n  \"content\": {\n    \"headline\": \"Раскрыта возможная причина массовой рвоты на российском теплоходе\",\n    \"summary\": \"Статья сообщает о расследовании инцидента с массовой рвотой пассажиров на борту российского теплохода. Точные детали причины не указаны в предоставленном тексте.\",\n    \"keywords\": [\"теплоход\", \"пассажиры\", \"массовая рвота\", \"расследование\", \"Россия\"]\n  },\n  \"importance\": {\n    \"rating\": 3,\n    \"justification\": \"Рейтинг основан на отсутствии конкретного содержания в предоставленном тексте; событие может иметь локальное значение для пассажиров и оператора судна, но без деталей невозможно оценить реальный масштаб воздействия.\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"российский теплоход\"],\n    \"core_event\": \"Расследуется инцидент с массовой рвотой пассажиров на борту судна.\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": [\"морской_транспорт\", \"инцидент_со_здоровьем\", \"расследование\", \"пассажиры\", \"Россия\"],\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 3,\n      \"urgency\": \"medium\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": false,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": true\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3669,
-                    "completion_tokens": 487,
-                    "total_tokens": 4156,
-                    "prompt_tokens_details": null,
-                    "completion_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417599-nHbGykvCfDmQvFUrvzYl",
-                "created": 1762417599
-            }
-        },
-        {
-            "item_id": 183,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4421,
-            "processing_time_ms": 14282.98,
-            "cache_hit": false,
-            "translation_quality": 9,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"completed\",\n  \"article_language\": \"en\",\n  \"translation_status\": \"translated\",\n  \"translation_quality\": {\n    \"overall_score\": 9,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Healthcare\",\n    \"confidence\": \"high\",\n    \"secondary\": [\"Technology\", \"Science\"]\n  },\n  \"content\": {\n    \"headline\": \"Исследование: смартфоны могут обнаруживать ранние признаки психических расстройств\",\n    \"summary\": \"Современная психиатрия испытывает трудности с объективным измерением сложности человеческого опыта. Новое исследование показывает, что данные поведенческой активности, постоянно записываемые смартфонами, могут восполнить этот пробел. Цифровые следы, используемые рекламодателями и компаниями, могут быть применены для более благородных целей - понимания связи между колебаниями цифрового поведения и внутренним психическим равновесием. Это открывает возможности для раннего обнаружения признаков психических расстройств через анализ данных смартфонов.\",\n    \"keywords\": [\"смартфоны\", \"психические расстройства\", \"поведенческие данные\", \"ранняя диагностика\", \"цифровые следы\"]\n  },\n  \"importance\": {\n    \"rating\": 7,\n    \"justification\": \"Исследование представляет новый метод диагностики психических расстройств с потенциальным влиянием на медицинскую практику и технологические компании, но требует дальнейшей валидации и внедрения\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"смартфоны\", \"психиатрия\", \"поведенческие данные\"],\n    \"core_event\": \"Исследование показывает возможность использования данных смартфонов для обнаружения ранних признаков психических расстройств через анализ поведенческих паттернов\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": [\"исследование\", \"смартфоны\", \"психические расстройства\", \"раннее обнаружение\", \"поведенческие данные\", \"диагностика\", \"цифровые следы\"],\n    \"impact_vector\": {\n      \"scope\": \"industry\",\n      \"severity\": 6,\n      \"urgency\": \"medium\",\n      \"affected_stakeholders_count\": \"millions\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": true,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3808,
-                    "completion_tokens": 613,
-                    "total_tokens": 4421,
-                    "prompt_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417616-fk7kHPx3adMzwwCGWEBf",
-                "created": 1762417616
-            }
-        },
-        {
-            "item_id": 2458,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4160,
-            "processing_time_ms": 17103.87,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Education\",\n    \"confidence\": \"high\",\n    \"secondary\": [\"Government\"]\n  },\n  \"content\": {\n    \"headline\": \"Родители обвинили российскую школу в проведении сатанинского обряда с детьми\",\n    \"summary\": \"Родители учащихся обвинили российскую школу в организации сатанинского обряда с участием их детей. Конкретные детали инцидента и название школы в предоставленном тексте отсутствуют. Ситуация требует дополнительной проверки и уточнения фактов.\",\n    \"keywords\": [\"школа\", \"родители\", \"сатанинский обряд\", \"дети\", \"российское образование\"]\n  },\n  \"importance\": {\n    \"rating\": 1,\n    \"justification\": \"Статья содержит только заголовок без текстового содержания, что делает невозможным объективную оценку важности события. Отсутствуют конкретные факты, даты, названия и детали инцидента.\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"российская школа\", \"родители учащихся\", \"дети\"],\n    \"core_event\": \"Родители обвинили школу в проведении сатанинского обряда с участием детей\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": \"образование, скандал, религиозный конфликт, родительский протест, школа\",\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 1,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": false,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": true\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3669,
-                    "completion_tokens": 491,
-                    "total_tokens": 4160
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417631-coPZJCF78M2eegWHTPZH",
-                "created": 1762417631
-            }
-        },
-        {
-            "item_id": 2653,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4121,
-            "processing_time_ms": 22485.01,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Technology\",\n    \"confidence\": \"low\",\n    \"secondary\": [\"Business\"]\n  },\n  \"content\": {\n    \"headline\": \"GlobalProtect для удаленных сотрудников в Тайланде\",\n    \"summary\": \"Статья упоминает использование GlobalProtect для удаленных сотрудников, работающих в Тайланде. Текст представляет собой краткое введение без детального содержания.\",\n    \"keywords\": [\"GlobalProtect\", \"удаленные сотрудники\", \"Тайланд\", \"безопасность\", \"VPN\"]\n  },\n  \"importance\": {\n    \"rating\": 1,\n    \"justification\": \"Текст представляет собой заголовок и краткое введение без фактического содержания, что соответствует уровню спама или некорректных данных\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"GlobalProtect\"],\n    \"core_event\": \"Упоминание использования GlobalProtect для удаленных сотрудников в Тайланде без конкретных деталей\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": [\"teaser_content\", \"remote_work\", \"vpn_security\", \"thailand_location\", \"incomplete_article\"],\n    \"impact_vector\": {\n      \"scope\": \"personal\",\n      \"severity\": 1,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": true,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3689,
-                    "completion_tokens": 432,
-                    "total_tokens": 4121,
-                    "prompt_tokens_details": null,
-                    "completion_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417649-cysLADBPIs0YrAYhN0Vn",
-                "created": 1762417649
-            }
-        },
-        {
-            "item_id": 2654,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4472,
-            "processing_time_ms": 13054.11,
-            "cache_hit": false,
-            "translation_quality": 9,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"completed\",\n  \"article_language\": \"en\",\n  \"translation_status\": \"translated\",\n  \"translation_quality\": {\n    \"overall_score\": 9,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Entertainment\",\n    \"confidence\": \"high\",\n    \"secondary\": [\"Media\", \"Education\"]\n  },\n  \"content\": {\n    \"headline\": \"Зал Славы видеоигр России: сохранение цифрового наследия индустрии\",\n    \"summary\": \"В 2023 году создан Зал Славы видеоигровой индустрии России для сохранения цифрового наследия и чествования создателей игр. Проект направлен на популяризацию российских игровых проектов и сохранение истории отечественного геймдева. Зал Славы отдает дань уважения энтузиастам, инженерам и художникам, внесшим вклад в развитие индустрии. Статья обсуждает роль видеоигр для России и механизм работы Зала Славы.\",\n    \"keywords\": [\"Зал Славы\", \"видеоигры\", \"геймдев\", \"Россия\", \"цифровое наследие\"]\n  },\n  \"importance\": {\n    \"rating\": 4,\n    \"justification\": \"Локальное культурное мероприятие узкой направленности, представляющее интерес преимущественно для энтузиастов и специалистов игровой индустрии России\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"Зал Славы видеоигровой индустрии России\"],\n    \"core_event\": \"Создание в 2023 году Зала Славы видеоигровой индустрии России для сохранения цифрового наследия и чествования создателей игр\",\n    \"numeric_facts\": [\"2023\"],\n    \"semantic_fingerprint\": [\"российский геймдев\", \"сохранение наследия\", \"чествование создателей\", \"популяризация проектов\", \"история индустрии\"],\n    \"impact_vector\": {\n      \"scope\": \"local\",\n      \"severity\": 2,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"thousands\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": true,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": false,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3870,
-                    "completion_tokens": 602,
-                    "total_tokens": 4472,
-                    "prompt_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417672-OqNgYlUMvXo4KJr1gvt8",
-                "created": 1762417672
-            }
-        },
-        {
-            "item_id": 2459,
-            "model": "deepseek\/deepseek-chat-v3.1",
-            "tokens_used": 4094,
-            "processing_time_ms": 11893.85,
-            "cache_hit": false,
-            "translation_quality": 10,
-            "api_metrics": {
-                "content": "```json\n{\n  \"analysis_status\": \"rejected\",\n  \"article_language\": \"ru\",\n  \"translation_status\": \"original\",\n  \"translation_quality\": {\n    \"overall_score\": 10,\n    \"issues\": null\n  },\n  \"category\": {\n    \"primary\": \"Media\",\n    \"confidence\": \"low\",\n    \"secondary\": [\"Entertainment\"]\n  },\n  \"content\": {\n    \"headline\": \"Отсутствует текст статьи для анализа\",\n    \"summary\": \"Не предоставлен текст статьи для анализа. Заголовок указывает на светскую хронику или развлекательный контент, но без содержания невозможно провести содержательный анализ.\",\n    \"keywords\": [\"отсутствует текст\", \"светская хроника\", \"развлечения\", \"миллиардер\", \"топлес\"]\n  },\n  \"importance\": {\n    \"rating\": 1,\n    \"justification\": \"Невозможно оценить важность без содержания статьи; заголовок предполагает развлекательный контент без существенного воздействия\"\n  },\n  \"deduplication\": {\n    \"canonical_entities\": [\"неизвестный российский миллиардер\", \"бывшая избранница\"],\n    \"core_event\": \"Неизвестное событие из-за отсутствия текста статьи\",\n    \"numeric_facts\": [],\n    \"semantic_fingerprint\": \"отсутствие контента, светская хроника, развлечения, знаменитости\",\n    \"impact_vector\": {\n      \"scope\": \"personal\",\n      \"severity\": 1,\n      \"urgency\": \"low\",\n      \"affected_stakeholders_count\": \"tens\"\n    }\n  },\n  \"quality_flags\": {\n    \"direct_speech_preserved\": false,\n    \"numeric_data_intact\": false,\n    \"translation_issues_exist\": false,\n    \"requires_source_link\": true,\n    \"potential_sensitivity\": false\n  }\n}\n```",
-                "usage": {
-                    "prompt_tokens": 3662,
-                    "completion_tokens": 432,
-                    "total_tokens": 4094,
-                    "prompt_tokens_details": null
-                },
-                "model": "deepseek\/deepseek-chat-v3.1",
-                "id": "gen-1762417686-Ios7OvgqI9p7NbiwfbrS",
-                "created": 1762417686
-            }
-        }
-    ],
-    "publications": [
-        {
-            "item_id": 2654,
-            "title": "Зал Славы видеоигр России: сохранение цифрового наследия индустрии",
-            "category": "Entertainment",
-            "importance": 4,
-            "bot_message_id": 1788,
-            "channel_message_id": 423
-        },
-        {
-            "item_id": 183,
-            "title": "Исследование: смартфоны могут обнаруживать ранние признаки психических расстройств",
-            "category": "Healthcare",
-            "importance": 7,
-            "bot_message_id": 1789,
-            "channel_message_id": 424
-        },
-        {
-            "item_id": 383,
-            "title": "Министерство коммерции Китая провело круглый стол с иностранными компаниями в Шанхае",
-            "category": "Government",
-            "importance": 6,
-            "bot_message_id": 1790,
-            "channel_message_id": 425
-        },
-        {
-            "item_id": 333,
-            "title": "FlyOOBE выпустил версию 1.51 с исправлением ошибок для помощника установки Windows 11",
-            "category": "Technology",
-            "importance": 3,
-            "bot_message_id": 1791,
-            "channel_message_id": 426
-        },
-        {
-            "item_id": 293,
-            "title": "Ограбление Лувра: музей годами использовал \"Louvre\" как пароль",
-            "category": "Media",
-            "importance": 6,
-            "bot_message_id": 1792,
-            "channel_message_id": 427
-        },
-        {
-            "item_id": 2652,
-            "title": "Эмуляция микроконтроллеров Sunplus с ядром 6502 из тетрисов Apollo 90-х",
-            "category": "Technology",
-            "importance": 4,
-            "bot_message_id": 1793,
-            "channel_message_id": 428
-        },
-        {
-            "item_id": 2433,
-            "title": "ИИ Doubao стал ассистентом в Пекинском университете для обучения программированию",
-            "category": "Education",
-            "importance": 6,
-            "bot_message_id": 1794,
-            "channel_message_id": 429
-        }
-    ],
+    "ai_requests": [],
+    "publications": [],
     "errors": [
         "Feed 7 error: ",
         "Feed 8 error: ",
@@ -292,11 +36,12 @@
         "Feed 10 error: ",
         "Feed 12 error: ",
         "Feed 15 error: ",
+        "Feed 16 error: ",
         "Feed 24 error: ",
         "Feed 26 error: ",
         "Feed 27 error: ",
         "Feed 30 error: "
     ],
-    "total_time": 204.48,
-    "end_time": 1762417710.303098
+    "total_time": 23.38,
+    "end_time": 1762427552.739545
 }

@@ -69,7 +69,7 @@ class ItemRepository
 
             $sql = sprintf(
                 "INSERT INTO %s (
-                    feed_id, content_hash, guid, title, link, description, 
+                    feed_id, content_hash, guid, title, link, summary, 
                     content, pub_date, author, categories, enclosures,
                     is_published, created_at, updated_at
                 ) VALUES (
