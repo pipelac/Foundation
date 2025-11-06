@@ -25,6 +25,8 @@ class FeedConfig
      * @param array<string, string> $headers Дополнительные HTTP заголовки (User-Agent, Accept и т.д.)
      * @param array<string, mixed> $parserOptions Опции парсера (max_items, enable_cache и т.д.)
      * @param string|null $proxy Настройки прокси (опционально, формат: "http://host:port")
+     * @param string|null $promptId ID промпта для AI анализа (опционально)
+     * @param array<string> $aiModels Список AI моделей для анализа (опционально)
      */
     public function __construct(
         public readonly int $id,
@@ -38,7 +40,9 @@ class FeedConfig
         public readonly int $pollingInterval = 300,
         public readonly array $headers = [],
         public readonly array $parserOptions = [],
-        public readonly ?string $proxy = null
+        public readonly ?string $proxy = null,
+        public readonly ?string $promptId = null,
+        public readonly array $aiModels = []
     ) {
     }
 
@@ -65,7 +69,9 @@ class FeedConfig
             pollingInterval: (int)($data['polling_interval'] ?? 300),
             headers: (array)($data['headers'] ?? []),
             parserOptions: (array)($data['parser_options'] ?? []),
-            proxy: isset($data['proxy']) ? (string)$data['proxy'] : null
+            proxy: isset($data['proxy']) ? (string)$data['proxy'] : null,
+            promptId: isset($data['prompt_id']) ? (string)$data['prompt_id'] : null,
+            aiModels: (array)($data['ai_models'] ?? [])
         );
     }
 
@@ -117,6 +123,8 @@ class FeedConfig
             'headers' => $this->headers,
             'parser_options' => $this->parserOptions,
             'proxy' => $this->proxy,
+            'prompt_id' => $this->promptId,
+            'ai_models' => $this->aiModels,
         ];
     }
 }
