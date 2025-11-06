@@ -1,0 +1,153 @@
+{
+    "feeds": [
+        {
+            "id": 1,
+            "url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
+            "title": "РИА Новости",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-chat-v3.1"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 5,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 2,
+            "url": "https://www.vedomosti.ru/rss/rubric/technology.xml",
+            "title": "Ведомости - Технологии",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-chat-v3.1"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 5,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 3,
+            "url": "http://lenta.ru/rss/top7",
+            "title": "Лента.ру - Топ 7",
+            "language": "ru",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-chat-v3.1"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 5,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 4,
+            "url": "https://arstechnica.com/ai/feed",
+            "title": "ArsTechnica - AI",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-chat-v3.1"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 5,
+                "enable_cache": true
+            }
+        },
+        {
+            "id": 5,
+            "url": "https://techcrunch.com/startups/feed",
+            "title": "TechCrunch - Startups",
+            "language": "en",
+            "enabled": true,
+            "timeout": 30,
+            "retries": 3,
+            "polling_interval": 300,
+            "prompt_id": "INoT_v1",
+            "ai_models": [
+                "deepseek/deepseek-chat-v3.1"
+            ],
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (compatible; Rss2Tlg/2.0)"
+            },
+            "parser_options": {
+                "max_items": 5,
+                "enable_cache": true
+            }
+        }
+    ],
+    "telegram": {
+        "bot": {
+            "token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+            "chat_id": "366442475",
+            "enabled": true
+        },
+        "channel": {
+            "token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+            "channel_id": "@kompasDaily",
+            "enabled": true
+        },
+        "mode": "polling",
+        "polling_timeout": 30,
+        "batch_size": 10
+    },
+    "openrouter": {
+        "api_key": "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",
+        "base_url": "https://openrouter.ai/api/v1",
+        "timeout": 180,
+        "temperature": 0.25,
+        "top_p": 0.85,
+        "frequency_penalty": 0.15,
+        "presence_penalty": 0.10,
+        "max_tokens": 2000,
+        "min_tokens": 400
+    },
+    "database": {
+        "host": "127.0.0.1",
+        "port": 3306,
+        "database": "rss2tlg",
+        "username": "rss2tlg_user",
+        "password": "rss2tlg_pass",
+        "charset": "utf8mb4"
+    },
+    "logging": {
+        "enabled": true,
+        "level": "debug",
+        "file": "/tmp/rss2tlg_test.log"
+    },
+    "cache": {
+        "enabled": true,
+        "ttl": 3600,
+        "dir": "/tmp/rss2tlg_cache"
+    }
+}

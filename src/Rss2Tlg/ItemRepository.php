@@ -53,47 +53,24 @@ class ItemRepository
                 return (int)$existing['id'];
             }
 
-            // Экранируем данные
-            $contentHash = $this->db->escape($item->contentHash);
-            $guid = $item->guid !== null ? $this->db->escape($item->guid) : 'NULL';
-            $title = $this->db->escape($item->title ?? '');
-            $link = $this->db->escape($item->link ?? '');
-            $description = $item->summary !== null ? $this->db->escape($item->summary) : 'NULL';
-            $content = $item->content !== null ? $this->db->escape($item->content) : 'NULL';
-            $pubDate = $item->pubDate !== null 
-                ? $this->db->escape(date('Y-m-d H:i:s', $item->pubDate))
-                : 'NULL';
-            $author = !empty($item->authors) ? $this->db->escape($item->authors[0]) : 'NULL';
-            $categories = !empty($item->categories) ? $this->db->escape(json_encode($item->categories)) : 'NULL';
-            $enclosures = $item->enclosure !== null ? $this->db->escape(json_encode($item->enclosure)) : 'NULL';
+            // Подготавливаем данные для вставки
+            $data = [
+                'feed_id' => $feedId,
+                'content_hash' => $item->contentHash,
+                'guid' => $item->guid,
+                'title' => $item->title ?? '',
+                'link' => $item->link ?? '',
+                'description' => $item->summary,
+                'content' => $item->content,
+                'pub_date' => $item->pubDate !== null ? date('Y-m-d H:i:s', $item->pubDate) : null,
+                'author' => !empty($item->authors) ? $item->authors[0] : null,
+                'categories' => !empty($item->categories) ? json_encode($item->categories) : null,
+                'enclosures' => $item->enclosure !== null ? json_encode($item->enclosure) : null,
+                'is_published' => 0,
+            ];
 
-            $sql = sprintf(
-                "INSERT INTO %s (
-                    feed_id, content_hash, guid, title, link, summary, 
-                    content, pub_date, author, categories, enclosures,
-                    is_published, created_at, updated_at
-                ) VALUES (
-                    %d, %s, %s, %s, %s, %s, 
-                    %s, %s, %s, %s, %s,
-                    0, NOW(), NOW()
-                )",
-                self::TABLE_NAME,
-                $feedId,
-                $contentHash,
-                $guid,
-                $title,
-                $link,
-                $description,
-                $content,
-                $pubDate,
-                $author,
-                $categories,
-                $enclosures
-            );
-
-            $this->db->execute($sql);
-
-            $insertId = $this->db->getLastInsertId();
+            // Используем prepared statements через метод insert()
+            $insertId = $this->db->insert(self::TABLE_NAME, $data);
 
             $this->logDebug('Новость сохранена', [
                 'id' => $insertId,
