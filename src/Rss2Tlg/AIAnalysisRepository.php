@@ -80,24 +80,24 @@ class AIAnalysisRepository
             $categoryPrimary = $analysisData['category']['primary'] ?? null;
             $categoryConfidence = $analysisData['category']['confidence'] ?? null;
             $categorySecondary = isset($analysisData['category']['secondary']) 
-                ? json_encode($analysisData['category']['secondary']) 
+                ? json_encode($analysisData['category']['secondary'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) 
                 : null;
             
             $contentHeadline = $analysisData['content']['headline'] ?? null;
             $contentSummary = $analysisData['content']['summary'] ?? null;
             $contentKeywords = isset($analysisData['content']['keywords']) 
-                ? json_encode($analysisData['content']['keywords']) 
+                ? json_encode($analysisData['content']['keywords'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) 
                 : null;
             
             $importanceRating = $analysisData['importance']['rating'] ?? null;
             $importanceJustification = $analysisData['importance']['justification'] ?? null;
             
             $deduplicationData = isset($analysisData['deduplication']) 
-                ? json_encode($analysisData['deduplication']) 
+                ? json_encode($analysisData['deduplication'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) 
                 : null;
             
             $qualityFlags = isset($analysisData['quality_flags']) 
-                ? json_encode($analysisData['quality_flags']) 
+                ? json_encode($analysisData['quality_flags'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) 
                 : null;
 
             // Подготовка данных для INSERT
