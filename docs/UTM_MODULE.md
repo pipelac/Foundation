@@ -487,10 +487,213 @@ try {
 - Расширения: PDO, mbstring, bcmath
 - Composer для автозагрузки
 
+## Методы поиска и работы с данными
+
+### getUadParamsByAccount()
+
+Получает дополнительные параметры пользователя по лицевому счету.
+
+```php
+// Получить все параметры
+$params = $account->getUadParamsByAccount(12345);
+// Результат: "2001=b1-s5_530_1,2,3,2009=ABC123456"
+
+// Получить конкретный параметр (2001 - коммутатор и порт)
+$switchParam = $account->getUadParamsByAccount(12345, 2001);
+// Результат: "b1-s5_530_1,2,3"
+```
+
+### getAccountByIP()
+
+Получает лицевой счет по IP-адресу.
+
+```php
+$accountId = $account->getAccountByIP('192.168.1.100');
+// Результат: 12345 или null если не найден
+```
+
+### getIpByAccount()
+
+Получает IP-адреса лицевого счета в различных форматах.
+
+```php
+// Формат: только IP через разделитель
+$ips = $account->getIpByAccount(12345, 'ip', ', ');
+// Результат: "192.168.1.100, 192.168.1.101"
+
+// Формат: IP с MAC
+$ips = $account->getIpByAccount(12345, 'ip+mac');
+// Результат: "192.168.1.100 [AA:BB:CC:DD:EE:FF]\n192.168.1.101"
+
+// Формат: массив [IP => MAC]
+$ips = $account->getIpByAccount(12345, 'array');
+// Результат: ['192.168.1.100' => 'AA:BB:CC:DD:EE:FF', '192.168.1.101' => '']
+```
+
+### getAccountByPhone()
+
+Получает лицевые счета по номеру телефона.
+
+```php
+// Точное совпадение
+$accounts = $account->getAccountByPhone('79091234567');
+// Результат: "12345,12346"
+
+// Частичное совпадение (если номер невалидный)
+$accounts = $account->getAccountByPhone('909 123');
+// Ищет по LIKE
+```
+
+### getAccountByAddress()
+
+Получает лицевые счета по адресу.
+
+```php
+// Поиск только по улице
+$accounts = $account->getAccountByAddress('ул. Пушкина');
+
+// Поиск с уточнением подъезда, этажа и квартиры
+$accounts = $account->getAccountByAddress('ул. Пушкина', '1', '5', '23');
+// Результат: "12345,12346"
+```
+
+### getAccountByFio()
+
+Получает лицевые счета по ФИО (или части).
+
+```php
+$accounts = $account->getAccountByFio('Иванов');
+// Результат: "12345,12346,12347"
+
+// Поиск по нескольким словам
+$accounts = $account->getAccountByFio('Иванов Петр');
+// Заменяет пробелы на % для LIKE
+```
+
+### getAccountBySwitchPort()
+
+Получает лицевые счета по порту коммутатора.
+
+```php
+$accounts = $account->getAccountBySwitchPort('b1-s5', '27');
+// Результат: "12345,12346"
+```
+
+### getAccountByVlan()
+
+Получает лицевые счета по VLAN.
+
+```php
+$accounts = $account->getAccountByVlan(530, ', ', 10);
+// Результат: "12345, 12346, 12347" (максимум 10 результатов)
+```
+
+### getAccountBySnWiFi()
+
+Получает лицевые счета по серийному номеру Wi-Fi роутера.
+
+```php
+$accounts = $account->getAccountBySnWiFi('ABC123');
+// Результат: "12345"
+// Минимальная длина: 3 символа
+```
+
+### getAccountBySnStb()
+
+Получает лицевые счета по серийному номеру STB медиаплеера.
+
+```php
+$accounts = $account->getAccountBySnStb('XYZ789');
+// Результат: "12345,12346"
+// Ищет в параметрах 2007 и 2008
+```
+
+### getAccountBySSID()
+
+Получает лицевые счета по SSID WiFi сети.
+
+```php
+$accounts = $account->getAccountBySSID('MyWiFi');
+// Результат: "12345"
+```
+
+### getDealerNameByAccount()
+
+Получает название дилера по лицевому счету.
+
+```php
+$dealer = $account->getDealerNameByAccount(12345);
+// Результат: "Марат", "Стариков" или "БТ"
+// Определяется по группам 88888, 99999
+```
+
+### getLoginAndPaswordByAccountId()
+
+Получает логин и пароль по ID лицевого счета.
+
+```php
+$credentials = $account->getLoginAndPaswordByAccountId(12345);
+// Результат: ['login' => 'user123', 'password' => 'pass123']
+```
+
+### getAccountId()
+
+Проверяет существование лицевого счета.
+
+```php
+try {
+    $accountId = $account->getAccountId(12345);
+    // Счет существует
+} catch (AccountException $e) {
+    // Счет не существует
+}
+```
+
+### getNumberIdByAccount()
+
+Получает порядковый номер учетной записи (id из users_accounts).
+
+```php
+$numberId = $account->getNumberIdByAccount(12345);
+// Результат: 1234 (id из таблицы users_accounts)
+```
+
+### getAccountByUserId()
+
+Получает ID лицевого счета по user_id.
+
+```php
+$accountId = $account->getAccountByUserId(100);
+// Результат: 12345
+```
+
+### getLastAccountId()
+
+Получает ID последнего лицевого счета.
+
+```php
+$lastAccountId = $account->getLastAccountId();
+// Результат: 99999
+```
+
+## Конфигурационные файлы
+
+### src/UTM/config/account.json
+
+Конфигурация для работы с лицевыми счетами:
+- Параметры создания пользователей
+- Маппинг дилеров на группы
+- Тарифы для физических и юридических лиц
+- Комбо-тарифы (контракты)
+- VLAN конфигурация
+
+Подробнее см. `src/UTM/config/README.md`
+
 ## Дополнительные примеры
 
-Полный рабочий пример доступен в файле:
-- `examples/utm_account_example.php`
+Полные рабочие примеры доступны в файлах:
+- `examples/utm_account_example.php` - Базовая работа с Account API
+- `examples/utm_account_search_example.php` - Методы поиска
 
 ## Поддержка
 

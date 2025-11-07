@@ -88,12 +88,34 @@ src/Exception/UTM/
 
 ### Account API
 
+**Основные методы:**
 - ✅ `getAccountInfo()` - полная информация о счете
 - ✅ `getBalance()` - баланс в различных форматах
 - ✅ `getCurrentTariff()` - текущие тарифы
 - ✅ `getNextTariff()` - следующие тарифы
 - ✅ `getServices()` - подключенные услуги
 - ✅ `getGroups()` - группы пользователя
+
+**Методы поиска:**
+- ✅ `getAccountByIP()` - поиск счета по IP-адресу
+- ✅ `getAccountByPhone()` - поиск по номеру телефона
+- ✅ `getAccountByAddress()` - поиск по адресу
+- ✅ `getAccountByFio()` - поиск по ФИО
+- ✅ `getAccountBySwitchPort()` - поиск по порту коммутатора
+- ✅ `getAccountByVlan()` - поиск по VLAN
+- ✅ `getAccountBySnWiFi()` - поиск по серийному номеру WiFi роутера
+- ✅ `getAccountBySnStb()` - поиск по серийному номеру STB медиаплеера
+- ✅ `getAccountBySSID()` - поиск по SSID
+
+**Дополнительные методы:**
+- ✅ `getIpByAccount()` - получение IP-адресов счета
+- ✅ `getUadParamsByAccount()` - получение дополнительных параметров
+- ✅ `getDealerNameByAccount()` - определение дилера
+- ✅ `getLoginAndPaswordByAccountId()` - получение логина и пароля
+- ✅ `getAccountId()` - проверка существования счета
+- ✅ `getNumberIdByAccount()` - получение порядкового номера
+- ✅ `getAccountByUserId()` - получение account_id по user_id
+- ✅ `getLastAccountId()` - получение последнего account_id
 
 ### Utils API
 
@@ -127,14 +149,28 @@ src/Exception/UTM/
 
 Полная документация доступна в `docs/UTM_MODULE.md`
 
+## Конфигурация
+
+### account.json
+
+В папке `src/UTM/config/` находится конфигурационный файл `account.json` с настройками:
+- Параметры создания новых пользователей
+- Маппинг дилеров на группы (88888 → Марат, 99999 → Стариков)
+- Тарифы для физических и юридических лиц
+- Комбо-тарифы (контракты) с условиями исполнения
+- VLAN конфигурация (публичные, приватные, мультикастные)
+
+См. `src/UTM/config/README.md` для подробностей.
+
 ## Тестирование
 
 ```bash
 # Запуск тестов Utils
 php tests/test_utm_utils.php
 
-# Запуск примера (требуется настроенная БД)
+# Запуск примеров (требуется настроенная БД)
 php examples/utm_account_example.php
+php examples/utm_account_search_example.php
 ```
 
 ## Требования
