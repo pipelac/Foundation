@@ -154,7 +154,7 @@
   ],
   
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "base_url": "https://openrouter.ai/api/v1",
     "default_model": "qwen/qwen3-235b:free",
     "fallback_models": [
