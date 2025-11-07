@@ -7,13 +7,13 @@ declare(strict_types=1);
  * Скрипт для очистки старых сообщений из БД
  * 
  * Использование:
- *   php bin/telegram_bot_cleanup_messages.php
+ *   php src/TelegramBot/bin/telegram_bot_cleanup_messages.php
  * 
  * Cron (ежедневно в 2:00):
- *   0 2 * * * php /path/to/project/bin/telegram_bot_cleanup_messages.php
+ *   0 2 * * * php /path/to/project/src/TelegramBot/bin/telegram_bot_cleanup_messages.php
  */
 
-require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/../../../autoload.php';
 
 use App\Config\ConfigLoader;
 use App\Component\Logger;
@@ -22,7 +22,7 @@ use App\Component\TelegramBot\Core\MessageStorage;
 
 // Инициализация логгера
 $logger = new Logger([
-    'directory' => __DIR__ . '/../logs',
+    'directory' => __DIR__ . '/../../../logs',
     'fileName' => 'telegram_bot_cleanup.log',
 ]);
 
@@ -30,7 +30,7 @@ $logger->info('=== Запуск очистки старых сообщений =
 
 try {
     // Загрузка конфигураций
-    $mysqlConfig = ConfigLoader::load(__DIR__ . '/../config/mysql.json');
+    $mysqlConfig = ConfigLoader::load(__DIR__ . '/../../../config/mysql.json');
     $storageConfig = ConfigLoader::load(__DIR__ . '/../config/telegram_bot_message_storage.json');
     
     // Проверка, что хранилище включено
