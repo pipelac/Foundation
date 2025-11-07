@@ -1,10 +1,10 @@
 {
   "database": {
     "host": "127.0.0.1",
-    "port": 3306,
+    "port": 3307,
     "database": "rss2tlg_test",
     "username": "rss2tlg_user",
-    "password": "test_password",
+    "password": "testpass123",
     "charset": "utf8mb4"
   },
   "cache": {
@@ -24,7 +24,7 @@
     "mode": "polling"
   },
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "models": [
       "deepseek/deepseek-r1:free",
       "qwen/qwen3-235b-a22b:free",
