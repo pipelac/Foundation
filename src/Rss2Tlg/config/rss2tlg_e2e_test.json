@@ -155,6 +155,7 @@
   
   "openrouter": {
     "api_key": "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",
+    "app_name": "RSS2TLG-E2E-Test",
     "base_url": "https://openrouter.ai/api/v1",
     "default_model": "qwen/qwen3-235b:free",
     "fallback_models": [

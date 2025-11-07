@@ -146,6 +146,59 @@ class OpenRouter
                 'prompt_tokens' => 0,
                 'completion_tokens' => 0,
                 'total_tokens' => 0,
+                'cached_tokens' => 0,
+            ],
+            'model' => $response['model'] ?? $model,
+            'id' => $response['id'] ?? null,
+            'created' => $response['created'] ?? null,
+        ];
+    }
+
+    /**
+     * Отправляет запрос с поддержкой multi-message и кеширования (chatWithMessages)
+     *
+     * Этот метод позволяет отправлять system и user сообщения отдельно,
+     * что критически важно для prompt caching в OpenRouter.
+     * System message остается неизменным между запросами и кешируется.
+     *
+     * @param string $model Модель ИИ для использования
+     * @param array<int, array<string, string>> $messages Массив сообщений [['role' => 'system/user', 'content' => '...']]
+     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @return array<string, mixed> Полный ответ с метриками:
+     *                              - content (string): Текстовый ответ
+     *                              - usage (array): Информация об использованных токенах (включая cached_tokens)
+     *                              - model (string): Использованная модель
+     *                              - id (string): ID генерации
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
+     */
+    public function chatWithMessages(string $model, array $messages, array $options = []): array
+    {
+        $this->validateNotEmpty($model, 'model');
+        
+        if (empty($messages)) {
+            throw new OpenRouterValidationException('Массив messages не может быть пустым.');
+        }
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
+        }
+
+        return [
+            'content' => (string)$response['choices'][0]['message']['content'],
+            'usage' => $response['usage'] ?? [
+                'prompt_tokens' => 0,
+                'completion_tokens' => 0,
+                'total_tokens' => 0,
+                'cached_tokens' => 0,
             ],
             'model' => $response['model'] ?? $model,
             'id' => $response['id'] ?? null,
@@ -436,7 +489,8 @@ class OpenRouter
     {
         return [
             'Authorization' => 'Bearer ' . $this->apiKey,
-            'HTTP-Referer' => $this->appName,
+            'HTTP-Referer' => 'https://' . $this->appName,
+            'X-Title' => $this->appName,
         ];
     }
 
