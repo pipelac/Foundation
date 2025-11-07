@@ -1,0 +1,6 @@
+id,item_id,feed_id,destination_type,destination_id,message_id,published_at,created_at
+1,234,2,channel,@kompasDaily,493,"2025-11-07 20:42:09","2025-11-07 20:42:09"
+2,307,5,channel,@kompasDaily,494,"2025-11-07 20:42:11","2025-11-07 20:42:11"
+3,102,2,channel,@kompasDaily,495,"2025-11-07 20:42:14","2025-11-07 20:42:14"
+4,192,2,channel,@kompasDaily,496,"2025-11-07 20:42:16","2025-11-07 20:42:16"
+5,264,3,channel,@kompasDaily,497,"2025-11-07 20:42:18","2025-11-07 20:42:18"

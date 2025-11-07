@@ -1,0 +1,6 @@
+id,feed_id,url,etag,last_modified,last_status,error_count,backoff_until,fetched_at,updated_at,created_at
+1,1,https://ria.ru/export/rss2/index.xml?page_type=google_newsstand,,,200,0,,"2025-11-07 20:40:35","2025-11-07 20:40:35","2025-11-07 20:40:35"
+2,2,https://www.vedomosti.ru/rss/rubric/technology.xml,"W/""690e04af-2770d""","Fri, 07 Nov 2025 14:39:43 GMT",200,0,,"2025-11-07 20:40:36","2025-11-07 20:40:36","2025-11-07 20:40:36"
+3,3,http://lenta.ru/rss/top7,"W/""17a36cb02b2603cf76ae1bc33554fece""",,200,0,,"2025-11-07 20:40:37","2025-11-07 20:40:37","2025-11-07 20:40:37"
+4,4,https://arstechnica.com/ai/feed,"""758fbdac143ed7a1a81191478f269fac""","Fri, 07 Nov 2025 20:26:31 GMT",200,0,,"2025-11-07 20:40:37","2025-11-07 20:40:37","2025-11-07 20:40:37"
+5,5,https://techcrunch.com/startups/feed,"W/""076b67d01b216d684b1b00a565596471""","Fri, 07 Nov 2025 20:22:27 GMT",200,0,,"2025-11-07 20:40:37","2025-11-07 20:40:37","2025-11-07 20:40:37"

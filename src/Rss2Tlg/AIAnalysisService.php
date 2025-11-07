@@ -398,30 +398,6 @@ class AIAnalysisService
     }
 
     /**
-     * Форматирует массив messages в единый промпт
-     * 
-     * @param array<int, array<string, string>> $messages Массив сообщений
-     * @return string Отформатированный промпт
-     */
-    private function formatMessagesForPrompt(array $messages): string
-    {
-        $parts = [];
-        
-        foreach ($messages as $message) {
-            $role = $message['role'] ?? 'user';
-            $content = $message['content'] ?? '';
-            
-            if ($role === 'system') {
-                $parts[] = "=== SYSTEM PROMPT (CACHEABLE) ===\n{$content}";
-            } elseif ($role === 'user') {
-                $parts[] = "=== USER INPUT ===\n{$content}";
-            }
-        }
-
-        return implode("\n\n", $parts);
-    }
-
-    /**
      * Парсит ответ от AI
      * 
      * @param string $response Ответ от модели
