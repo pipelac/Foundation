@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use App\Config\ConfigLoader;
 use App\Component\Logger;
@@ -23,11 +23,11 @@ use App\Component\Exception\UTM\AccountException;
 
 try {
     // 1. Загрузка конфигурации
-    $configPath = __DIR__ . '/../Config/utm_example.json';
+    $configPath = __DIR__ . '/../config/utm_example.json';
     
     if (!file_exists($configPath)) {
         echo "ВНИМАНИЕ: Конфигурационный файл не найден: {$configPath}\n";
-        echo "Пожалуйста, скопируйте Config/utm_example.json и настройте под свои нужды.\n";
+        echo "Пожалуйста, настройте src/UTM/config/utm_example.json под свои нужды.\n";
         exit(1);
     }
     
@@ -35,7 +35,7 @@ try {
 
     // 2. Инициализация Logger
     $loggerConfig = [
-        'directory' => __DIR__ . '/../' . ($config['logger']['directory'] ?? 'logs'),
+        'directory' => __DIR__ . '/../../../' . ($config['logger']['directory'] ?? 'logs'),
         'file' => $config['logger']['file'] ?? 'utm.log',
         'max_files' => $config['logger']['max_files'] ?? 15,
         'max_file_size_mb' => $config['logger']['max_file_size_mb'] ?? 5,
