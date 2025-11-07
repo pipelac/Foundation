@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use App\Config\ConfigLoader;
 use App\Component\Logger;
@@ -18,7 +18,7 @@ use App\Component\Exception\UTM\AccountException;
 
 try {
     // Загрузка конфигурации UTM
-    $config = ConfigLoader::load(__DIR__ . '/../Config/utm.json');
+    $config = ConfigLoader::load(__DIR__ . '/../config/utm_example.json');
     
     // Инициализация компонентов
     $logger = new Logger($config['logger']);

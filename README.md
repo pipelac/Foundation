@@ -571,7 +571,7 @@ $time = Utils::min2hour(90, true); // "1 час 30 минут"
 $word = Utils::numWord(5, ['день', 'дня', 'дней']); // "5 дней"
 ```
 
-📖 **Подробная документация:** `docs/UTM_MODULE.md`, `src/UTM/README.md` и `examples/utm_account_example.php`
+📖 **Подробная документация:** `src/UTM/docs/UTM_MODULE.md` (30+ методов), `src/UTM/README.md` и `src/UTM/examples/utm_account_example.php`
 
 ## Пример запуска
 
@@ -596,13 +596,12 @@ php bin/test_autoload.php
 │   ├── openrouter.json
 │   ├── rss.json
 │   └── telegram.json
-├── docs/                   # Документация
+├── docs/                   # Документация компонентов
 │   ├── MYSQL_CONNECTION_FACTORY.md
-│   └── UTM_MODULE.md       # Документация UTM модуля
+│   └── ...
 ├── examples/               # Примеры использования
 │   ├── mysql_example.php
 │   ├── mysql_connection_factory_example.php
-│   ├── utm_account_example.php          # Новое
 │   └── ...
 ├── logs/                   # Директория логов
 ├── src/                    # Исходный код
@@ -613,10 +612,13 @@ php bin/test_autoload.php
 │   │   ├── MySQLConnectionException.php
 │   │   ├── MySQLTransactionException.php
 │   │   ├── HtmlWebProxyListException.php
-│   │   └── HtmlWebProxyListValidationException.php
+│   │   ├── HtmlWebProxyListValidationException.php
+│   │   └── UTM/                           # Исключения UTM модуля
+│   │       ├── AccountException.php
+│   │       └── UtilsValidationException.php
 │   ├── Email.class.php
 │   ├── Http.class.php
-│   ├── htmlWebProxyList.class.php          # Новое
+│   ├── htmlWebProxyList.class.php
 │   ├── Logger.class.php
 │   ├── MySQL.class.php
 │   ├── MySQLConnectionFactory.class.php
@@ -625,9 +627,28 @@ php bin/test_autoload.php
 │   ├── ProxyPool.class.php
 │   ├── Rss.class.php
 │   ├── Telegram.class.php
-│   └── UTM/                                 # Новое
-│       ├── Account.php                      # API для UTM5 биллинга
-│       └── Utils.php                        # Утилиты и валидация
+│   └── UTM/                                 # UTM Module (полный проект)
+│       ├── Account.php                      # API для UTM5 биллинга (30+ методов)
+│       ├── Utils.php                        # Утилиты и валидация
+│       ├── INDEX.md                         # Навигация по модулю
+│       ├── README.md                        # Быстрый старт
+│       ├── MIGRATION_GUIDE.md               # Руководство по миграции
+│       ├── SUMMARY.md                       # Краткая сводка
+│       ├── config/                          # Конфигурация
+│       │   ├── account.json                 # Дилеры, тарифы, VLAN
+│       │   ├── utm_example.json             # Пример для подключения к БД
+│       │   └── README.md
+│       ├── docs/                            # Документация
+│       │   ├── UTM_MODULE.md                # 📖 Полная документация API
+│       │   ├── UTM_README_FIRST.md
+│       │   ├── UTM_CHANGELOG.md
+│       │   ├── UTM_MIGRATION_SUMMARY.md
+│       │   └── CHANGELOG_UTM_ACCOUNT.md
+│       ├── examples/                        # Примеры использования
+│       │   ├── utm_account_example.php
+│       │   └── utm_account_search_example.php
+│       └── tests/                           # Unit-тесты
+│           └── README.md
 ├── .gitignore
 ├── composer.json
 ├── MYSQL_FACTORY_UPGRADE.md    # Руководство по обновлению

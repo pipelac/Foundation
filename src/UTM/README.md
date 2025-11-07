@@ -76,12 +76,30 @@ $password = Utils::generatePassword(8); // "12847593"
 
 ```
 src/UTM/
-├── Account.php              # API для работы с лицевыми счетами
-└── Utils.php                # Утилиты (валидация, форматирование)
+├── Account.php                    # API для работы с лицевыми счетами
+├── Utils.php                      # Утилиты (валидация, форматирование)
+├── README.md                      # Этот файл
+├── MIGRATION_GUIDE.md             # Руководство по миграции
+├── SUMMARY.md                     # Краткая сводка возможностей
+├── config/
+│   ├── account.json              # Основная конфигурация
+│   ├── utm_example.json          # Пример конфигурации для подключения к БД
+│   └── README.md                 # Описание конфигурации
+├── docs/
+│   ├── UTM_MODULE.md             # Полная документация API (30+ методов)
+│   ├── UTM_README_FIRST.md       # С чего начать
+│   ├── UTM_CHANGELOG.md          # История изменений
+│   ├── UTM_MIGRATION_SUMMARY.md  # Сводка по миграции
+│   └── CHANGELOG_UTM_ACCOUNT.md  # Детальный changelog
+├── examples/
+│   ├── utm_account_example.php         # Базовый пример использования
+│   └── utm_account_search_example.php  # Примеры поиска
+└── tests/
+    └── (тесты будут добавлены)
 
 src/Exception/UTM/
-├── AccountException.php     # Исключения Account
-└── UtilsValidationException.php  # Исключения Utils
+├── AccountException.php           # Исключения Account
+└── UtilsValidationException.php   # Исключения Utils
 ```
 
 ## Основные возможности
@@ -147,7 +165,13 @@ src/Exception/UTM/
 
 ## Документация
 
-Полная документация доступна в `docs/UTM_MODULE.md`
+- **docs/UTM_MODULE.md** - Полная документация API с описанием всех 30+ методов
+- **docs/UTM_README_FIRST.md** - Быстрый старт и первые шаги
+- **docs/CHANGELOG_UTM_ACCOUNT.md** - Детальная история изменений Account API
+- **docs/UTM_CHANGELOG.md** - Общий changelog модуля
+- **docs/UTM_MIGRATION_SUMMARY.md** - Сводка по миграции со старого API
+- **MIGRATION_GUIDE.md** - Подробное руководство по миграции
+- **SUMMARY.md** - Краткая сводка возможностей модуля
 
 ## Конфигурация
 
@@ -162,16 +186,21 @@ src/Exception/UTM/
 
 См. `src/UTM/config/README.md` для подробностей.
 
-## Тестирование
+## Примеры
+
+Рабочие примеры использования находятся в папке `examples/`:
 
 ```bash
-# Запуск тестов Utils
-php tests/test_utm_utils.php
+# Базовый пример использования Account API
+php src/UTM/examples/utm_account_example.php
 
-# Запуск примеров (требуется настроенная БД)
-php examples/utm_account_example.php
-php examples/utm_account_search_example.php
+# Примеры поиска счетов различными способами
+php src/UTM/examples/utm_account_search_example.php
 ```
+
+**Примечание:** Для запуска примеров необходимо:
+1. Настроить конфигурацию в `src/UTM/config/utm_example.json`
+2. Иметь доступ к серверу БД UTM5
 
 ## Требования
 
