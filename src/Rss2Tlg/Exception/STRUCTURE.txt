@@ -1,0 +1,93 @@
+Rss2Tlg Exception Structure
+===========================
+
+Иерархия исключений для модуля Rss2Tlg
+
+СТРУКТУРА ФАЙЛОВ:
+-----------------
+
+Exception/
+├── Rss2TlgException.php              # Базовое для всего модуля
+├── Feed/
+│   ├── FeedConfigException.php       # Ошибки конфигурации фидов
+│   └── FeedValidationException.php   # Валидация параметров фида
+├── Prompt/
+│   ├── PromptException.php           # Базовое для промптов
+│   ├── PromptNotFoundException.php   # Промпт не найден
+│   └── PromptLoadException.php       # Ошибка загрузки промпта
+├── AI/
+│   ├── AIAnalysisException.php       # Базовое для AI-анализа
+│   ├── AIParsingException.php        # Парсинг JSON ответа
+│   └── AIValidationException.php     # Валидация результата
+└── Repository/
+    ├── RepositoryException.php       # Базовое для репозиториев
+    └── SaveException.php             # Ошибки сохранения в БД
+
+ИЕРАРХИЯ НАСЛЕДОВАНИЯ:
+----------------------
+
+RuntimeException (PHP)
+└── Rss2TlgException
+    ├── FeedConfigException
+    │   └── FeedValidationException
+    ├── PromptException
+    │   ├── PromptNotFoundException
+    │   └── PromptLoadException
+    ├── AIAnalysisException
+    │   ├── AIParsingException
+    │   └── AIValidationException
+    └── RepositoryException
+        └── SaveException
+
+NAMESPACES:
+-----------
+
+App\Rss2Tlg\Exception\Rss2TlgException
+App\Rss2Tlg\Exception\Feed\FeedConfigException
+App\Rss2Tlg\Exception\Feed\FeedValidationException
+App\Rss2Tlg\Exception\Prompt\PromptException
+App\Rss2Tlg\Exception\Prompt\PromptNotFoundException
+App\Rss2Tlg\Exception\Prompt\PromptLoadException
+App\Rss2Tlg\Exception\AI\AIAnalysisException
+App\Rss2Tlg\Exception\AI\AIParsingException
+App\Rss2Tlg\Exception\AI\AIValidationException
+App\Rss2Tlg\Exception\Repository\RepositoryException
+App\Rss2Tlg\Exception\Repository\SaveException
+
+ИСПОЛЬЗОВАНИЕ:
+--------------
+
+// Отлов всех исключений модуля
+try {
+    $result = $someOperation();
+} catch (Rss2TlgException $e) {
+    // Все ошибки Rss2Tlg
+}
+
+// Отлов группы исключений
+try {
+    $analysis = $aiService->analyze($item);
+} catch (AIParsingException | AIValidationException $e) {
+    // AI ошибки с fallback
+    $analysis = $fallbackAnalyzer->analyze($item);
+}
+
+// Специфичный catch
+try {
+    $prompt = $promptManager->getSystemPrompt('INoT_v1');
+} catch (PromptNotFoundException $e) {
+    // Файл не найден, используем default
+    $prompt = $promptManager->getSystemPrompt('default');
+} catch (PromptLoadException $e) {
+    // Критическая ошибка чтения
+    throw $e;
+}
+
+ДОКУМЕНТАЦИЯ:
+-------------
+
+README.md - Полная документация по исключениям
+../docs/API.md - Примеры использования в API
+
+Версия: 1.0
+Дата: 2025-11-07
