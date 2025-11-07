@@ -47,7 +47,7 @@ echo "\n";
 echo "🕐 Начало: {$testStartDate}\n\n";
 
 // Загрузка конфигурации
-$config = ConfigLoader::load('/home/engine/project/src/Rss2Tlg/config/rss2tlg_e2e_test.json');
+$config = ConfigLoader::load('/home/engine/project/src/Rss2Tlg/config/rss2tlg_e2e_v5.json');
 
 // Создание компонентов
 $logger = new Logger($config['logger']);

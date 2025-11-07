@@ -1,0 +1,210 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3308,
+    "database": "rss2tlg_test",
+    "username": "rss2tlg_user",
+    "password": "testpass123",
+    "charset": "utf8mb4",
+    "options": {
+      "persistent": false,
+      "timeout": 30,
+      "init_command": "SET NAMES utf8mb4"
+    }
+  },
+  
+  "logger": {
+    "enabled": true,
+    "directory": "/home/engine/project/logs",
+    "file_name": "rss2tlg_e2e_v5.log",
+    "max_file_size": 10,
+    "max_files": 5,
+    "min_level": "debug",
+    "email_alerts": {
+      "enabled": false
+    }
+  },
+  
+  "cache": {
+    "enabled": true,
+    "cache_dir": "/home/engine/project/Cache/rss2tlg",
+    "default_ttl": 3600
+  },
+  
+  "http": {
+    "timeout": 30,
+    "retries": 3,
+    "user_agent": "RSS2TLG-E2E-Test/1.0",
+    "headers": {
+      "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml"
+    }
+  },
+  
+  "feeds": [
+    {
+      "id": 1,
+      "name": "RIA Novosti",
+      "title": "РИА Новости",
+      "language": "ru",
+      "url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-72b-instruct",
+        "deepseek/deepseek-v3.2-exp"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Vedomosti Tech",
+      "title": "Ведомости - Технологии",
+      "language": "ru",
+      "url": "https://www.vedomosti.ru/rss/rubric/technology.xml",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-72b-instruct",
+        "deepseek/deepseek-v3.2-exp"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Lenta.ru Top7",
+      "title": "Лента.ру - Топ 7",
+      "language": "ru",
+      "url": "http://lenta.ru/rss/top7",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-72b-instruct",
+        "deepseek/deepseek-v3.2-exp"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "ArsTechnica AI",
+      "title": "Ars Technica - AI",
+      "language": "en",
+      "url": "https://arstechnica.com/ai/feed",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-72b-instruct",
+        "deepseek/deepseek-v3.2-exp"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "TechCrunch Startups",
+      "title": "TechCrunch - Startups",
+      "language": "en",
+      "url": "https://techcrunch.com/startups/feed",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-72b-instruct",
+        "deepseek/deepseek-v3.2-exp"
+      ]
+    }
+  ],
+  
+  "openrouter": {
+    "api_key": "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",
+    "app_name": "RSS2TLG-E2E-Test",
+    "base_url": "https://openrouter.ai/api/v1",
+    "default_model": "qwen/qwen3-235b:free",
+    "fallback_models": [
+      "qwen/qwen3-30b:free",
+      "deepseek/deepseek-v3.2-exp",
+      "qwen/qwen-2.5-72b-instruct"
+    ],
+    "timeout": 120,
+    "retries": 2
+  },
+  
+  "telegram": {
+    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+    "chat_id": 366442475,
+    "channel_id": "@kompasDaily",
+    "mode": "polling",
+    "parse_mode": "HTML",
+    "disable_notification": false,
+    "timeout": 30
+  },
+  
+  "ai_analysis": {
+    "enabled": true,
+    "default_prompt_id": 1,
+    "analyze_on_fetch": true,
+    "save_analysis": true,
+    "cache_enabled": true
+  },
+  
+  "publication": {
+    "enabled": true,
+    "destinations": [
+      {
+        "type": "channel",
+        "id": "@kompasDaily",
+        "format": "full_with_metrics"
+      }
+    ],
+    "max_publications_per_run": 5,
+    "include_metrics": true
+  },
+  
+  "notifications": {
+    "enabled": true,
+    "send_to_bot": true,
+    "bot_chat_id": 366442475,
+    "notify_on_start": true,
+    "notify_on_progress": true,
+    "notify_on_completion": true,
+    "notify_on_error": true
+  }
+}

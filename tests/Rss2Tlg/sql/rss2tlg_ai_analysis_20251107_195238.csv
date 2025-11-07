@@ -1,6 +1,0 @@
-id,item_id,feed_id,prompt_id,analysis_status,analysis_data,article_language,translation_status,translation_quality_score,category_primary,category_confidence,category_secondary,content_headline,content_summary,content_keywords,importance_rating,importance_justification,deduplication_data,quality_flags,model_used,tokens_used,processing_time_ms,cache_hit,error_message,analyzed_at,created_at,updated_at
-3,141,2,1,failed,,,,,,,,,,,,,,,,,,0,"OpenRouter вернул пустой ответ",,"2025-11-07 19:52:24","2025-11-07 19:52:24"
-6,128,2,1,failed,,,,,,,,,,,,,,,,,,0,"OpenRouter вернул пустой ответ",,"2025-11-07 19:52:25","2025-11-07 19:52:25"
-9,93,2,1,failed,,,,,,,,,,,,,,,,,,0,"OpenRouter вернул пустой ответ",,"2025-11-07 19:52:25","2025-11-07 19:52:25"
-12,305,5,1,failed,,,,,,,,,,,,,,,,,,0,"OpenRouter вернул пустой ответ",,"2025-11-07 19:52:25","2025-11-07 19:52:25"
-15,40,1,1,failed,,,,,,,,,,,,,,,,,,0,"OpenRouter вернул пустой ответ",,"2025-11-07 19:52:26","2025-11-07 19:52:26"
