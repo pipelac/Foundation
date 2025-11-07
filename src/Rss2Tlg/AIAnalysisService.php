@@ -376,15 +376,13 @@ class AIAnalysisService
     private function sendRequestToOpenRouter(string $model, array $options): ?string
     {
         try {
-            // Используем метод text2textWithMetrics с messages
+            // Извлекаем messages из options
             $messages = $options['messages'] ?? [];
             unset($options['messages']);
 
-            // Формируем промпт из messages
-            $prompt = $this->formatMessagesForPrompt($messages);
-
-            // Получаем полный ответ с метриками
-            $fullResponse = $this->openRouter->text2textWithMetrics($model, $prompt, $options);
+            // Используем новый метод chatWithMessages для поддержки кеширования
+            // Это позволяет OpenRouter кешировать system message между запросами
+            $fullResponse = $this->openRouter->chatWithMessages($model, $messages, $options);
             
             // Сохраняем для последующего извлечения метрик
             $this->lastApiResponse = $fullResponse;
