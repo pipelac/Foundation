@@ -272,7 +272,7 @@ function runE2ETest(): int {
         $fetchRunner = new FetchRunner($db, $config['cache']['directory'], $logger);
         
         // PromptManager
-        $promptManager = new \App\Rss2Tlg\PromptManager(__DIR__ . '/prompts', $logger);
+        $promptManager = new \App\Rss2Tlg\PromptManager(__DIR__ . '/../prompts', $logger);
         
         // AIAnalysisService
         $aiService = new AIAnalysisService(
@@ -381,12 +381,9 @@ function runE2ETest(): int {
             printSubHeader("Анализ новости #{$item['id']}: " . mb_substr($item['title'], 0, 60) . "...");
             
             try {
-                // Определяем язык по feed_id
+                // Определяем prompt_id из конфигурации ленты
                 $feedConfig = $feedConfigs[$item['feed_id'] - 1];
-                $language = $feedConfig->language;
-                
-                // Определяем prompt_id по языку
-                $promptId = $language === 'ru' ? 'news_analysis_ru' : 'news_analysis_en';
+                $promptId = $feedConfig->promptId;
                 
                 // Формируем список моделей для fallback
                 $models = array_merge(

@@ -62,7 +62,7 @@
         "strip_html": false,
         "extract_images": true
       },
-      "prompt_id": "news_analysis_ru"
+      "prompt_id": "INoT_v1"
     },
     {
       "id": 2,
@@ -78,7 +78,7 @@
         "strip_html": false,
         "extract_images": true
       },
-      "prompt_id": "news_analysis_ru"
+      "prompt_id": "INoT_v1"
     },
     {
       "id": 3,
@@ -94,7 +94,7 @@
         "strip_html": false,
         "extract_images": true
       },
-      "prompt_id": "news_analysis_ru"
+      "prompt_id": "INoT_v1"
     },
     {
       "id": 4,
@@ -110,7 +110,7 @@
         "strip_html": false,
         "extract_images": true
       },
-      "prompt_id": "news_analysis_en"
+      "prompt_id": "INoT_v1"
     },
     {
       "id": 5,
@@ -126,7 +126,7 @@
         "strip_html": false,
         "extract_images": true
       },
-      "prompt_id": "news_analysis_en"
+      "prompt_id": "INoT_v1"
     }
   ],
   "publication": {
