@@ -18,6 +18,7 @@
 - **Http** — унифицированный HTTP клиент на базе Guzzle
 - **ProxyPool** 🔄 — легковесный менеджер пула прокси-серверов с ротацией, health-check и автоматическим retry
 - **htmlWebProxyList** 🌐 — получение списка прокси-серверов с htmlweb.ru API для использования в ProxyPool
+- **UTM Module** 💼 — API для работы с биллинговой системой UTM5 (лицевые счета, тарифы, услуги, группы) + утилиты (валидация, форматирование, транслитерация)
 
 ## Требования
 
@@ -523,6 +524,55 @@ echo "Добавлено в пул: {$added}";
 
 📖 **Подробная документация:** `HTMLWEB_PROXYLIST_README.md` и `examples/htmlweb_proxylist_example.php`
 
+### UTM Module
+
+Современный API для работы с биллинговой системой UTM5 (полная переработка старого PHP5.6 кода).
+
+```php
+use App\Config\ConfigLoader;
+use App\Component\Logger;
+use App\Component\MySQL;
+use App\Component\UTM\Account;
+use App\Component\UTM\Utils;
+
+// Загрузка конфигурации
+$config = ConfigLoader::load(__DIR__ . '/Config/utm.json');
+
+// Инициализация компонентов
+$logger = new Logger($config['logger']);
+$db = new MySQL($config['database'], $logger);
+$account = new Account($db, $logger);
+
+// Работа с лицевыми счетами
+try {
+    // Баланс в разных форматах
+    $balance = $account->getBalance(123);
+    echo "Баланс: {$balance}\n";
+    
+    // Текущие тарифы
+    $tariffs = $account->getCurrentTariff(123, 'array');
+    foreach ($tariffs as $id => $name) {
+        echo "Тариф ID {$id}: {$name}\n";
+    }
+    
+    // Подключенные услуги с ценами
+    $services = $account->getServices(123, 'array');
+    foreach ($services as $id => $info) {
+        echo "{$info['name']}: {$info['cost']} руб.\n";
+    }
+} catch (\App\Component\Exception\UTM\AccountException $e) {
+    echo "Ошибка: " . $e->getMessage() . "\n";
+}
+
+// Использование утилит
+$phone = Utils::validateMobileNumber('+7 909 123-45-67'); // "79091234567"
+$rounded = Utils::doRound(1234.5678, 2); // "1234.57"
+$time = Utils::min2hour(90, true); // "1 час 30 минут"
+$word = Utils::numWord(5, ['день', 'дня', 'дней']); // "5 дней"
+```
+
+📖 **Подробная документация:** `docs/UTM_MODULE.md`, `src/UTM/README.md` и `examples/utm_account_example.php`
+
 ## Пример запуска
 
 ```bash
@@ -547,10 +597,12 @@ php bin/test_autoload.php
 │   ├── rss.json
 │   └── telegram.json
 ├── docs/                   # Документация
-│   └── MYSQL_CONNECTION_FACTORY.md
+│   ├── MYSQL_CONNECTION_FACTORY.md
+│   └── UTM_MODULE.md       # Документация UTM модуля
 ├── examples/               # Примеры использования
 │   ├── mysql_example.php
 │   ├── mysql_connection_factory_example.php
+│   ├── utm_account_example.php          # Новое
 │   └── ...
 ├── logs/                   # Директория логов
 ├── src/                    # Исходный код
@@ -572,7 +624,10 @@ php bin/test_autoload.php
 │   ├── OpenRouterMetrics.class.php
 │   ├── ProxyPool.class.php
 │   ├── Rss.class.php
-│   └── Telegram.class.php
+│   ├── Telegram.class.php
+│   └── UTM/                                 # Новое
+│       ├── Account.php                      # API для UTM5 биллинга
+│       └── Utils.php                        # Утилиты и валидация
 ├── .gitignore
 ├── composer.json
 ├── MYSQL_FACTORY_UPGRADE.md    # Руководство по обновлению
