@@ -1,0 +1,144 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3308,
+    "database": "rss2tlg_test",
+    "username": "rss2tlg_user",
+    "password": "testpass123",
+    "charset": "utf8mb4",
+    "persistent": false,
+    "cache_statements": true
+  },
+  "logger": {
+    "level": "debug",
+    "directory": "logs",
+    "log_file": "logs/rss2tlg_e2e_v4_{date}.log",
+    "max_file_size": 10485760,
+    "max_files": 5,
+    "rotation": true,
+    "email_alerts": false
+  },
+  "cache": {
+    "directory": "Cache/rss2tlg_v4",
+    "ttl": 3600,
+    "enabled": true
+  },
+  "telegram": {
+    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+    "chat_id": 366442475,
+    "channel_id": "@kompasDaily",
+    "parse_mode": "HTML",
+    "notification_chat_id": 366442475,
+    "timeout": 30,
+    "retry_attempts": 3
+  },
+  "openrouter": {
+    "api_key": "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",
+    "base_url": "https://openrouter.ai/api/v1",
+    "timeout": 120,
+    "retry_attempts": 3,
+    "models": {
+      "primary": "deepseek/deepseek-r1:free",
+      "fallback": [
+        "qwen/qwen3-235b:free",
+        "deepseek/deepseek-v3.2-exp",
+        "qwen/qwen3-30b",
+        "qwen/qwen3-235b"
+      ]
+    }
+  },
+  "feeds": [
+    {
+      "id": 1,
+      "name": "ria_newsstand",
+      "title": "РИА Новости - Google Newsstand",
+      "url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
+      "language": "ru",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "parser_options": {
+        "strip_html": false,
+        "extract_images": true
+      },
+      "prompt_id": "news_analysis_ru"
+    },
+    {
+      "id": 2,
+      "name": "vedomosti_tech",
+      "title": "Ведомости - Технологии",
+      "url": "https://www.vedomosti.ru/rss/rubric/technology.xml",
+      "language": "ru",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "parser_options": {
+        "strip_html": false,
+        "extract_images": true
+      },
+      "prompt_id": "news_analysis_ru"
+    },
+    {
+      "id": 3,
+      "name": "lenta_top7",
+      "title": "Lenta.ru - Топ-7",
+      "url": "http://lenta.ru/rss/top7",
+      "language": "ru",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "parser_options": {
+        "strip_html": false,
+        "extract_images": true
+      },
+      "prompt_id": "news_analysis_ru"
+    },
+    {
+      "id": 4,
+      "name": "arstechnica_ai",
+      "title": "Ars Technica - AI",
+      "url": "https://arstechnica.com/ai/feed",
+      "language": "en",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "parser_options": {
+        "strip_html": false,
+        "extract_images": true
+      },
+      "prompt_id": "news_analysis_en"
+    },
+    {
+      "id": 5,
+      "name": "techcrunch_startups",
+      "title": "TechCrunch - Startups",
+      "url": "https://techcrunch.com/startups/feed",
+      "language": "en",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "parser_options": {
+        "strip_html": false,
+        "extract_images": true
+      },
+      "prompt_id": "news_analysis_en"
+    }
+  ],
+  "publication": {
+    "max_items_per_run": 5,
+    "publish_to_channel": true,
+    "publish_to_bot": false,
+    "include_ai_analysis": true,
+    "include_metrics": true,
+    "format": {
+      "title_prefix": "📰",
+      "ai_prefix": "🤖",
+      "metrics_prefix": "📊"
+    }
+  }
+}
