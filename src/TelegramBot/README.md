@@ -223,16 +223,45 @@ src/TelegramBot/
 - Система контроля доступа: `/docs/TELEGRAM_BOT_ACCESS_CONTROL.md`
 - Режим Polling: `/docs/TELEGRAM_BOT_POLLING.md`
 
-Рабочие примеры: 
-- `/examples/telegram_bot_advanced.php`
-- `/examples/telegram_bot_access_control.php`
-- `/examples/telegram_bot_polling_example.php`
+Рабочие примеры в папке `examples/`: 
+- `telegram_bot_advanced.php` - Расширенный функционал
+- `telegram_bot_access_control.php` - Контроль доступа
+- `telegram_bot_polling_example.php` - Polling режим
+- `telegram_bot_with_conversations.php` - Диалоги
+- `telegram_bot_with_message_storage.php` - Хранение сообщений
+- `telegram_bot_counter_example.php` - Простой счетчик
+
+## CLI Скрипты
+
+Административные скрипты в папке `bin/`:
+
+- `telegram_bot_cleanup_messages.php` - Очистка старых сообщений из БД
+- `telegram_bot_cleanup_conversations.php` - Очистка устаревших диалогов
+- `convert_ini_to_json.php` - Конвертация INI → JSON конфигураций
+
+Подробности: см. [INDEX.md](INDEX.md)
+
+## Конфигурация
+
+Все конфигурационные файлы в папке `config/`:
+
+- `telegram_bot_access_control.json` - Контроль доступа
+- `telegram_bot_conversations.json` - Менеджер диалогов
+- `telegram_bot_message_storage.json` - Хранение сообщений
+- `telegram_bot_roles.json` - Роли пользователей
+- `telegram_bot_users.json` - Список пользователей
 
 ## Требования
 
 - PHP 8.1+
 - Composer зависимости: guzzlehttp/guzzle
-- Классы проекта: Http, Logger
+- Классы проекта: Http, Logger, MySQL (для MessageStorage, ConversationManager)
+
+## Навигация
+
+- [INDEX.md](INDEX.md) - Полный индекс и навигация по модулю
+- [STRUCTURE.md](STRUCTURE.md) - Архитектура и структура классов
+- [README.md](README.md) - Этот файл
 
 ## Лицензия
 

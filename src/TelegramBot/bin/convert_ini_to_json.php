@@ -5,10 +5,10 @@
  * Скрипт конвертации INI файлов в JSON для системы контроля доступа TelegramBot
  * 
  * Использование:
- *   php bin/convert_ini_to_json.php <users.ini> <roles.ini> [output_dir]
+ *   php src/TelegramBot/bin/convert_ini_to_json.php <users.ini> <roles.ini> [output_dir]
  * 
  * Пример:
- *   php bin/convert_ini_to_json.php users.ini roles.ini config/
+ *   php src/TelegramBot/bin/convert_ini_to_json.php users.ini roles.ini config/
  */
 
 declare(strict_types=1);
