@@ -60,7 +60,7 @@ composer install
 ```php
 use App\Component\OpenRouter;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // С логгером
 $config = ConfigLoader::load(__DIR__ . '/config/openrouter.json');

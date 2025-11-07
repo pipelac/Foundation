@@ -81,7 +81,7 @@ composer install
 
 ```php
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 $config = ConfigLoader::load(__DIR__ . '/config/logger.json');
 $logger = new Logger($config);

@@ -18,7 +18,7 @@ cp Config/utm_example.json Config/utm.json
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Component\UTM\Account;

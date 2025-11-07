@@ -74,7 +74,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use App\Component\MySQL;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Rss2Tlg\FetchRunner;
 use App\Rss2Tlg\DTO\FeedConfig;
 

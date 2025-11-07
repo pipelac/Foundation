@@ -11,12 +11,13 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
 
 /**
  * Простой автозагрузчик классов с поддержкой *.class.php
+ * Обновлено: 2025-11-07 - добавлена поддержка BaseUtils
  */
 spl_autoload_register(static function (string $class): void {
     $prefixes = [
-        'App\\Component\\' => __DIR__ . '/src/',
+        'App\\Component\\' => __DIR__ . '/src/BaseUtils/',
         'App\\' => __DIR__ . '/src/',
-        'Cache\\' => __DIR__ . '/src/Cache/',
+        'Cache\\' => __DIR__ . '/src/BaseUtils/Cache/',
     ];
 
     foreach ($prefixes as $prefix => $baseDir) {

@@ -6,7 +6,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use App\Component\Email;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 try {
     // Загрузка конфигурации

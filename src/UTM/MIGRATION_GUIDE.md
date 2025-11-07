@@ -14,7 +14,7 @@ $api = new AccountApi();
 
 **Стало:**
 ```php
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\{Logger, MySQL};
 use App\Component\UTM\Account;
 
@@ -231,7 +231,7 @@ try {
 
 **Загрузка конфигурации:**
 ```php
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 $accountConfig = ConfigLoader::load('src/UTM/config/account.json');
 
