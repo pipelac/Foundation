@@ -15,9 +15,9 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../../vendor/autoload.php';
+require_once __DIR__ . '/../../../autoload.php';
 
-use App\Component\Config\ConfigLoader;
+use App\Config\ConfigLoader;
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Component\Http;
@@ -47,7 +47,7 @@ echo "\n";
 echo "🕐 Начало: {$testStartDate}\n\n";
 
 // Загрузка конфигурации
-$config = ConfigLoader::load('/home/engine/project/Config/rss2tlg_e2e_test.json');
+$config = ConfigLoader::load('/home/engine/project/src/Rss2Tlg/config/rss2tlg_e2e_test.json');
 
 // Создание компонентов
 $logger = new Logger($config['logger']);
@@ -112,6 +112,45 @@ sendNotification(
 );
 
 echo "✅ Уведомление о начале отправлено в бот\n\n";
+
+// =============================================================================
+// ШАГ 0: УДАЛЕНИЕ СТАРЫХ ДАМПОВ И ОТЧЕТОВ
+// =============================================================================
+
+echo "═══════════════════════════════════════════════════════════════════════\n";
+echo "ШАГ 0: Удаление старых дампов и отчетов\n";
+echo "═══════════════════════════════════════════════════════════════════════\n\n";
+
+$sqlDir = __DIR__ . '/sql';
+$reportsDir = __DIR__ . '/reports';
+
+// Удаление старых CSV дампов
+if (is_dir($sqlDir)) {
+    $csvFiles = glob($sqlDir . '/*.csv');
+    foreach ($csvFiles as $file) {
+        unlink($file);
+        echo "🗑️  Удален старый дамп: " . basename($file) . "\n";
+    }
+    echo "✅ Очищено CSV дампов: " . count($csvFiles) . "\n";
+} else {
+    mkdir($sqlDir, 0755, true);
+    echo "📁 Создана директория: sql/\n";
+}
+
+// Удаление старых отчетов
+if (is_dir($reportsDir)) {
+    $reportFiles = glob($reportsDir . '/*.md');
+    foreach ($reportFiles as $file) {
+        unlink($file);
+        echo "🗑️  Удален старый отчет: " . basename($file) . "\n";
+    }
+    echo "✅ Очищено отчетов: " . count($reportFiles) . "\n";
+} else {
+    mkdir($reportsDir, 0755, true);
+    echo "📁 Создана директория: reports/\n";
+}
+
+echo "\n";
 
 // =============================================================================
 // ШАГ 1: ОЧИСТКА ТАБЛИЦ БД
