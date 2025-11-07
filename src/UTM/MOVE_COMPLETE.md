@@ -152,7 +152,7 @@ php src/UTM/examples/utm_account_search_example.php
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Component\UTM\Account;

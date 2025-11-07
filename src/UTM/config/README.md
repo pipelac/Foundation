@@ -22,7 +22,7 @@
 ## Использование
 
 ```php
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // Загрузка конфигурации
 $config = ConfigLoader::load('src/UTM/config/account.json');

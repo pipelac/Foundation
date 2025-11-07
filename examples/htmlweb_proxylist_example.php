@@ -9,7 +9,7 @@ use App\Component\ProxyPool;
 use App\Component\htmlWebProxyList;
 use App\Component\Exception\HtmlWebProxyListException;
 use App\Component\Exception\HtmlWebProxyListValidationException;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 echo "=== Примеры использования htmlWebProxyList ===\n\n";
 

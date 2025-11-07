@@ -94,7 +94,7 @@ composer install
 ```php
 use App\Component\Email;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // С логгером
 $config = ConfigLoader::load(__DIR__ . '/config/email.json');

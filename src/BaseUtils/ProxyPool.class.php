@@ -7,7 +7,7 @@ namespace App\Component;
 use App\Component\Exception\HttpException;
 use App\Component\Exception\ProxyPool\ProxyPoolException;
 use App\Component\Exception\ProxyPool\ProxyPoolValidationException;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use Psr\Http\Message\ResponseInterface;
 
 /**

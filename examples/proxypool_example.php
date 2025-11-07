@@ -7,7 +7,7 @@ require_once __DIR__ . '/../autoload.php';
 use App\Component\Logger;
 use App\Component\ProxyPool;
 use App\Component\Exception\ProxyPoolException;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // Пример 1: Базовое использование ProxyPool с конфигурацией
 echo "=== Пример 1: Базовое использование ProxyPool ===\n\n";

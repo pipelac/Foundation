@@ -6,7 +6,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use App\Component\Logger;
 use App\Component\OpenRouterMetrics;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 /**
  * Пример использования класса OpenRouterMetrics для работы с метриками OpenRouter API

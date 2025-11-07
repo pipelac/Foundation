@@ -7,7 +7,7 @@ namespace App\Component;
 use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListException;
 use App\Component\Exception\htmlWebProxyList\HtmlWebProxyListValidationException;
 use App\Component\Exception\HttpException;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 /**
  * Класс для получения списка прокси-серверов с htmlweb.ru API

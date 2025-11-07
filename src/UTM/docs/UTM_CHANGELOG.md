@@ -76,7 +76,7 @@ if ($result['status'] == 'OK') {
 
 **Новый код (PHP 8.1+):**
 ```php
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\MySQL;
 use App\Component\Logger;
 use App\Component\UTM\Account;

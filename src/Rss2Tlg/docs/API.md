@@ -470,7 +470,7 @@ if ($result->isSuccessful()) {
 ### Пример 2: Опрос множества источников
 
 ```php
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 $config = ConfigLoader::load('config/rss2tlg.json');
 

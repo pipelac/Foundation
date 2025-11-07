@@ -121,7 +121,7 @@ if ($result['status'] == 'OK') {
 
 ```php
 // Новый подход
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\{Logger, MySQL};
 use App\Component\UTM\Account;
 use App\Component\Exception\UTM\AccountException;

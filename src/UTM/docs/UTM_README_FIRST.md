@@ -34,7 +34,7 @@ nano Config/utm.json  # Настройте под свою БД UTM5
 ```php
 <?php
 
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 use App\Component\{Logger, MySQL};
 use App\Component\UTM\{Account, Utils};
 

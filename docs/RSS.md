@@ -59,7 +59,7 @@ composer install
 ```php
 use App\Component\Rss;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // С конфигурацией и логгером
 $config = ConfigLoader::load(__DIR__ . '/config/rss.json');

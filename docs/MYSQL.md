@@ -71,7 +71,7 @@ composer install
 ```php
 use App\Component\MySQL;
 use App\Component\Logger;
-use App\Config\ConfigLoader;
+use App\Component\Config\ConfigLoader;
 
 // С логгером
 $config = ConfigLoader::load(__DIR__ . '/config/mysql.json');
