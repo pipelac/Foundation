@@ -581,3 +581,160 @@ echo "Errors: {$metrics['fetch_errors']}\n";
 echo "Parse Errors: {$metrics['parse_errors']}\n";
 echo "Items Parsed: {$metrics['items_parsed']}\n";
 ```
+
+---
+
+## Исключения
+
+Модуль Rss2Tlg использует иерархию специализированных исключений для типизированной обработки ошибок.
+
+### Иерархия исключений
+
+```
+RuntimeException
+└── Rss2TlgException (базовое для всех исключений модуля)
+    ├── FeedConfigException (ошибки конфигурации фидов)
+    │   └── FeedValidationException (валидация параметров фида)
+    ├── PromptException (ошибки работы с промптами)
+    │   ├── PromptNotFoundException (отсутствие файла промпта)
+    │   └── PromptLoadException (ошибка загрузки промпта)
+    ├── AIAnalysisException (ошибки AI-анализа)
+    │   ├── AIParsingException (парсинг JSON ответа от AI)
+    │   └── AIValidationException (валидация результата анализа)
+    └── RepositoryException (ошибки работы с БД)
+        └── SaveException (ошибки сохранения данных)
+```
+
+### Использование исключений
+
+#### Feed исключения
+
+```php
+use App\Rss2Tlg\Exception\Feed\FeedConfigException;
+use App\Rss2Tlg\Exception\Feed\FeedValidationException;
+
+try {
+    $config = FeedConfig::fromArray($data);
+} catch (FeedValidationException $e) {
+    // Некорректные параметры фида (отсутствует id, url, или некорректный timeout)
+    $logger->error("Feed validation failed: " . $e->getMessage());
+} catch (FeedConfigException $e) {
+    // Общая ошибка конфигурации
+    $logger->error("Feed config error: " . $e->getMessage());
+}
+```
+
+#### Prompt исключения
+
+```php
+use App\Rss2Tlg\Exception\Prompt\PromptException;
+use App\Rss2Tlg\Exception\Prompt\PromptNotFoundException;
+use App\Rss2Tlg\Exception\Prompt\PromptLoadException;
+
+try {
+    $prompt = $promptManager->getSystemPrompt('INoT_v1');
+} catch (PromptNotFoundException $e) {
+    // Файл промпта не найден
+    $logger->error("Prompt file not found: " . $e->getMessage());
+} catch (PromptLoadException $e) {
+    // Ошибка чтения файла (нет прав доступа и т.д.)
+    $logger->error("Failed to load prompt: " . $e->getMessage());
+} catch (PromptException $e) {
+    // Общая ошибка работы с промптами
+    $logger->error("Prompt error: " . $e->getMessage());
+}
+```
+
+#### AI Analysis исключения
+
+```php
+use App\Rss2Tlg\Exception\AI\AIAnalysisException;
+use App\Rss2Tlg\Exception\AI\AIParsingException;
+use App\Rss2Tlg\Exception\AI\AIValidationException;
+
+try {
+    $analysis = $aiService->analyze($item);
+} catch (AIParsingException $e) {
+    // JSON ответ от AI невалидный или не соответствует схеме
+    $logger->error("AI response parsing failed: " . $e->getMessage());
+} catch (AIValidationException $e) {
+    // Результат анализа не прошел валидацию
+    $logger->error("AI result validation failed: " . $e->getMessage());
+} catch (AIAnalysisException $e) {
+    // Общая ошибка AI-анализа (сеть, API лимиты и т.д.)
+    $logger->error("AI analysis error: " . $e->getMessage());
+}
+```
+
+#### Repository исключения
+
+```php
+use App\Rss2Tlg\Exception\Repository\RepositoryException;
+use App\Rss2Tlg\Exception\Repository\SaveException;
+
+try {
+    $itemId = $itemRepository->save($feedId, $item);
+} catch (SaveException $e) {
+    // Ошибка сохранения в БД (constraint violation, connection lost)
+    $logger->error("Failed to save item: " . $e->getMessage());
+} catch (RepositoryException $e) {
+    // Общая ошибка репозитория
+    $logger->error("Repository error: " . $e->getMessage());
+}
+```
+
+#### Отлов всех исключений модуля
+
+```php
+use App\Rss2Tlg\Exception\Rss2TlgException;
+
+try {
+    // Любая операция модуля Rss2Tlg
+    $result = $someService->doSomething();
+} catch (Rss2TlgException $e) {
+    // Ловим все исключения модуля одним блоком
+    $logger->error("Rss2Tlg module error: " . $e->getMessage());
+    // Можно проверить конкретный тип через instanceof
+    if ($e instanceof AIParsingException) {
+        // Специфичная обработка для AI парсинга
+    }
+}
+```
+
+### Рекомендации по обработке
+
+1. **Типизированный catch**: Ловите специфичные исключения первыми, базовые - последними
+2. **Логирование**: Всегда логируйте исключения с контекстом
+3. **Graceful degradation**: При ошибках AI или промптов используйте fallback логику
+4. **Retry logic**: Для `SaveException` и сетевых ошибок используйте повторные попытки
+5. **Validation**: Проверяйте данные до операций, используйте validation исключения
+
+### Примеры graceful degradation
+
+```php
+// Пример с fallback при ошибке AI
+try {
+    $analysis = $aiService->analyze($item);
+} catch (AIParsingException $e) {
+    $logger->warning("AI parsing failed, using basic analysis");
+    $analysis = $basicAnalyzer->analyze($item);
+}
+
+// Пример с retry для сохранения
+$maxRetries = 3;
+$attempt = 0;
+
+while ($attempt < $maxRetries) {
+    try {
+        $itemId = $itemRepository->save($feedId, $item);
+        break; // Успех
+    } catch (SaveException $e) {
+        $attempt++;
+        if ($attempt >= $maxRetries) {
+            $logger->error("Failed to save after {$maxRetries} attempts");
+            throw $e;
+        }
+        sleep(1); // Задержка перед повтором
+    }
+}
+```

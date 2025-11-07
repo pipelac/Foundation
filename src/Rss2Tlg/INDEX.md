@@ -73,6 +73,32 @@
 | **RawItem** | Нормализованный элемент | [DTO/RawItem.php](DTO/RawItem.php) |
 | **FetchResult** | Результат fetch операции | [DTO/FetchResult.php](DTO/FetchResult.php) |
 
+### Исключения
+
+Модуль использует иерархию специализированных исключений для типизированной обработки ошибок.
+
+**Документация:** [Exception/README.md](Exception/README.md) ⭐
+
+| Категория | Исключения | Файлы |
+|-----------|-----------|-------|
+| **Базовое** | Rss2TlgException | [Exception/Rss2TlgException.php](Exception/Rss2TlgException.php) |
+| **Feed** | FeedConfigException, FeedValidationException | [Exception/Feed/](Exception/Feed/) |
+| **Prompt** | PromptException, PromptNotFoundException, PromptLoadException | [Exception/Prompt/](Exception/Prompt/) |
+| **AI** | AIAnalysisException, AIParsingException, AIValidationException | [Exception/AI/](Exception/AI/) |
+| **Repository** | RepositoryException, SaveException | [Exception/Repository/](Exception/Repository/) |
+
+```php
+// Пример использования
+use App\Rss2Tlg\Exception\AI\AIParsingException;
+
+try {
+    $analysis = $aiService->analyze($item);
+} catch (AIParsingException $e) {
+    $logger->warning("AI parsing failed, using fallback");
+    $analysis = $fallbackAnalyzer->analyze($item);
+}
+```
+
 ---
 
 ## 🎯 Примеры использования
@@ -193,12 +219,13 @@ $prompt = $promptManager->getPrompt('news_analysis_ru.xml');
 
 ### Файлы
 
-- **Всего файлов**: 65
-- **PHP классы**: 12 (8 основных + 4 DTO)
+- **Всего файлов**: 76
+- **PHP классы**: 23 (8 основных + 4 DTO + 11 исключений)
+- **Исключения**: 11 (1 базовое + 10 специализированных)
 - **Тесты**: 3
 - **Примеры**: 3
 - **Конфигурация**: 2
-- **Документация**: 36
+- **Документация**: 38
 - **SQL схемы**: 3
 - **CSV дампы**: 4
 - **Промпты**: 2
