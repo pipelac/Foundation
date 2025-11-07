@@ -4,7 +4,7 @@
     "port": 3306,
     "database": "rss2tlg_test",
     "username": "rss2tlg_user",
-    "password": "test_password",
+    "password": "rss2tlg_pass_456",
     "charset": "utf8mb4"
   },
   "cache": {
@@ -24,7 +24,7 @@
     "mode": "polling"
   },
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "models": [
       "deepseek/deepseek-r1:free",
       "qwen/qwen3-235b-a22b:free",
@@ -46,7 +46,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
-      "promptId": 1,
+      "promptId": "INoT_v1",
       "aiModels": [
         "deepseek/deepseek-r1:free",
         "qwen/qwen3-235b-a22b:free",
@@ -65,7 +65,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
-      "promptId": 1,
+      "promptId": "INoT_v1",
       "aiModels": [
         "deepseek/deepseek-r1:free",
         "qwen/qwen3-235b-a22b:free",
@@ -84,7 +84,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
-      "promptId": 1,
+      "promptId": "INoT_v1",
       "aiModels": [
         "deepseek/deepseek-r1:free",
         "qwen/qwen3-235b-a22b:free",
@@ -103,7 +103,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
-      "promptId": 2,
+      "promptId": "INoT_v1",
       "aiModels": [
         "deepseek/deepseek-r1:free",
         "qwen/qwen3-235b-a22b:free",
@@ -122,7 +122,7 @@
       "timeout": 30,
       "retries": 3,
       "polling_interval": 300,
-      "promptId": 2,
+      "promptId": "INoT_v1",
       "aiModels": [
         "deepseek/deepseek-r1:free",
         "qwen/qwen3-235b-a22b:free",

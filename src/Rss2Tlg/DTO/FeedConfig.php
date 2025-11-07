@@ -66,12 +66,12 @@ class FeedConfig
             enabled: (bool)($data['enabled'] ?? true),
             timeout: (int)($data['timeout'] ?? 30),
             retries: (int)($data['retries'] ?? 3),
-            pollingInterval: (int)($data['polling_interval'] ?? 300),
+            pollingInterval: (int)($data['polling_interval'] ?? $data['pollingInterval'] ?? 300),
             headers: (array)($data['headers'] ?? []),
-            parserOptions: (array)($data['parser_options'] ?? []),
+            parserOptions: (array)($data['parser_options'] ?? $data['parserOptions'] ?? []),
             proxy: isset($data['proxy']) ? (string)$data['proxy'] : null,
-            promptId: isset($data['prompt_id']) ? (string)$data['prompt_id'] : null,
-            aiModels: (array)($data['ai_models'] ?? [])
+            promptId: isset($data['prompt_id']) ? (string)$data['prompt_id'] : (isset($data['promptId']) ? (string)$data['promptId'] : null),
+            aiModels: (array)($data['ai_models'] ?? $data['aiModels'] ?? [])
         );
     }
 
