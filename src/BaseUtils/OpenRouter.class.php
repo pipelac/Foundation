@@ -19,6 +19,7 @@ use JsonException;
  * - Распознавание изображений (image2text)
  * - Работа с PDF документами (pdf2text)
  * - Работа с аудио (audio2text)
+ * - Работа с видео (video2text)
  * - Потоковая передача текста (textStream)
  * 
  * @link https://openrouter.ai/docs/quickstart Официальная документация OpenRouter API
@@ -415,6 +416,63 @@ class OpenRouter
 
         if (!isset($response['choices'][0]['message']['content'])) {
             throw new OpenRouterException('Модель не вернула транскрипцию.');
+        }
+
+        return (string)$response['choices'][0]['message']['content'];
+    }
+
+    /**
+     * Преобразует видео в текст (video2text)
+     *
+     * Анализирует видео и возвращает текстовое описание, транскрипцию или ответ на вопрос.
+     * Поддерживает URL видео или base64-encoded данные.
+     *
+     * @param string $model Модель для анализа видео (например, "google/gemini-2.5-flash", "openai/gpt-4o")
+     * @param string $videoUrl URL видео или base64-encoded данные
+     * @param array<string, mixed> $options Дополнительные параметры:
+     *                                      - prompt (string): Инструкция для анализа видео
+     *                                      - max_tokens (int): Максимальное количество токенов
+     * @return string Результат анализа видео
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если модель не вернула текстовый ответ
+     * @link https://openrouter.ai/docs/features/multimodal/videos Документация по работе с видео
+     */
+    public function video2text(string $model, string $videoUrl, array $options = []): string
+    {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($videoUrl, 'videoUrl');
+
+        $prompt = $options['prompt'] ?? 'Пожалуйста, проанализируй это видео и опиши что на нём происходит.';
+        
+        // Удаляем prompt из options чтобы не передавать в payload
+        unset($options['prompt']);
+
+        // Формат согласно документации OpenRouter: https://openrouter.ai/docs/features/multimodal/videos
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'text', 'text' => $prompt],
+                    [
+                        'type' => 'video_url',
+                        'video_url' => [
+                            'url' => $videoUrl,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $payload = array_merge([
+            'model' => $model,
+            'messages' => $messages,
+        ], $options);
+
+        $response = $this->sendRequest('/chat/completions', $payload);
+
+        if (!isset($response['choices'][0]['message']['content'])) {
+            throw new OpenRouterException('Модель не вернула текстовый ответ.');
         }
 
         return (string)$response['choices'][0]['message']['content'];

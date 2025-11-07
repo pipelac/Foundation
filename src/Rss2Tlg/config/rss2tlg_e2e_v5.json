@@ -58,9 +58,8 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen-2.5-72b-instruct",
-        "deepseek/deepseek-v3.2-exp"
+        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-chat"
       ]
     },
     {
@@ -80,9 +79,8 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen-2.5-72b-instruct",
-        "deepseek/deepseek-v3.2-exp"
+        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-chat"
       ]
     },
     {
@@ -102,9 +100,8 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen-2.5-72b-instruct",
-        "deepseek/deepseek-v3.2-exp"
+        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-chat"
       ]
     },
     {
@@ -124,9 +121,8 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen-2.5-72b-instruct",
-        "deepseek/deepseek-v3.2-exp"
+        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-chat"
       ]
     },
     {
@@ -146,24 +142,22 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "deepseek/deepseek-r1:free",
-        "qwen/qwen-2.5-72b-instruct",
-        "deepseek/deepseek-v3.2-exp"
+        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-chat"
       ]
     }
   ],
   
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "app_name": "RSS2TLG-E2E-Test",
     "base_url": "https://openrouter.ai/api/v1",
-    "default_model": "qwen/qwen3-235b:free",
+    "default_model": "google/gemini-2.0-flash-exp:free",
     "fallback_models": [
-      "qwen/qwen3-30b:free",
-      "deepseek/deepseek-v3.2-exp",
+      "deepseek/deepseek-chat",
       "qwen/qwen-2.5-72b-instruct"
     ],
-    "timeout": 120,
+    "timeout": 180,
     "retries": 2
   },
   
