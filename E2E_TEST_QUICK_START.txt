@@ -1,0 +1,56 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║            RSS2TLG E2E TEST - QUICK START GUIDE                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+✅ TEST STATUS: PASSED (100% success)
+📅 Date: 2025-11-07
+⏱️  Duration: 148 seconds
+📊 Results: 316 news, 5 AI analyzed, 5 published
+
+───────────────────────────────────────────────────────────────────────────
+
+🚀 QUICK RUN (3 steps):
+
+   1. Start MariaDB:
+      docker run -d --name rss2tlg_mariadb \
+        -e MYSQL_ROOT_PASSWORD=testpass123 \
+        -e MYSQL_DATABASE=rss2tlg_test \
+        -e MYSQL_USER=rss2tlg_user \
+        -e MYSQL_PASSWORD=testpass123 \
+        -p 3307:3306 \
+        mariadb:11.3.2 \
+        --character-set-server=utf8mb4 \
+        --collation-server=utf8mb4_unicode_ci
+
+   2. Wait 30 seconds:
+      sleep 30
+
+   3. Run test:
+      php src/Rss2Tlg/tests/tests_rss2tlg_e2e_v5.php
+
+───────────────────────────────────────────────────────────────────────────
+
+📂 ALL MATERIALS IN:
+   src/Rss2Tlg/tests/
+
+📖 READ FIRST:
+   • src/Rss2Tlg/tests/README.txt         - Quick access
+   • src/Rss2Tlg/tests/INDEX.md           - Full navigation
+   • TASK_COMPLETION_REPORT.md            - Task completion
+
+📊 TEST RESULTS:
+   • E2E_TEST_V5_SUMMARY.md               - Main report
+   • HOW_TO_RUN_E2E_TESTS.md              - Instructions
+   • E2E_TEST_RESULTS.txt                 - Visual report
+
+💾 DATA:
+   • sql/*.csv                            - Database dumps (4 files, 431 KB)
+   • reports/*.md                         - Detailed reports
+
+───────────────────────────────────────────────────────────────────────────
+
+📞 SUPPORT:
+   Telegram Bot: @KompasAiBot
+   Telegram Channel: @kompasDaily
+
+───────────────────────────────────────────────────────────────────────────
