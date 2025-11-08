@@ -1,0 +1,194 @@
+{
+  "_comment": "Конфигурация для тестирования модуля публикаций",
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_password_2024",
+    "charset": "utf8mb4"
+  },
+  "openrouter": {
+    "api_key": "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",
+    "base_url": "https://openrouter.ai/api/v1"
+  },
+  "telegram": {
+    "test_bot": {
+      "token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+      "default_chat_id": "366442475",
+      "timeout": 30
+    }
+  },
+  "logging": {
+    "directory": "logs/rss2tlg",
+    "file_name": "publication_test",
+    "min_level": "debug"
+  },
+  "feeds": [
+    {
+      "id": 1,
+      "name": "BBC News - Technology",
+      "url": "http://feeds.bbci.co.uk/news/technology/rss.xml",
+      "enabled": true,
+      "fetch_full_content": true,
+      "extract_images": true
+    },
+    {
+      "id": 2,
+      "name": "The Verge",
+      "url": "https://www.theverge.com/rss/index.xml",
+      "enabled": true,
+      "fetch_full_content": true,
+      "extract_images": true
+    },
+    {
+      "id": 3,
+      "name": "TechCrunch",
+      "url": "https://techcrunch.com/feed/",
+      "enabled": true,
+      "fetch_full_content": true,
+      "extract_images": true
+    }
+  ],
+  "pipeline": {
+    "summarization": {
+      "enabled": true,
+      "models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "src/Rss2Tlg/prompts/summarization_prompt_v2.txt",
+      "ai_params": {
+        "temperature": 0.2,
+        "max_tokens": 1500,
+        "top_p": 0.9,
+        "frequency_penalty": 0.3,
+        "presence_penalty": 0.1
+      }
+    },
+    "deduplication": {
+      "enabled": true,
+      "models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "comparison_window_hours": 48,
+      "max_comparisons": 10,
+      "prompt_file": "src/Rss2Tlg/prompts/deduplication_prompt_v2.txt",
+      "ai_params": {
+        "temperature": 0.1,
+        "max_tokens": 1000,
+        "top_p": 0.95
+      }
+    },
+    "translation": {
+      "enabled": true,
+      "models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "target_languages": ["ru"],
+      "prompt_file": "src/Rss2Tlg/prompts/translation_prompt_v2.txt",
+      "ai_params": {
+        "temperature": 0.3,
+        "max_tokens": 2000,
+        "top_p": 0.9,
+        "frequency_penalty": 0.2,
+        "presence_penalty": 0.2
+      }
+    },
+    "illustration": {
+      "enabled": true,
+      "models": [
+        "anthropic/claude-3.5-sonnet"
+      ],
+      "retry_count": 1,
+      "timeout": 60,
+      "image_generator": "placeholder",
+      "image_path": "data/images/rss2tlg",
+      "image_width": 1200,
+      "image_height": 630,
+      "watermark": {
+        "enabled": true,
+        "text": "RSS2TLG",
+        "opacity": 50
+      },
+      "prompt_file": "src/Rss2Tlg/prompts/illustration_generation_prompt_v1.txt",
+      "ai_params": {
+        "temperature": 0.7,
+        "max_tokens": 2000
+      }
+    },
+    "publication": {
+      "enabled": true,
+      "telegram_bots": [
+        {
+          "token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+          "default_chat_id": "366442475",
+          "timeout": 30,
+          "types": ["bot", "channel", "group"]
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 30,
+      "batch_size": 10
+    }
+  },
+  "publication_rules": [
+    {
+      "feed_id": 1,
+      "destination_type": "channel",
+      "destination_id": "@kompasDaily",
+      "enabled": true,
+      "categories": ["technology", "science", "ai"],
+      "min_importance": 5,
+      "languages": ["ru", "en"],
+      "include_image": true,
+      "include_link": true,
+      "priority": 90
+    },
+    {
+      "feed_id": 1,
+      "destination_type": "bot",
+      "destination_id": "366442475",
+      "enabled": true,
+      "categories": ["all"],
+      "min_importance": 5,
+      "languages": ["ru"],
+      "include_image": true,
+      "include_link": true,
+      "priority": 80
+    },
+    {
+      "feed_id": 2,
+      "destination_type": "channel",
+      "destination_id": "@kompasDaily",
+      "enabled": true,
+      "categories": ["technology", "gadgets", "ai"],
+      "min_importance": 5,
+      "languages": ["ru"],
+      "include_image": true,
+      "include_link": true,
+      "priority": 85
+    },
+    {
+      "feed_id": 3,
+      "destination_type": "bot",
+      "destination_id": "366442475",
+      "enabled": true,
+      "categories": ["all"],
+      "min_importance": 5,
+      "languages": ["ru"],
+      "include_image": true,
+      "include_link": true,
+      "priority": 75
+    }
+  ]
+}
