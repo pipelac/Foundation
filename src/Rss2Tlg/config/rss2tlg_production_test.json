@@ -1,0 +1,225 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_password_2024",
+    "charset": "utf8mb4",
+    "options": {
+      "persistent": false,
+      "timeout": 30,
+      "init_command": "SET NAMES utf8mb4"
+    }
+  },
+  
+  "logger": {
+    "enabled": true,
+    "directory": "/home/engine/project/logs",
+    "file_name": "rss2tlg_production_test.log",
+    "max_file_size": 10,
+    "max_files": 5,
+    "min_level": "debug",
+    "email_alerts": {
+      "enabled": false
+    }
+  },
+  
+  "cache": {
+    "enabled": true,
+    "cache_dir": "/home/engine/project/Cache/rss2tlg",
+    "default_ttl": 3600
+  },
+  
+  "http": {
+    "timeout": 30,
+    "retries": 3,
+    "user_agent": "RSS2TLG-Production-Test/1.0",
+    "headers": {
+      "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml"
+    }
+  },
+  
+  "feeds": [
+    {
+      "id": 1,
+      "name": "RIA_Novosti",
+      "title": "РИА Новости",
+      "language": "ru",
+      "url": "https://ria.ru/export/rss2/archive/index.xml",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Lenta_ru",
+      "title": "Лента.ру - Топ новости",
+      "language": "ru",
+      "url": "https://lenta.ru/rss/top7",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ArsTechnica_AI",
+      "title": "Ars Technica - AI",
+      "language": "en",
+      "url": "https://arstechnica.com/ai/feed",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "TechCrunch",
+      "title": "TechCrunch - Latest",
+      "language": "en",
+      "url": "https://techcrunch.com/feed",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "BBC_Technology",
+      "title": "BBC - Technology",
+      "language": "en",
+      "url": "http://feeds.bbci.co.uk/news/technology/rss.xml",
+      "enabled": true,
+      "timeout": 30,
+      "retries": 3,
+      "polling_interval": 300,
+      "headers": {},
+      "parser_options": {
+        "strip_tags": false
+      },
+      "proxy": null,
+      "prompt_id": 1,
+      "ai_models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ]
+    }
+  ],
+  
+  "openrouter": {
+    "api_key": "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",
+    "app_name": "RSS2TLG-ProductionTest",
+    "base_url": "https://openrouter.ai/api/v1",
+    "default_model": "anthropic/claude-3.5-sonnet",
+    "fallback_models": [
+      "anthropic/claude-3.5-sonnet",
+      "deepseek/deepseek-chat"
+    ],
+    "timeout": 120,
+    "retries": 2
+  },
+  
+  "telegram": {
+    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+    "chat_id": 366442475,
+    "channel_id": "@kompasDaily",
+    "mode": "polling",
+    "parse_mode": "HTML",
+    "disable_notification": false,
+    "timeout": 30
+  },
+  
+  "pipeline": {
+    "summarization": {
+      "enabled": true,
+      "models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/summarization_prompt.txt"
+    },
+    "deduplication": {
+      "enabled": false,
+      "similarity_threshold": 0.85,
+      "compare_last_n_days": 7,
+      "models": [
+        "anthropic/claude-3.5-sonnet"
+      ],
+      "retry_count": 2,
+      "timeout": 120
+    },
+    "translation": {
+      "enabled": false,
+      "target_languages": ["en", "ru"],
+      "models": [
+        "anthropic/claude-3.5-sonnet"
+      ],
+      "retry_count": 2,
+      "timeout": 120
+    },
+    "illustration": {
+      "enabled": false,
+      "models": [
+        "openai/dall-e-3"
+      ],
+      "retry_count": 2,
+      "timeout": 180,
+      "image_path": "/home/engine/project/images"
+    }
+  },
+  
+  "notifications": {
+    "enabled": true,
+    "send_to_bot": true,
+    "bot_chat_id": 366442475,
+    "notify_on_start": true,
+    "notify_on_progress": true,
+    "notify_on_completion": true,
+    "notify_on_error": true
+  }
+}
