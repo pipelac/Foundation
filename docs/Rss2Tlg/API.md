@@ -738,3 +738,92 @@ while ($attempt < $maxRetries) {
     }
 }
 ```
+
+---
+
+## AI Pipeline: TranslationService
+
+### Описание
+
+`TranslationService` - третий этап AI Pipeline для перевода новостей на множественные языки.
+
+### Конструктор
+
+```php
+public function __construct(
+    MySQL $db,
+    OpenRouter $openRouter,
+    array $config,
+    ?Logger $logger = null
+)
+```
+
+**Параметры:**
+- `$db` - Подключение к БД
+- `$openRouter` - Клиент OpenRouter API
+- `$config` - Конфигурация модуля (см. ниже)
+- `$logger` - Логгер (опционально)
+
+**Конфигурация ($config):**
+```php
+[
+    'enabled' => true,                     // Включен ли модуль
+    'target_languages' => ['ru', 'uk'],    // Целевые языки (ISO 639-1)
+    'models' => [                          // AI модели в порядке приоритета
+        'anthropic/claude-3.5-sonnet',
+        'deepseek/deepseek-chat',
+    ],
+    'retry_count' => 2,                    // Количество повторов (default: 2)
+    'timeout' => 120,                      // Таймаут в секундах (default: 120)
+    'fallback_strategy' => 'sequential',   // 'sequential' или 'random'
+    'prompt_file' => '/path/to/prompt.txt' // Путь к файлу с промптом
+]
+```
+
+### Методы
+
+#### processItem()
+
+Переводит одну новость на все целевые языки.
+
+```php
+public function processItem(int $itemId): bool
+```
+
+**Параметры:**
+- `$itemId` - ID новости
+
+**Возвращает:**
+- `true` - если все переводы выполнены успешно
+- `false` - если произошли ошибки
+
+#### processBatch()
+
+Переводит несколько новостей.
+
+```php
+public function processBatch(array $itemIds): array
+```
+
+**Возвращает:**
+```php
+[
+    'success' => 5,
+    'failed' => 0,
+    'skipped' => 0,
+]
+```
+
+#### getMetrics()
+
+```php
+public function getMetrics(): array
+```
+
+**Возвращает метрики обработки:**
+- `total_processed` - Всего обработано новостей
+- `translations_created` - Создано переводов
+- `total_tokens` - Использовано токенов
+- `languages_processed` - Массив [язык => количество]
+- `model_attempts` - Массив [модель => попыток]
+

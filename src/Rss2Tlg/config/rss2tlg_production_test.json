@@ -149,7 +149,7 @@
   ],
   
   "openrouter": {
-    "api_key": "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",
+    "api_key": "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",
     "app_name": "RSS2TLG-ProductionTest",
     "base_url": "https://openrouter.ai/api/v1",
     "default_model": "anthropic/claude-3.5-sonnet",
