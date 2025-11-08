@@ -18,42 +18,19 @@ use Exception;
  * - Сравнение с существующими новостями за последние N дней
  * - Определение схожести через AI анализ
  * - Маркировка дубликатов и определение возможности публикации
+ * 
+ * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule и AIAnalysisTrait
  */
-class DeduplicationService implements PipelineModuleInterface
+class DeduplicationService extends AbstractPipelineModule
 {
-    private MySQL $db;
-    private OpenRouter $openRouter;
-    private ?Logger $logger;
-    private array $config;
-    
-    private array $metrics = [
-        'total_processed' => 0,
-        'successful' => 0,
-        'failed' => 0,
-        'skipped' => 0,
-        'duplicates_found' => 0,
-        'unique_items' => 0,
-        'total_tokens' => 0,
-        'total_time_ms' => 0,
-        'total_comparisons' => 0,
-        'model_attempts' => [],
-    ];
+    use AIAnalysisTrait;
 
     /**
      * Конструктор сервиса дедупликации
      *
      * @param MySQL $db Подключение к БД
      * @param OpenRouter $openRouter Клиент OpenRouter API
-     * @param array<string, mixed> $config Конфигурация модуля:
-     *   - enabled (bool): Включен ли модуль (default: true)
-     *   - similarity_threshold (float): Порог схожести для дубликатов 0-100 (default: 70.0)
-     *   - compare_last_n_days (int): Период сравнения в днях (default: 7)
-     *   - max_comparisons (int): Максимум новостей для сравнения (default: 50)
-     *   - models (array): Массив AI моделей в порядке приоритета
-     *   - retry_count (int): Количество повторов при ошибке (default: 2)
-     *   - timeout (int): Таймаут запроса в секундах (default: 120)
-     *   - fallback_strategy (string): 'sequential'|'random' (default: 'sequential')
-     *   - prompt_file (string): Путь к файлу с промптом
+     * @param array<string, mixed> $config Конфигурация модуля
      * @param Logger|null $logger Логгер
      */
     public function __construct(
@@ -64,42 +41,54 @@ class DeduplicationService implements PipelineModuleInterface
     ) {
         $this->db = $db;
         $this->openRouter = $openRouter;
-        $this->config = $this->validateConfig($config);
         $this->logger = $logger;
+        $this->config = $this->validateConfig($config);
+        $this->metrics = $this->initializeMetrics();
     }
 
     /**
-     * Валидирует конфигурацию модуля
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     * @throws AIAnalysisException
+     * {@inheritdoc}
      */
-    private function validateConfig(array $config): array
+    protected function getModuleName(): string
     {
-        if (empty($config['models']) || !is_array($config['models'])) {
-            throw new AIAnalysisException('Не указаны AI модели для дедупликации');
-        }
+        return 'Deduplication';
+    }
 
-        if (empty($config['prompt_file']) || !file_exists($config['prompt_file'])) {
-            throw new AIAnalysisException('Не указан или не найден файл промпта');
-        }
+    /**
+     * {@inheritdoc}
+     */
+    protected function validateModuleConfig(array $config): array
+    {
+        $aiConfig = $this->validateAIConfig($config);
 
         $similarityThreshold = (float)($config['similarity_threshold'] ?? 70.0);
         if ($similarityThreshold < 0 || $similarityThreshold > 100) {
             throw new AIAnalysisException('similarity_threshold должен быть между 0 и 100');
         }
 
-        return [
-            'enabled' => $config['enabled'] ?? true,
+        return array_merge($aiConfig, [
             'similarity_threshold' => $similarityThreshold,
             'compare_last_n_days' => max(1, (int)($config['compare_last_n_days'] ?? 7)),
             'max_comparisons' => max(10, (int)($config['max_comparisons'] ?? 50)),
-            'models' => $config['models'],
-            'retry_count' => max(0, (int)($config['retry_count'] ?? 2)),
-            'timeout' => max(30, (int)($config['timeout'] ?? 120)),
-            'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
-            'prompt_file' => $config['prompt_file'],
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function initializeMetrics(): array
+    {
+        return [
+            'total_processed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'duplicates_found' => 0,
+            'unique_items' => 0,
+            'total_tokens' => 0,
+            'total_time_ms' => 0,
+            'total_comparisons' => 0,
+            'model_attempts' => [],
         ];
     }
 
@@ -109,19 +98,19 @@ class DeduplicationService implements PipelineModuleInterface
     public function processItem(int $itemId): bool
     {
         if (!$this->config['enabled']) {
-            $this->logDebug('Модуль дедупликации отключен', ['item_id' => $itemId]);
+            $this->logDebug('Модуль отключен', ['item_id' => $itemId]);
             return false;
         }
 
         $startTime = microtime(true);
-        $this->metrics['total_processed']++;
+        $this->incrementMetric('total_processed');
 
         try {
             // Проверяем не обработана ли уже новость
             $existingStatus = $this->getStatus($itemId);
             if ($existingStatus === 'checked') {
                 $this->logInfo('Новость уже проверена на дубликаты', ['item_id' => $itemId]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return true;
             }
 
@@ -137,20 +126,20 @@ class DeduplicationService implements PipelineModuleInterface
                     'item_id' => $itemId,
                     'status' => $itemData['summarization_status'],
                 ]);
-                $this->updateStatus($itemId, $itemData['feed_id'], 'skipped');
-                $this->metrics['skipped']++;
+                $this->updateStatus($itemId, (int)$itemData['feed_id'], 'skipped');
+                $this->incrementMetric('skipped');
                 return false;
             }
 
             // Обновляем статус на processing
-            $this->updateStatus($itemId, $itemData['feed_id'], 'processing');
+            $this->updateStatus($itemId, (int)$itemData['feed_id'], 'processing');
 
             // Получаем похожие новости для сравнения
             $similarItems = $this->getSimilarItems($itemId, $itemData);
 
             if (empty($similarItems)) {
                 // Нет похожих новостей - точно не дубликат
-                $this->saveDedupResult($itemId, $itemData['feed_id'], [
+                $this->saveDedupResult($itemId, (int)$itemData['feed_id'], [
                     'is_duplicate' => false,
                     'can_be_published' => true,
                     'similarity_score' => 0.0,
@@ -158,8 +147,8 @@ class DeduplicationService implements PipelineModuleInterface
                     'items_compared' => 0,
                 ]);
 
-                $this->metrics['successful']++;
-                $this->metrics['unique_items']++;
+                $this->incrementMetric('successful');
+                $this->incrementMetric('unique_items');
 
                 $this->logInfo('Похожих новостей не найдено - уникальна', ['item_id' => $itemId]);
                 return true;
@@ -173,16 +162,15 @@ class DeduplicationService implements PipelineModuleInterface
             }
 
             // Сохраняем результат
-            $this->saveDedupResult($itemId, $itemData['feed_id'], $dedupResult);
+            $this->saveDedupResult($itemId, (int)$itemData['feed_id'], $dedupResult);
 
-            $processingTime = (int)((microtime(true) - $startTime) * 1000);
-            $this->metrics['successful']++;
-            $this->metrics['total_time_ms'] += $processingTime;
+            $processingTime = $this->recordProcessingTime($startTime);
+            $this->incrementMetric('successful');
 
             if ($dedupResult['is_duplicate']) {
-                $this->metrics['duplicates_found']++;
+                $this->incrementMetric('duplicates_found');
             } else {
-                $this->metrics['unique_items']++;
+                $this->incrementMetric('unique_items');
             }
 
             $this->logInfo('Дедупликация завершена', [
@@ -195,9 +183,10 @@ class DeduplicationService implements PipelineModuleInterface
             return true;
 
         } catch (Exception $e) {
-            $this->metrics['failed']++;
+            $this->incrementMetric('failed');
             
-            $this->updateStatus($itemId, $itemData['feed_id'] ?? 0, 'failed', [
+            $feedId = isset($itemData) ? (int)($itemData['feed_id'] ?? 0) : 0;
+            $this->updateStatus($itemId, $feedId, 'failed', [
                 'error_message' => $e->getMessage(),
                 'error_code' => (string)$e->getCode(),
             ]);
@@ -205,40 +194,10 @@ class DeduplicationService implements PipelineModuleInterface
             $this->logError('Ошибка дедупликации новости', [
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return false;
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function processBatch(array $itemIds): array
-    {
-        $stats = [
-            'success' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ];
-
-        foreach ($itemIds as $itemId) {
-            $result = $this->processItem($itemId);
-            
-            if ($result) {
-                $stats['success']++;
-            } else {
-                $existingStatus = $this->getStatus($itemId);
-                if ($existingStatus === 'checked') {
-                    $stats['skipped']++;
-                } else {
-                    $stats['failed']++;
-                }
-            }
-        }
-
-        return $stats;
     }
 
     /**
@@ -250,33 +209,6 @@ class DeduplicationService implements PipelineModuleInterface
         $result = $this->db->queryOne($query, ['item_id' => $itemId]);
         
         return $result['status'] ?? null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMetrics(): array
-    {
-        return $this->metrics;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resetMetrics(): void
-    {
-        $this->metrics = [
-            'total_processed' => 0,
-            'successful' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-            'duplicates_found' => 0,
-            'unique_items' => 0,
-            'total_tokens' => 0,
-            'total_time_ms' => 0,
-            'total_comparisons' => 0,
-            'model_attempts' => [],
-        ];
     }
 
     /**
@@ -323,13 +255,6 @@ class DeduplicationService implements PipelineModuleInterface
     {
         $daysBack = $this->config['compare_last_n_days'];
         $maxComparisons = $this->config['max_comparisons'];
-        
-        // Ищем новости:
-        // 1. Из того же или похожих источников
-        // 2. За последние N дней
-        // 3. С той же категорией или языком
-        // 4. Успешно прошедшие суммаризацию
-        // 5. Уже проверенные на дубликаты (не являющиеся дубликатами)
         
         $query = "
             SELECT 
@@ -383,11 +308,11 @@ class DeduplicationService implements PipelineModuleInterface
      */
     private function analyzeDeduplication(int $itemId, array $itemData, array $similarItems): ?array
     {
-        $systemPrompt = $this->loadPrompt();
+        $systemPrompt = $this->loadPromptFromFile($this->config['prompt_file']);
         $userPrompt = $this->prepareComparisonPrompt($itemData, $similarItems);
 
         // Выполняем анализ с fallback
-        $result = $this->analyzeWithFallback($itemId, $systemPrompt, $userPrompt);
+        $result = $this->analyzeWithFallback($systemPrompt, $userPrompt);
 
         if (!$result) {
             return null;
@@ -404,6 +329,8 @@ class DeduplicationService implements PipelineModuleInterface
             $isDuplicate = true;
         }
 
+        $this->incrementMetric('total_comparisons', count($similarItems));
+
         return [
             'is_duplicate' => $isDuplicate,
             'duplicate_of_item_id' => $analysisData['duplicate_of_item_id'] ?? null,
@@ -415,26 +342,9 @@ class DeduplicationService implements PipelineModuleInterface
             'matched_facts' => json_encode($analysisData['matched_facts'] ?? []),
             'model_used' => $result['model_used'],
             'tokens_used' => $result['tokens_used'],
-            'processing_time_ms' => $result['processing_time_ms'] ?? 0,
+            'processing_time_ms' => 0, // будет заполнено в processItem
             'items_compared' => count($similarItems),
         ];
-    }
-
-    /**
-     * Загружает промпт из файла
-     *
-     * @return string
-     * @throws AIAnalysisException
-     */
-    private function loadPrompt(): string
-    {
-        $prompt = file_get_contents($this->config['prompt_file']);
-        
-        if ($prompt === false) {
-            throw new AIAnalysisException('Не удалось загрузить промпт из файла');
-        }
-
-        return $prompt;
     }
 
     /**
@@ -494,157 +404,6 @@ class DeduplicationService implements PipelineModuleInterface
         $prompt .= "\nAnalyze if the NEW ARTICLE is a duplicate of any EXISTING ARTICLE. Respond in JSON format.";
 
         return $prompt;
-    }
-
-    /**
-     * Анализирует с использованием fallback моделей
-     *
-     * @param int $itemId
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     */
-    private function analyzeWithFallback(int $itemId, string $systemPrompt, string $userPrompt): ?array
-    {
-        $models = $this->config['models'];
-        
-        if ($this->config['fallback_strategy'] === 'random') {
-            shuffle($models);
-        }
-
-        $lastError = null;
-
-        foreach ($models as $modelConfig) {
-            $modelName = is_array($modelConfig) ? ($modelConfig['model'] ?? '') : $modelConfig;
-            $retryCount = $this->config['retry_count'];
-
-            if (!isset($this->metrics['model_attempts'][$modelName])) {
-                $this->metrics['model_attempts'][$modelName] = 0;
-            }
-            $this->metrics['model_attempts'][$modelName]++;
-
-            $this->logDebug('Попытка дедупликации с моделью', [
-                'item_id' => $itemId,
-                'model' => $modelName,
-            ]);
-
-            for ($attempt = 0; $attempt <= $retryCount; $attempt++) {
-                try {
-                    $startTime = microtime(true);
-                    $result = $this->callAI($modelName, $modelConfig, $systemPrompt, $userPrompt);
-                    $processingTime = (int)((microtime(true) - $startTime) * 1000);
-                    
-                    if ($result) {
-                        if (isset($result['tokens_used'])) {
-                            $this->metrics['total_tokens'] += $result['tokens_used'];
-                        }
-                        
-                        $result['model_used'] = $modelName;
-                        $result['processing_time_ms'] = $processingTime;
-                        
-                        return $result;
-                    }
-
-                } catch (Exception $e) {
-                    $lastError = $e->getMessage();
-                    
-                    $this->logWarning('Ошибка при вызове AI', [
-                        'item_id' => $itemId,
-                        'model' => $modelName,
-                        'attempt' => $attempt + 1,
-                        'error' => $lastError,
-                    ]);
-
-                    if ($attempt < $retryCount) {
-                        sleep(1);
-                    }
-                }
-            }
-        }
-
-        $this->logError('Все модели не смогли выполнить дедупликацию', [
-            'item_id' => $itemId,
-            'last_error' => $lastError,
-        ]);
-
-        return null;
-    }
-
-    /**
-     * Вызывает AI модель для анализа
-     *
-     * @param string $model
-     * @param array<string, mixed>|string $modelConfig
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     * @throws Exception
-     */
-    private function callAI(string $model, $modelConfig, string $systemPrompt, string $userPrompt): ?array
-    {
-        $messages = [
-            [
-                'role' => 'system',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'text' => $systemPrompt,
-                        'cache_control' => ['type' => 'ephemeral'],
-                    ],
-                ],
-            ],
-            [
-                'role' => 'user',
-                'content' => $userPrompt,
-            ],
-        ];
-
-        // Извлекаем параметры модели из конфигурации
-        $options = ['response_format' => ['type' => 'json_object']];
-        
-        if (is_array($modelConfig)) {
-            if (isset($modelConfig['max_tokens'])) {
-                $options['max_tokens'] = $modelConfig['max_tokens'];
-            }
-            if (isset($modelConfig['temperature'])) {
-                $options['temperature'] = $modelConfig['temperature'];
-            }
-            if (isset($modelConfig['top_p'])) {
-                $options['top_p'] = $modelConfig['top_p'];
-            }
-            if (isset($modelConfig['frequency_penalty'])) {
-                $options['frequency_penalty'] = $modelConfig['frequency_penalty'];
-            }
-            if (isset($modelConfig['presence_penalty'])) {
-                $options['presence_penalty'] = $modelConfig['presence_penalty'];
-            }
-        } else {
-            // Дефолтные значения для обратной совместимости
-            $options['max_tokens'] = 1000;
-            $options['temperature'] = 0.1;
-        }
-
-        $response = $this->openRouter->chatWithMessages($model, $messages, $options);
-
-        if (!$response || !isset($response['content'])) {
-            return null;
-        }
-
-        $content = $response['content'];
-        $analysisData = json_decode($content, true);
-
-        if (!$analysisData) {
-            throw new AIAnalysisException('Не удалось распарсить JSON ответ от AI');
-        }
-
-        $usage = $response['usage'] ?? [];
-        
-        return [
-            'analysis_data' => $analysisData,
-            'tokens_used' => $usage['total_tokens'] ?? 0,
-            'tokens_prompt' => $usage['prompt_tokens'] ?? 0,
-            'tokens_completion' => $usage['completion_tokens'] ?? 0,
-        ];
     }
 
     /**
@@ -748,18 +507,18 @@ class DeduplicationService implements PipelineModuleInterface
                 tokens_used = VALUES(tokens_used),
                 processing_time_ms = VALUES(processing_time_ms),
                 items_compared = VALUES(items_compared),
-                checked_at = NOW(),
+                checked_at = VALUES(checked_at),
                 updated_at = NOW()
         ";
 
-        $this->db->execute($query, [
+        $params = [
             'item_id' => $itemId,
             'feed_id' => $feedId,
-            'is_duplicate' => (int)($result['is_duplicate'] ?? false),
+            'is_duplicate' => $result['is_duplicate'] ? 1 : 0,
             'duplicate_of_item_id' => $result['duplicate_of_item_id'] ?? null,
-            'similarity_score' => $result['similarity_score'] ?? 0.0,
-            'similarity_method' => $result['similarity_method'] ?? 'ai',
-            'can_be_published' => (int)($result['can_be_published'] ?? true),
+            'similarity_score' => $result['similarity_score'],
+            'similarity_method' => $result['similarity_method'],
+            'can_be_published' => $result['can_be_published'] ? 1 : 0,
             'matched_entities' => $result['matched_entities'] ?? null,
             'matched_events' => $result['matched_events'] ?? null,
             'matched_facts' => $result['matched_facts'] ?? null,
@@ -767,58 +526,8 @@ class DeduplicationService implements PipelineModuleInterface
             'tokens_used' => $result['tokens_used'] ?? 0,
             'processing_time_ms' => $result['processing_time_ms'] ?? 0,
             'items_compared' => $result['items_compared'] ?? 0,
-        ]);
-    }
+        ];
 
-    /**
-     * Логирует сообщение уровня DEBUG
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->debug('[DeduplicationService] ' . $message, $context);
-        }
-    }
-
-    /**
-     * Логирует информационное сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->info('[DeduplicationService] ' . $message, $context);
-        }
-    }
-
-    /**
-     * Логирует предупреждение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logWarning(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->warning('[DeduplicationService] ' . $message, $context);
-        }
-    }
-
-    /**
-     * Логирует ошибку
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->error('[DeduplicationService] ' . $message, $context);
-        }
+        $this->db->execute($query, $params);
     }
 }

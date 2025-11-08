@@ -19,34 +19,18 @@ use Exception;
  * - Публикация в Telegram (текст + изображение)
  * - Сохранение журнала публикаций
  * - Обработка ошибок и retry механизм
+ * 
+ * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule
  */
-class PublicationService implements PipelineModuleInterface
+class PublicationService extends AbstractPipelineModule
 {
-    private MySQL $db;
-    private ?Logger $logger;
-    private array $config;
     private array $telegramBots = []; // Кеш Telegram клиентов
-    
-    private array $metrics = [
-        'total_processed' => 0,
-        'successful' => 0,
-        'failed' => 0,
-        'skipped' => 0,
-        'by_destination' => [],
-        'total_time_ms' => 0,
-    ];
 
     /**
      * Конструктор сервиса публикаций
      *
      * @param MySQL $db Подключение к БД
-     * @param array<string, mixed> $config Конфигурация модуля:
-     *   - enabled (bool): Включен ли модуль
-     *   - telegram_bots (array): Массив конфигураций Telegram ботов
-     *   - retry_count (int): Количество повторов при ошибке (default: 2)
-     *   - timeout (int): Таймаут запроса в секундах (default: 30)
-     *   - batch_size (int): Количество новостей за один запуск (default: 10)
-     *   - message_template (string): Шаблон сообщения (опционально)
+     * @param array<string, mixed> $config Конфигурация модуля
      * @param Logger|null $logger Логгер
      */
     public function __construct(
@@ -55,30 +39,47 @@ class PublicationService implements PipelineModuleInterface
         ?Logger $logger = null
     ) {
         $this->db = $db;
-        $this->config = $this->validateConfig($config);
         $this->logger = $logger;
+        $this->config = $this->validateConfig($config);
+        $this->metrics = $this->initializeMetrics();
     }
 
     /**
-     * Валидирует конфигурацию модуля
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     * @throws PublicationException
+     * {@inheritdoc}
      */
-    private function validateConfig(array $config): array
+    protected function getModuleName(): string
+    {
+        return 'Publication';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function validateModuleConfig(array $config): array
     {
         if (empty($config['telegram_bots']) || !is_array($config['telegram_bots'])) {
             throw new PublicationException('Не указаны конфигурации Telegram ботов');
         }
 
         return [
-            'enabled' => $config['enabled'] ?? true,
             'telegram_bots' => $config['telegram_bots'],
-            'retry_count' => max(0, (int)($config['retry_count'] ?? 2)),
-            'timeout' => max(10, (int)($config['timeout'] ?? 30)),
             'batch_size' => max(1, (int)($config['batch_size'] ?? 10)),
             'message_template' => $config['message_template'] ?? null,
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function initializeMetrics(): array
+    {
+        return [
+            'total_processed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'by_destination' => [],
+            'total_time_ms' => 0,
         ];
     }
 
@@ -88,12 +89,12 @@ class PublicationService implements PipelineModuleInterface
     public function processItem(int $itemId): bool
     {
         if (!$this->config['enabled']) {
-            $this->logDebug('Модуль публикаций отключен', ['item_id' => $itemId]);
+            $this->logDebug('Модуль отключен', ['item_id' => $itemId]);
             return false;
         }
 
         $startTime = microtime(true);
-        $this->metrics['total_processed']++;
+        $this->incrementMetric('total_processed');
 
         try {
             // Получаем данные новости готовой к публикации
@@ -101,19 +102,19 @@ class PublicationService implements PipelineModuleInterface
             
             if (!$item) {
                 $this->logWarning('Новость не готова к публикации', ['item_id' => $itemId]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return false;
             }
 
             // Получаем правила публикации для feed_id
-            $rules = $this->getPublicationRules($item['feed_id']);
+            $rules = $this->getPublicationRules((int)$item['feed_id']);
             
             if (empty($rules)) {
                 $this->logInfo('Нет правил публикации для источника', [
                     'item_id' => $itemId,
                     'feed_id' => $item['feed_id']
                 ]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return false;
             }
 
@@ -134,9 +135,8 @@ class PublicationService implements PipelineModuleInterface
                     ['item_id' => $itemId]
                 );
                 
-                $this->metrics['successful']++;
-                $processingTime = (int)((microtime(true) - $startTime) * 1000);
-                $this->metrics['total_time_ms'] += $processingTime;
+                $this->incrementMetric('successful');
+                $processingTime = $this->recordProcessingTime($startTime);
                 
                 $this->logInfo('Новость успешно опубликована', [
                     'item_id' => $itemId,
@@ -147,13 +147,12 @@ class PublicationService implements PipelineModuleInterface
             }
 
             $this->logWarning('Новость не соответствует ни одному правилу', ['item_id' => $itemId]);
-            $this->metrics['skipped']++;
+            $this->incrementMetric('skipped');
             return false;
 
         } catch (Exception $e) {
-            $this->metrics['failed']++;
-            $processingTime = (int)((microtime(true) - $startTime) * 1000);
-            $this->metrics['total_time_ms'] += $processingTime;
+            $this->incrementMetric('failed');
+            $processingTime = $this->recordProcessingTime($startTime);
             
             $this->logError('Ошибка публикации новости', [
                 'item_id' => $itemId,
@@ -508,29 +507,6 @@ class PublicationService implements PipelineModuleInterface
     /**
      * {@inheritdoc}
      */
-    public function processBatch(array $itemIds): array
-    {
-        if (!$this->config['enabled']) {
-            $this->logDebug('Модуль публикаций отключен');
-            return ['success' => 0, 'failed' => 0, 'skipped' => 0];
-        }
-
-        $this->resetMetrics();
-
-        foreach ($itemIds as $itemId) {
-            $this->processItem((int)$itemId);
-        }
-
-        return [
-            'success' => $this->metrics['successful'],
-            'failed' => $this->metrics['failed'],
-            'skipped' => $this->metrics['skipped']
-        ];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getStatus(int $itemId): ?string
     {
         $sql = 'SELECT publication_status FROM rss2tlg_publications 
@@ -541,84 +517,5 @@ class PublicationService implements PipelineModuleInterface
         $result = $this->db->queryOne($sql, ['item_id' => $itemId]);
         
         return $result ? $result['publication_status'] : null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMetrics(): array
-    {
-        return $this->metrics;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resetMetrics(): void
-    {
-        $this->metrics = [
-            'total_processed' => 0,
-            'successful' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-            'by_destination' => [],
-            'total_time_ms' => 0,
-        ];
-    }
-
-    /**
-     * Логирует отладочное сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     * @return void
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->debug("[PublicationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует информационное сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     * @return void
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->info("[PublicationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует предупреждение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     * @return void
-     */
-    private function logWarning(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->warning("[PublicationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует ошибку
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     * @return void
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->error("[PublicationService] {$message}", $context);
-        }
     }
 }

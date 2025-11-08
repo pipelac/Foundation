@@ -18,39 +18,19 @@ use Exception;
  * - Поддержка множественных переводов (1 новость → N языков)
  * - Оценка качества перевода (1-10)
  * - Fallback механизм между AI моделями
+ * 
+ * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule и AIAnalysisTrait
  */
-class TranslationService implements PipelineModuleInterface
+class TranslationService extends AbstractPipelineModule
 {
-    private MySQL $db;
-    private OpenRouter $openRouter;
-    private ?Logger $logger;
-    private array $config;
-    
-    private array $metrics = [
-        'total_processed' => 0,
-        'successful' => 0,
-        'failed' => 0,
-        'skipped' => 0,
-        'total_tokens' => 0,
-        'total_time_ms' => 0,
-        'translations_created' => 0,
-        'languages_processed' => [],
-        'model_attempts' => [],
-    ];
+    use AIAnalysisTrait;
 
     /**
      * Конструктор сервиса перевода
      *
      * @param MySQL $db Подключение к БД
      * @param OpenRouter $openRouter Клиент OpenRouter API
-     * @param array<string, mixed> $config Конфигурация модуля:
-     *   - enabled (bool): Включен ли модуль
-     *   - target_languages (array): Список языков для перевода ['en', 'ru', 'es']
-     *   - models (array): Массив AI моделей в порядке приоритета
-     *   - retry_count (int): Количество повторов при ошибке (default: 2)
-     *   - timeout (int): Таймаут запроса в секундах (default: 120)
-     *   - fallback_strategy (string): 'sequential'|'random' (default: 'sequential')
-     *   - prompt_file (string): Путь к файлу с промптом
+     * @param array<string, mixed> $config Конфигурация модуля
      * @param Logger|null $logger Логгер
      */
     public function __construct(
@@ -61,39 +41,50 @@ class TranslationService implements PipelineModuleInterface
     ) {
         $this->db = $db;
         $this->openRouter = $openRouter;
-        $this->config = $this->validateConfig($config);
         $this->logger = $logger;
+        $this->config = $this->validateConfig($config);
+        $this->metrics = $this->initializeMetrics();
     }
 
     /**
-     * Валидирует конфигурацию модуля
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     * @throws AIAnalysisException
+     * {@inheritdoc}
      */
-    private function validateConfig(array $config): array
+    protected function getModuleName(): string
     {
-        if (empty($config['models']) || !is_array($config['models'])) {
-            throw new AIAnalysisException('Не указаны AI модели для перевода');
-        }
+        return 'Translation';
+    }
 
-        if (empty($config['prompt_file']) || !file_exists($config['prompt_file'])) {
-            throw new AIAnalysisException('Не указан или не найден файл промпта');
-        }
+    /**
+     * {@inheritdoc}
+     */
+    protected function validateModuleConfig(array $config): array
+    {
+        $aiConfig = $this->validateAIConfig($config);
 
         if (empty($config['target_languages']) || !is_array($config['target_languages'])) {
             throw new AIAnalysisException('Не указаны целевые языки для перевода');
         }
 
-        return [
-            'enabled' => $config['enabled'] ?? true,
+        return array_merge($aiConfig, [
             'target_languages' => $config['target_languages'],
-            'models' => $config['models'],
-            'retry_count' => max(0, (int)($config['retry_count'] ?? 2)),
-            'timeout' => max(30, (int)($config['timeout'] ?? 120)),
-            'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
-            'prompt_file' => $config['prompt_file'],
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function initializeMetrics(): array
+    {
+        return [
+            'total_processed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'total_tokens' => 0,
+            'total_time_ms' => 0,
+            'translations_created' => 0,
+            'languages_processed' => [],
+            'model_attempts' => [],
         ];
     }
 
@@ -103,12 +94,12 @@ class TranslationService implements PipelineModuleInterface
     public function processItem(int $itemId): bool
     {
         if (!$this->config['enabled']) {
-            $this->logDebug('Модуль перевода отключен', ['item_id' => $itemId]);
+            $this->logDebug('Модуль отключен', ['item_id' => $itemId]);
             return false;
         }
 
         $startTime = microtime(true);
-        $this->metrics['total_processed']++;
+        $this->incrementMetric('total_processed');
 
         try {
             // Получаем данные новости из суммаризации
@@ -120,7 +111,7 @@ class TranslationService implements PipelineModuleInterface
             // Проверяем можно ли публиковать (прошла ли дедупликацию)
             if (!$this->canBePublished($itemId)) {
                 $this->logInfo('Новость не прошла дедупликацию, пропускаем перевод', ['item_id' => $itemId]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return true;
             }
 
@@ -151,7 +142,7 @@ class TranslationService implements PipelineModuleInterface
                 // Переводим
                 $success = $this->translateToLanguage(
                     $itemId,
-                    $summarization['feed_id'],
+                    (int)$summarization['feed_id'],
                     $sourceLanguage,
                     $targetLanguage,
                     $summarization['headline'],
@@ -159,7 +150,7 @@ class TranslationService implements PipelineModuleInterface
                 );
 
                 if ($success) {
-                    $this->metrics['translations_created']++;
+                    $this->incrementMetric('translations_created');
                     
                     if (!isset($this->metrics['languages_processed'][$targetLanguage])) {
                         $this->metrics['languages_processed'][$targetLanguage] = 0;
@@ -170,18 +161,17 @@ class TranslationService implements PipelineModuleInterface
                 }
             }
 
-            $processingTime = (int)((microtime(true) - $startTime) * 1000);
-            $this->metrics['total_time_ms'] += $processingTime;
+            $processingTime = $this->recordProcessingTime($startTime);
 
             if ($allSuccess) {
-                $this->metrics['successful']++;
+                $this->incrementMetric('successful');
                 $this->logInfo('Новость успешно переведена на все языки', [
                     'item_id' => $itemId,
                     'languages' => $this->config['target_languages'],
                     'processing_time_ms' => $processingTime,
                 ]);
             } else {
-                $this->metrics['failed']++;
+                $this->incrementMetric('failed');
                 $this->logWarning('Не все переводы выполнены успешно', [
                     'item_id' => $itemId,
                 ]);
@@ -190,46 +180,15 @@ class TranslationService implements PipelineModuleInterface
             return $allSuccess;
 
         } catch (Exception $e) {
-            $this->metrics['failed']++;
+            $this->incrementMetric('failed');
             
             $this->logError('Ошибка обработки новости', [
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return false;
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function processBatch(array $itemIds): array
-    {
-        $stats = [
-            'success' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ];
-
-        foreach ($itemIds as $itemId) {
-            $result = $this->processItem($itemId);
-            
-            if ($result) {
-                $stats['success']++;
-            } else {
-                // Проверяем не была ли пропущена
-                $summarization = $this->getSummarization($itemId);
-                if (!$summarization || !$this->canBePublished($itemId)) {
-                    $stats['skipped']++;
-                } else {
-                    $stats['failed']++;
-                }
-            }
-        }
-
-        return $stats;
     }
 
     /**
@@ -244,32 +203,6 @@ class TranslationService implements PipelineModuleInterface
         }
 
         return $this->getTranslationStatus($itemId, $targetLanguage);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMetrics(): array
-    {
-        return $this->metrics;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resetMetrics(): void
-    {
-        $this->metrics = [
-            'total_processed' => 0,
-            'successful' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-            'total_tokens' => 0,
-            'total_time_ms' => 0,
-            'translations_created' => 0,
-            'languages_processed' => [],
-            'model_attempts' => [],
-        ];
     }
 
     /**
@@ -296,18 +229,11 @@ class TranslationService implements PipelineModuleInterface
             $this->updateStatus($itemId, $feedId, $sourceLanguage, $targetLanguage, 'processing');
 
             // Подготавливаем промпт
-            $systemPrompt = $this->loadPrompt();
+            $systemPrompt = $this->loadPromptFromFile($this->config['prompt_file']);
             $userPrompt = $this->prepareUserPrompt($sourceLanguage, $targetLanguage, $headline, $summary);
 
             // Получаем результат от AI с fallback
-            $result = $this->translateWithFallback(
-                $itemId,
-                $feedId,
-                $sourceLanguage,
-                $targetLanguage,
-                $systemPrompt,
-                $userPrompt
-            );
+            $result = $this->analyzeWithFallback($systemPrompt, $userPrompt);
 
             if (!$result) {
                 throw new AIAnalysisException("Не удалось получить перевод от AI");
@@ -408,23 +334,6 @@ class TranslationService implements PipelineModuleInterface
     }
 
     /**
-     * Загружает промпт из файла
-     *
-     * @return string
-     * @throws AIAnalysisException
-     */
-    private function loadPrompt(): string
-    {
-        $prompt = file_get_contents($this->config['prompt_file']);
-        
-        if ($prompt === false) {
-            throw new AIAnalysisException('Не удалось загрузить промпт из файла');
-        }
-
-        return $prompt;
-    }
-
-    /**
      * Подготавливает пользовательский промпт с данными для перевода
      *
      * @param string $sourceLanguage
@@ -450,176 +359,7 @@ class TranslationService implements PipelineModuleInterface
     }
 
     /**
-     * Переводит с использованием fallback моделей
-     *
-     * @param int $itemId
-     * @param int $feedId
-     * @param string $sourceLanguage
-     * @param string $targetLanguage
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     */
-    private function translateWithFallback(
-        int $itemId,
-        int $feedId,
-        string $sourceLanguage,
-        string $targetLanguage,
-        string $systemPrompt,
-        string $userPrompt
-    ): ?array {
-        $models = $this->config['models'];
-        
-        if ($this->config['fallback_strategy'] === 'random') {
-            shuffle($models);
-        }
-
-        $lastError = null;
-
-        foreach ($models as $modelConfig) {
-            $modelName = is_array($modelConfig) ? ($modelConfig['model'] ?? '') : $modelConfig;
-            $retryCount = $this->config['retry_count'];
-
-            // Увеличиваем счетчик попыток для модели
-            if (!isset($this->metrics['model_attempts'][$modelName])) {
-                $this->metrics['model_attempts'][$modelName] = 0;
-            }
-            $this->metrics['model_attempts'][$modelName]++;
-
-            $this->logDebug('Попытка перевода с моделью', [
-                'item_id' => $itemId,
-                'model' => $modelName,
-                'target_language' => $targetLanguage,
-            ]);
-
-            for ($attempt = 0; $attempt <= $retryCount; $attempt++) {
-                try {
-                    $result = $this->callAI($modelName, $modelConfig, $systemPrompt, $userPrompt);
-                    
-                    if ($result) {
-                        // Обновляем метрики
-                        if (isset($result['tokens_used'])) {
-                            $this->metrics['total_tokens'] += $result['tokens_used'];
-                        }
-
-                        $result['model_used'] = $modelName;
-                        return $result;
-                    }
-
-                } catch (Exception $e) {
-                    $lastError = $e->getMessage();
-                    
-                    $this->logWarning('Ошибка при вызове AI', [
-                        'item_id' => $itemId,
-                        'model' => $modelName,
-                        'attempt' => $attempt + 1,
-                        'error' => $lastError,
-                    ]);
-
-                    if ($attempt < $retryCount) {
-                        sleep(1); // Пауза перед повтором
-                    }
-                }
-            }
-        }
-
-        $this->logError('Все модели не смогли перевести новость', [
-            'item_id' => $itemId,
-            'target_language' => $targetLanguage,
-            'last_error' => $lastError,
-        ]);
-
-        return null;
-    }
-
-    /**
-     * Вызывает AI модель для перевода
-     *
-     * @param string $model
-     * @param array<string, mixed>|string $modelConfig
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     * @throws Exception
-     */
-    private function callAI(string $model, $modelConfig, string $systemPrompt, string $userPrompt): ?array
-    {
-        // Формируем messages для chatWithMessages
-        $messages = [
-            [
-                'role' => 'system',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'text' => $systemPrompt,
-                        'cache_control' => ['type' => 'ephemeral'], // Для кеширования Claude
-                    ],
-                ],
-            ],
-            [
-                'role' => 'user',
-                'content' => $userPrompt,
-            ],
-        ];
-
-        // Извлекаем параметры модели из конфигурации
-        $options = ['response_format' => ['type' => 'json_object']];
-        
-        if (is_array($modelConfig)) {
-            if (isset($modelConfig['max_tokens'])) {
-                $options['max_tokens'] = $modelConfig['max_tokens'];
-            }
-            if (isset($modelConfig['temperature'])) {
-                $options['temperature'] = $modelConfig['temperature'];
-            }
-            if (isset($modelConfig['top_p'])) {
-                $options['top_p'] = $modelConfig['top_p'];
-            }
-            if (isset($modelConfig['frequency_penalty'])) {
-                $options['frequency_penalty'] = $modelConfig['frequency_penalty'];
-            }
-            if (isset($modelConfig['presence_penalty'])) {
-                $options['presence_penalty'] = $modelConfig['presence_penalty'];
-            }
-        } else {
-            // Дефолтные значения для обратной совместимости
-            $options['max_tokens'] = 2000;
-            $options['temperature'] = 0.3;
-        }
-
-        $response = $this->openRouter->chatWithMessages($model, $messages, $options);
-
-        if (!$response || !isset($response['content'])) {
-            return null;
-        }
-
-        $content = $response['content'];
-        $translationData = json_decode($content, true);
-
-        if (!$translationData) {
-            throw new AIAnalysisException('Не удалось распарсить JSON ответ от AI');
-        }
-
-        // Проверяем статус перевода
-        if (($translationData['translation_status'] ?? '') !== 'completed') {
-            throw new AIAnalysisException(
-                'Перевод не завершен: ' . ($translationData['translation_quality']['issues'] ?? 'Unknown error')
-            );
-        }
-
-        // Извлекаем метрики
-        $usage = $response['usage'] ?? [];
-        
-        return [
-            'translation_data' => $translationData,
-            'tokens_used' => $usage['total_tokens'] ?? 0,
-            'tokens_prompt' => $usage['prompt_tokens'] ?? 0,
-            'tokens_completion' => $usage['completion_tokens'] ?? 0,
-        ];
-    }
-
-    /**
-     * Обновляет статус перевода в БД
+     * Обновляет статус обработки в БД
      *
      * @param int $itemId
      * @param int $feedId
@@ -636,7 +376,6 @@ class TranslationService implements PipelineModuleInterface
         string $status,
         array $extraData = []
     ): void {
-        // Базовые параметры
         $params = [
             'item_id' => $itemId,
             'feed_id' => $feedId,
@@ -645,7 +384,6 @@ class TranslationService implements PipelineModuleInterface
             'status' => $status,
         ];
 
-        // Формируем UPDATE часть
         $updateParts = ['status = :status_update'];
         $params['status_update'] = $status;
         
@@ -660,12 +398,8 @@ class TranslationService implements PipelineModuleInterface
         $updateParts[] = 'updated_at = NOW()';
         
         $query = "
-            INSERT INTO rss2tlg_translation (
-                item_id, feed_id, source_language, target_language, status, created_at, updated_at
-            )
-            VALUES (
-                :item_id, :feed_id, :source_language, :target_language, :status, NOW(), NOW()
-            )
+            INSERT INTO rss2tlg_translation (item_id, feed_id, source_language, target_language, status, created_at, updated_at)
+            VALUES (:item_id, :feed_id, :source_language, :target_language, :status, NOW(), NOW())
             ON DUPLICATE KEY UPDATE " . implode(', ', $updateParts) . "
         ";
 
@@ -688,8 +422,7 @@ class TranslationService implements PipelineModuleInterface
         string $targetLanguage,
         array $result
     ): void {
-        $translationData = $result['translation_data'];
-        $qualityData = $translationData['translation_quality'] ?? [];
+        $analysisData = $result['analysis_data'];
 
         $query = "
             UPDATE rss2tlg_translation
@@ -697,12 +430,13 @@ class TranslationService implements PipelineModuleInterface
                 status = 'success',
                 translated_headline = :translated_headline,
                 translated_summary = :translated_summary,
-                quality_score = :quality_score,
-                quality_issues = :quality_issues,
+                translation_quality = :translation_quality,
                 model_used = :model_used,
                 tokens_used = :tokens_used,
                 tokens_prompt = :tokens_prompt,
                 tokens_completion = :tokens_completion,
+                tokens_cached = :tokens_cached,
+                cache_hit = :cache_hit,
                 translated_at = NOW(),
                 updated_at = NOW()
             WHERE item_id = :item_id AND target_language = :target_language
@@ -711,68 +445,17 @@ class TranslationService implements PipelineModuleInterface
         $params = [
             'item_id' => $itemId,
             'target_language' => $targetLanguage,
-            'translated_headline' => $translationData['translated_headline'] ?? '',
-            'translated_summary' => $translationData['translated_summary'] ?? '',
-            'quality_score' => $qualityData['score'] ?? 0,
-            'quality_issues' => $qualityData['issues'] ?? null,
-            'model_used' => $result['model_used'] ?? '',
-            'tokens_used' => $result['tokens_used'] ?? 0,
-            'tokens_prompt' => $result['tokens_prompt'] ?? 0,
-            'tokens_completion' => $result['tokens_completion'] ?? 0,
+            'translated_headline' => $analysisData['translated_headline'] ?? null,
+            'translated_summary' => $analysisData['translated_summary'] ?? null,
+            'translation_quality' => $analysisData['quality_score'] ?? null,
+            'model_used' => $result['model_used'],
+            'tokens_used' => $result['tokens_used'],
+            'tokens_prompt' => $result['tokens_prompt'],
+            'tokens_completion' => $result['tokens_completion'],
+            'tokens_cached' => $result['tokens_cached'],
+            'cache_hit' => $result['cache_hit'] ? 1 : 0,
         ];
 
         $this->db->execute($query, $params);
-    }
-
-    /**
-     * Логирует debug сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->debug("[TranslationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует info сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->info("[TranslationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует warning сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logWarning(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->warning("[TranslationService] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирует error сообщение
-     *
-     * @param string $message
-     * @param array<string, mixed> $context
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->error("[TranslationService] {$message}", $context);
-        }
     }
 }
