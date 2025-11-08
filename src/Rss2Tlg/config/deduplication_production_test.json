@@ -1,0 +1,106 @@
+{
+  "_comment": "Production конфигурация для тестирования модуля дедупликации",
+  
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_password_2024",
+    "charset": "utf8mb4"
+  },
+  
+  "openrouter": {
+    "api_key": "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",
+    "api_url": "https://openrouter.ai/api/v1/chat/completions",
+    "timeout": 120
+  },
+  
+  "telegram": {
+    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+    "chat_id": "366442475",
+    "channel_id": "@kompasDaily",
+    "timeout": 30,
+    "enabled": true
+  },
+  
+  "logger": {
+    "enabled": true,
+    "directory": "/home/engine/project/logs",
+    "file_name": "rss2tlg_deduplication_test.log",
+    "max_file_size": 10,
+    "max_files": 5,
+    "min_level": "debug",
+    "email_alerts": {
+      "enabled": false
+    }
+  },
+  
+  "feeds": [
+    {
+      "id": 1,
+      "name": "BBC News - Technology",
+      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+      "enabled": true,
+      "fetch_timeout": 30,
+      "user_agent": "Mozilla/5.0 (compatible; RSS2TLG/1.0)"
+    },
+    {
+      "id": 2,
+      "name": "TechCrunch",
+      "url": "https://techcrunch.com/feed/",
+      "enabled": true,
+      "fetch_timeout": 30,
+      "user_agent": "Mozilla/5.0 (compatible; RSS2TLG/1.0)"
+    },
+    {
+      "id": 3,
+      "name": "The Verge",
+      "url": "https://www.theverge.com/rss/index.xml",
+      "enabled": true,
+      "fetch_timeout": 30,
+      "user_agent": "Mozilla/5.0 (compatible; RSS2TLG/1.0)"
+    }
+  ],
+  
+  "pipeline": {
+    "summarization": {
+      "enabled": true,
+      "models": [
+        {
+          "model": "anthropic/claude-3.5-sonnet",
+          "priority": 1
+        },
+        {
+          "model": "deepseek/deepseek-chat",
+          "priority": 2
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "./src/Rss2Tlg/prompts/summarization_prompt.txt"
+    },
+    
+    "deduplication": {
+      "enabled": true,
+      "similarity_threshold": 70.0,
+      "compare_last_n_days": 7,
+      "max_comparisons": 50,
+      "models": [
+        {
+          "model": "anthropic/claude-3.5-sonnet",
+          "priority": 1
+        },
+        {
+          "model": "deepseek/deepseek-chat",
+          "priority": 2
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "./src/Rss2Tlg/prompts/deduplication_prompt.txt"
+    }
+  }
+}
