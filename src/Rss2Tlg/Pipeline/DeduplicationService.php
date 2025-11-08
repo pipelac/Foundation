@@ -531,7 +531,7 @@ class DeduplicationService implements PipelineModuleInterface
             for ($attempt = 0; $attempt <= $retryCount; $attempt++) {
                 try {
                     $startTime = microtime(true);
-                    $result = $this->callAI($modelName, $systemPrompt, $userPrompt);
+                    $result = $this->callAI($modelName, $modelConfig, $systemPrompt, $userPrompt);
                     $processingTime = (int)((microtime(true) - $startTime) * 1000);
                     
                     if ($result) {
@@ -574,12 +574,13 @@ class DeduplicationService implements PipelineModuleInterface
      * Вызывает AI модель для анализа
      *
      * @param string $model
+     * @param array<string, mixed>|string $modelConfig
      * @param string $systemPrompt
      * @param string $userPrompt
      * @return array<string, mixed>|null
      * @throws Exception
      */
-    private function callAI(string $model, string $systemPrompt, string $userPrompt): ?array
+    private function callAI(string $model, $modelConfig, string $systemPrompt, string $userPrompt): ?array
     {
         $messages = [
             [
@@ -598,11 +599,30 @@ class DeduplicationService implements PipelineModuleInterface
             ],
         ];
 
-        $options = [
-            'temperature' => 0.2,
-            'max_tokens' => 1500,
-            'response_format' => ['type' => 'json_object'],
-        ];
+        // Извлекаем параметры модели из конфигурации
+        $options = ['response_format' => ['type' => 'json_object']];
+        
+        if (is_array($modelConfig)) {
+            if (isset($modelConfig['max_tokens'])) {
+                $options['max_tokens'] = $modelConfig['max_tokens'];
+            }
+            if (isset($modelConfig['temperature'])) {
+                $options['temperature'] = $modelConfig['temperature'];
+            }
+            if (isset($modelConfig['top_p'])) {
+                $options['top_p'] = $modelConfig['top_p'];
+            }
+            if (isset($modelConfig['frequency_penalty'])) {
+                $options['frequency_penalty'] = $modelConfig['frequency_penalty'];
+            }
+            if (isset($modelConfig['presence_penalty'])) {
+                $options['presence_penalty'] = $modelConfig['presence_penalty'];
+            }
+        } else {
+            // Дефолтные значения для обратной совместимости
+            $options['max_tokens'] = 1000;
+            $options['temperature'] = 0.1;
+        }
 
         $response = $this->openRouter->chatWithMessages($model, $messages, $options);
 
