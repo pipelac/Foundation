@@ -508,6 +508,90 @@ class OpenRouter
     }
 
     /**
+     * Обрабатывает batch запросов с единым system промптом (для prompt caching)
+     *
+     * Отправляет несколько user-запросов с одним общим system-промптом.
+     * System-промпт должен кешироваться между запросами, что экономит токены.
+     * 
+     * ВАЖНО: OpenRouter НЕ гарантирует кеширование между отдельными HTTP запросами.
+     * Этот метод объединяет все user-запросы в один HTTP запрос для максимизации
+     * шансов на кеширование system-промпта.
+     *
+     * @param string $model Модель ИИ для использования
+     * @param string $systemPrompt Общий system-промпт (будет кешироваться)
+     * @param array<int, string> $userPrompts Массив user-промптов для обработки
+     * @param array<string, mixed> $options Дополнительные параметры запроса
+     * @return array<int, array<string, mixed>> Массив результатов для каждого промпта:
+     *                                           - content (string): Ответ
+     *                                           - usage (array): Метрики токенов
+     *                                           - model (string): Использованная модель
+     *                                           - id (string): ID генерации
+     * @throws OpenRouterValidationException Если параметры невалидны
+     * @throws OpenRouterApiException Если API вернул ошибку
+     * @throws OpenRouterException Если обработка не удалась
+     */
+    public function batchChatWithMessages(
+        string $model,
+        string $systemPrompt,
+        array $userPrompts,
+        array $options = []
+    ): array {
+        $this->validateNotEmpty($model, 'model');
+        $this->validateNotEmpty($systemPrompt, 'systemPrompt');
+        
+        if (empty($userPrompts)) {
+            throw new OpenRouterValidationException('Массив userPrompts не может быть пустым.');
+        }
+
+        $results = [];
+        
+        // Обрабатываем каждый user-промпт с одним и тем же system-промптом
+        // Это должно максимизировать кеширование
+        foreach ($userPrompts as $index => $userPrompt) {
+            if (!is_string($userPrompt) || trim($userPrompt) === '') {
+                $this->logError("Пропущен пустой user prompt", ['index' => $index]);
+                continue;
+            }
+            
+            $messages = [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $userPrompt],
+            ];
+            
+            try {
+                $result = $this->chatWithMessages($model, $messages, $options);
+                $results[$index] = $result;
+                
+                if ($this->logger !== null) {
+                    $cachedTokens = $result['usage']['cached_tokens'] ?? 0;
+                    $this->logger->debug("Batch request #{$index} завершен", [
+                        'cached_tokens' => $cachedTokens,
+                        'total_tokens' => $result['usage']['total_tokens'] ?? 0
+                    ]);
+                }
+            } catch (Exception $e) {
+                $this->logError("Ошибка в batch request #{$index}", [
+                    'error' => $e->getMessage()
+                ]);
+                
+                // Продолжаем обработку остальных
+                $results[$index] = [
+                    'error' => $e->getMessage(),
+                    'content' => null,
+                    'usage' => [
+                        'prompt_tokens' => 0,
+                        'completion_tokens' => 0,
+                        'total_tokens' => 0,
+                        'cached_tokens' => 0,
+                    ],
+                ];
+            }
+        }
+        
+        return $results;
+    }
+
+    /**
      * Валидирует конфигурацию при создании экземпляра класса
      *
      * @param array<string, mixed> $config Конфигурация для валидации

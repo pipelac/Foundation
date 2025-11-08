@@ -58,7 +58,7 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen3-235b-a22b-thinking-2507",
         "deepseek/deepseek-chat"
       ]
     },
@@ -79,7 +79,7 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen3-235b-a22b-thinking-2507",
         "deepseek/deepseek-chat"
       ]
     },
@@ -100,7 +100,7 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen3-235b-a22b-thinking-2507",
         "deepseek/deepseek-chat"
       ]
     },
@@ -121,7 +121,7 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen3-235b-a22b-thinking-2507",
         "deepseek/deepseek-chat"
       ]
     },
@@ -142,22 +142,22 @@
       "proxy": null,
       "prompt_id": 1,
       "ai_models": [
-        "google/gemini-2.0-flash-exp:free",
+        "qwen/qwen3-235b-a22b-thinking-2507",
         "deepseek/deepseek-chat"
       ]
     }
   ],
   
   "openrouter": {
-    "api_key": "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",
-    "app_name": "RSS2TLG-E2E-Test",
+    "api_key": "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",
+    "app_name": "RSS2TLG-BatchCache-Test",
     "base_url": "https://openrouter.ai/api/v1",
-    "default_model": "google/gemini-2.0-flash-exp:free",
+    "default_model": "qwen/qwen3-235b-a22b-thinking-2507",
     "fallback_models": [
-      "deepseek/deepseek-chat",
-      "qwen/qwen-2.5-72b-instruct"
+      "qwen/qwen3-235b-a22b-thinking-2507",
+      "deepseek/deepseek-chat"
     ],
-    "timeout": 180,
+    "timeout": 120,
     "retries": 2
   },
   
