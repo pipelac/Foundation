@@ -1,0 +1,171 @@
+{
+  "openrouter": {
+    "api_key": "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",
+    "api_base_url": "https://openrouter.ai/api/v1",
+    "default_model": "anthropic/claude-3.5-sonnet:beta",
+    "timeout": 120
+  },
+  "telegram": {
+    "bot_token": "8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI",
+    "default_chat_id": "366442475",
+    "channel_id": "@kompasDaily",
+    "timeout": 30,
+    "notifications_enabled": true
+  },
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_password_2024",
+    "charset": "utf8mb4"
+  },
+  "logger": {
+    "directory": "/home/engine/project/logs/Rss2Tlg",
+    "file_name": "optimized_prompts_test.log",
+    "min_level": "debug"
+  },
+  "ai_pipeline": {
+    "summarization": {
+      "enabled": true,
+      "models": [
+        {
+          "model": "anthropic/claude-3.5-sonnet:beta",
+          "priority": 1,
+          "supports_caching": true,
+          "max_tokens": 1500,
+          "temperature": 0.2,
+          "top_p": 0.9,
+          "frequency_penalty": 0.3,
+          "presence_penalty": 0.1
+        },
+        {
+          "model": "deepseek/deepseek-chat",
+          "priority": 2,
+          "supports_caching": false,
+          "max_tokens": 1500,
+          "temperature": 0.2,
+          "top_p": 0.9,
+          "frequency_penalty": 0.3,
+          "presence_penalty": 0.1
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/summarization_prompt_v2.txt"
+    },
+    "deduplication": {
+      "enabled": true,
+      "models": [
+        {
+          "model": "anthropic/claude-3.5-sonnet:beta",
+          "priority": 1,
+          "supports_caching": true,
+          "max_tokens": 1000,
+          "temperature": 0.1,
+          "top_p": 0.95
+        },
+        {
+          "model": "deepseek/deepseek-chat",
+          "priority": 2,
+          "supports_caching": false,
+          "max_tokens": 1000,
+          "temperature": 0.1,
+          "top_p": 0.95
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/deduplication_prompt_v2.txt",
+      "comparison_window_hours": 168,
+      "min_similarity_for_duplicate": 70.0
+    },
+    "translation": {
+      "enabled": true,
+      "models": [
+        {
+          "model": "anthropic/claude-3.5-sonnet:beta",
+          "priority": 1,
+          "supports_caching": true,
+          "max_tokens": 2000,
+          "temperature": 0.3,
+          "top_p": 0.9,
+          "frequency_penalty": 0.2,
+          "presence_penalty": 0.2
+        },
+        {
+          "model": "deepseek/deepseek-chat",
+          "priority": 2,
+          "supports_caching": false,
+          "max_tokens": 2000,
+          "temperature": 0.3,
+          "top_p": 0.9,
+          "frequency_penalty": 0.2,
+          "presence_penalty": 0.2
+        }
+      ],
+      "retry_count": 2,
+      "timeout": 120,
+      "fallback_strategy": "sequential",
+      "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/translation_prompt_v2.txt",
+      "target_languages": ["ru", "uk", "es"],
+      "min_quality_score": 7.0
+    }
+  },
+  "rss_feeds": [
+    {
+      "id": 1,
+      "name": "TechCrunch",
+      "url": "https://techcrunch.com/feed/",
+      "enabled": true,
+      "category": "technology",
+      "language": "en",
+      "update_interval": 900
+    },
+    {
+      "id": 2,
+      "name": "BBC News - World",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "enabled": true,
+      "category": "news",
+      "language": "en",
+      "update_interval": 600
+    },
+    {
+      "id": 3,
+      "name": "Reuters - Technology",
+      "url": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best",
+      "enabled": true,
+      "category": "technology",
+      "language": "en",
+      "update_interval": 900
+    },
+    {
+      "id": 4,
+      "name": "Hacker News",
+      "url": "https://news.ycombinator.com/rss",
+      "enabled": true,
+      "category": "technology",
+      "language": "en",
+      "update_interval": 1800
+    },
+    {
+      "id": 5,
+      "name": "The Verge",
+      "url": "https://www.theverge.com/rss/index.xml",
+      "enabled": true,
+      "category": "technology",
+      "language": "en",
+      "update_interval": 900
+    }
+  ],
+  "fetch_settings": {
+    "max_items_per_feed": 10,
+    "user_agent": "Rss2Tlg/2.0 (AI Pipeline Test; +https://github.com/yourusername/rss2tlg)",
+    "timeout": 30,
+    "follow_redirects": true,
+    "verify_ssl": true
+  }
+}

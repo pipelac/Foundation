@@ -308,7 +308,7 @@ class SummarizationService implements PipelineModuleInterface
         $lastError = null;
 
         foreach ($models as $modelConfig) {
-            $modelName = $modelConfig['model'] ?? $modelConfig;
+            $modelName = is_array($modelConfig) ? ($modelConfig['model'] ?? '') : $modelConfig;
             $retryCount = $this->config['retry_count'];
 
             // Увеличиваем счетчик попыток для модели
@@ -324,7 +324,7 @@ class SummarizationService implements PipelineModuleInterface
 
             for ($attempt = 0; $attempt <= $retryCount; $attempt++) {
                 try {
-                    $result = $this->callAI($modelName, $systemPrompt, $userPrompt);
+                    $result = $this->callAI($modelName, $modelConfig, $systemPrompt, $userPrompt);
                     
                     if ($result) {
                         // Обновляем метрики
@@ -368,12 +368,13 @@ class SummarizationService implements PipelineModuleInterface
      * Вызывает AI модель для анализа
      *
      * @param string $model
+     * @param array<string, mixed>|string $modelConfig
      * @param string $systemPrompt
      * @param string $userPrompt
      * @return array<string, mixed>|null
      * @throws Exception
      */
-    private function callAI(string $model, string $systemPrompt, string $userPrompt): ?array
+    private function callAI(string $model, $modelConfig, string $systemPrompt, string $userPrompt): ?array
     {
         // Формируем messages для chatWithMessages
         $messages = [
@@ -393,11 +394,30 @@ class SummarizationService implements PipelineModuleInterface
             ],
         ];
 
-        $options = [
-            'temperature' => 0.3,
-            'max_tokens' => 2000,
-            'response_format' => ['type' => 'json_object'],
-        ];
+        // Извлекаем параметры модели из конфигурации
+        $options = ['response_format' => ['type' => 'json_object']];
+        
+        if (is_array($modelConfig)) {
+            if (isset($modelConfig['max_tokens'])) {
+                $options['max_tokens'] = $modelConfig['max_tokens'];
+            }
+            if (isset($modelConfig['temperature'])) {
+                $options['temperature'] = $modelConfig['temperature'];
+            }
+            if (isset($modelConfig['top_p'])) {
+                $options['top_p'] = $modelConfig['top_p'];
+            }
+            if (isset($modelConfig['frequency_penalty'])) {
+                $options['frequency_penalty'] = $modelConfig['frequency_penalty'];
+            }
+            if (isset($modelConfig['presence_penalty'])) {
+                $options['presence_penalty'] = $modelConfig['presence_penalty'];
+            }
+        } else {
+            // Дефолтные значения для обратной совместимости
+            $options['max_tokens'] = 1500;
+            $options['temperature'] = 0.2;
+        }
 
         $response = $this->openRouter->chatWithMessages($model, $messages, $options);
 
