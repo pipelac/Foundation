@@ -298,7 +298,7 @@ class IllustrationService extends AbstractPipelineModule
         return json_encode([
             'system' => $systemPrompt,
             'user' => $userPrompt,
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**

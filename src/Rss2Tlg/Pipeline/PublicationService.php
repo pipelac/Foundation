@@ -462,8 +462,8 @@ class PublicationService extends AbstractPipelineModule
             'headline' => $item['translated_headline'] ?? $item['headline'] ?? '',
             'text' => $publishedText,
             'language' => $item['translation_language'] ?? $item['article_language'] ?? '',
-            'media' => json_encode($media),
-            'categories' => json_encode($categories),
+            'media' => json_encode($media, JSON_UNESCAPED_UNICODE),
+            'categories' => json_encode($categories, JSON_UNESCAPED_UNICODE),
             'importance' => $item['importance_rating'],
             'status' => 'published'
         ]);
