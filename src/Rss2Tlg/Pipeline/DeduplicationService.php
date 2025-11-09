@@ -337,9 +337,9 @@ class DeduplicationService extends AbstractPipelineModule
             'similarity_score' => $similarityScore,
             'similarity_method' => 'ai',
             'can_be_published' => !$isDuplicate,
-            'matched_entities' => json_encode($analysisData['matched_entities'] ?? []),
+            'matched_entities' => json_encode($analysisData['matched_entities'] ?? [], JSON_UNESCAPED_UNICODE),
             'matched_events' => $analysisData['matched_events'] ?? null,
-            'matched_facts' => json_encode($analysisData['matched_facts'] ?? []),
+            'matched_facts' => json_encode($analysisData['matched_facts'] ?? [], JSON_UNESCAPED_UNICODE),
             'model_used' => $result['model_used'],
             'tokens_used' => $result['tokens_used'],
             'processing_time_ms' => 0, // будет заполнено в processItem
@@ -376,7 +376,7 @@ class DeduplicationService extends AbstractPipelineModule
         if (!empty($newItem['dedup_numeric_facts'])) {
             $facts = json_decode($newItem['dedup_numeric_facts'], true);
             if ($facts) {
-                $prompt .= "Key Facts: " . json_encode($facts) . "\n";
+                $prompt .= "Key Facts: " . json_encode($facts, JSON_UNESCAPED_UNICODE) . "\n";
             }
         }
 
