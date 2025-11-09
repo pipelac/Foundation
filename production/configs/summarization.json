@@ -1,0 +1,11 @@
+{
+    "enabled": true,
+    "models": [
+        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-chat"
+    ],
+    "retry_count": 2,
+    "timeout": 120,
+    "fallback_strategy": "sequential",
+    "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/summarization_prompt_v2.txt"
+}
