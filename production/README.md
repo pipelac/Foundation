@@ -2,6 +2,56 @@
 
 Production-ready скрипты для сбора и обработки новостей из RSS источников.
 
+**📖 [Примеры использования](USAGE_EXAMPLES.md)** | **📊 [Отчет о тестировании](TEST_REPORT.md)** | **📝 [История изменений](CHANGES.md)**
+
+---
+
+## 🔄 Pipeline Workflow
+
+Система обработки новостей состоит из нескольких последовательных этапов:
+
+```
+┌─────────────────────┐
+│  1. RSS Ingest      │  ← rss_ingest.php
+│  Сбор из источников │
+└──────────┬──────────┘
+           │ rss2tlg_items
+           ↓
+┌─────────────────────┐
+│  2. Summarization   │  ← rss_summarization.php ✨ НОВЫЙ
+│  AI суммаризация    │
+└──────────┬──────────┘
+           │ rss2tlg_summarization
+           ↓
+┌─────────────────────┐
+│  3. Deduplication   │  (в разработке)
+│  Проверка дубликатов│
+└──────────┬──────────┘
+           │ rss2tlg_deduplication
+           ↓
+┌─────────────────────┐
+│  4. Translation     │  (в разработке)
+│  Перевод на языки   │
+└──────────┬──────────┘
+           │ rss2tlg_translation
+           ↓
+┌─────────────────────┐
+│  5. Illustration    │  (в разработке)
+│  Генерация картинок │
+└──────────┬──────────┘
+           │ rss2tlg_illustration
+           ↓
+┌─────────────────────┐
+│  6. Publication     │  (в разработке)
+│  Публикация в Tlg   │
+└─────────────────────┘
+```
+
+**Статус:**
+- ✅ **Этап 1: RSS Ingest** - Production Ready (v1.0.0)
+- ✅ **Этап 2: Summarization** - Production Ready (v1.0.0)
+- ⏳ Этапы 3-6 - в разработке
+
 ---
 
 ## 📁 Структура
@@ -12,12 +62,15 @@ production/
 │   ├── main.json              # Основные настройки
 │   ├── database.json          # Подключение к БД
 │   ├── telegram.json          # Telegram бот
+│   ├── openrouter.json        # OpenRouter API
+│   ├── summarization.json     # Настройки суммаризации
 │   └── feeds.json             # RSS источники (справочно)
 ├── sql/                        # SQL дампы
 │   ├── rss2tlg_feeds_dump.sql
 │   ├── rss2tlg_items_dump.sql
 │   └── ... (9 файлов)
-├── rss_ingest.php             # Основной скрипт сбора RSS
+├── rss_ingest.php             # 1️⃣ Скрипт сбора RSS
+├── rss_summarization.php      # 2️⃣ Скрипт AI суммаризации
 ├── run_3_tests.sh             # Тест: 3 запуска с интервалом 2 мин
 ├── run_3_tests_fast.sh        # Быстрый тест: 3 запуска за 30 сек
 ├── setup_cron.sh              # Настройка cron
@@ -89,7 +142,7 @@ crontab -e
 
 ---
 
-## 📡 Скрипт: rss_ingest.php
+## 📡 Скрипт 1: rss_ingest.php
 
 ### Описание
 
@@ -140,6 +193,119 @@ grep ERROR logs/rss_ingest.log
 
 # Статистика по запускам
 grep "Script completed" logs/rss_ingest.log
+```
+
+---
+
+## 🤖 Скрипт 2: rss_summarization.php
+
+### Описание
+
+Production скрипт для AI суммаризации и категоризации новостей из таблицы `rss2tlg_items`.
+
+### Функционал
+
+- ✅ AI суммаризация полного текста новости
+- ✅ Категоризация (основная + 2 дополнительные категории)
+- ✅ Определение языка статьи (en, ru, и др.)
+- ✅ Оценка важности новости (1-20)
+- ✅ Подготовка данных для дедупликации (сущности, события, факты)
+- ✅ Fallback между моделями (Claude 3.5 Sonnet → DeepSeek Chat)
+- ✅ Prompt caching для экономии токенов
+- ✅ Telegram уведомления о прогрессе
+- ✅ Детальное логирование
+
+### Режимы работы
+
+**TEST MODE (по умолчанию):**
+- Обрабатывает только последние 3 новости
+- Константа: `TEST_MODE = true`
+- Лимит: `TEST_ITEMS_LIMIT = 3`
+
+**PRODUCTION MODE:**
+- Обрабатывает все непроцессированные новости
+- Установите: `TEST_MODE = false`
+
+### Конфигурационные файлы
+
+| Файл | Назначение |
+|------|------------|
+| `configs/main.json` | Пути логов, интервалы, таймауты |
+| `configs/database.json` | Подключение к БД |
+| `configs/telegram.json` | Telegram бот (token, chat_id) |
+| `configs/openrouter.json` | OpenRouter API (ключ, URL) |
+| `configs/summarization.json` | Модели AI, промпт файл, retry логика |
+
+### AI Модели
+
+По умолчанию используются модели в порядке приоритета:
+
+1. **Claude 3.5 Sonnet** - основная модель (высокое качество)
+2. **DeepSeek Chat** - fallback модель (низкая стоимость)
+
+Поддерживается automatic prompt caching для экономии до 75% стоимости.
+
+### Ручной запуск
+
+```bash
+# Тестовый режим (3 новости)
+php production/rss_summarization.php
+
+# Production режим (отредактируйте константу TEST_MODE в скрипте)
+php production/rss_summarization.php
+```
+
+### Логи
+
+- **Основной лог:** `/home/engine/project/logs/rss_summarization.log`
+
+### Просмотр логов
+
+```bash
+# Последние записи
+tail -100 logs/rss_summarization.log
+
+# В реальном времени
+tail -f logs/rss_summarization.log
+
+# Только ошибки
+grep ERROR logs/rss_summarization.log
+
+# Статистика токенов
+grep "total_tokens" logs/rss_summarization.log
+```
+
+### Проверка обработанных новостей
+
+```sql
+-- Статистика суммаризации
+SELECT 
+    status,
+    COUNT(*) as count
+FROM rss2tlg_summarization
+GROUP BY status;
+
+-- Последние обработанные новости
+SELECT 
+    i.title,
+    s.article_language,
+    s.category_primary,
+    s.importance_rating,
+    s.processed_at
+FROM rss2tlg_summarization s
+JOIN rss2tlg_items i ON s.item_id = i.id
+WHERE s.status = 'success'
+ORDER BY s.processed_at DESC
+LIMIT 10;
+
+-- Использование токенов
+SELECT 
+    COUNT(*) as total_items,
+    SUM(tokens_used) as total_tokens,
+    AVG(tokens_used) as avg_tokens_per_item,
+    SUM(cache_hit) as cache_hits
+FROM rss2tlg_summarization
+WHERE status = 'success';
 ```
 
 ---
@@ -345,6 +511,21 @@ curl "https://api.telegram.org/bot8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI
 
 ---
 
-**Версия:** 1.0.0  
+## 📋 История версий
+
+### v1.1.0 (2025-11-09)
+- ✨ Добавлен скрипт `rss_summarization.php` - AI суммаризация новостей
+- ✨ Добавлены конфиги: `openrouter.json`, `summarization.json`
+- 📝 Обновлена документация с описанием pipeline workflow
+
+### v1.0.0 (2025-11-09)
+- ✅ Запущен скрипт `rss_ingest.php` - сбор RSS новостей
+- ✅ Конфигурационные файлы перенесены в `production/configs/`
+- ✅ Полное тестирование (3 прогона, 100% успех)
+- ✅ SQL дампы экспортированы
+
+---
+
+**Версия:** 1.1.0  
 **Дата:** 2025-11-09  
-**Статус:** ✅ Production Ready
+**Статус:** ✅ Production Ready (2 из 6 этапов)
