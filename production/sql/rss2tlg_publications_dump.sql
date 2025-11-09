@@ -1,0 +1,75 @@
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.13-MariaDB, for debian-linux-gnu (x86_64)
+--
+-- Host: localhost    Database: rss2tlg
+-- ------------------------------------------------------
+-- Server version	10.11.13-MariaDB-0ubuntu0.24.04.1
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `rss2tlg_publications`
+--
+
+DROP TABLE IF EXISTS `rss2tlg_publications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rss2tlg_publications` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Первичный ключ',
+  `item_id` int(10) unsigned NOT NULL COMMENT 'ID новости (FK -> rss2tlg_items)',
+  `feed_id` int(10) unsigned NOT NULL COMMENT 'ID источника',
+  `destination_type` enum('bot','channel') NOT NULL COMMENT 'Тип назначения',
+  `destination_id` varchar(255) NOT NULL COMMENT 'ID чата или канала',
+  `message_id` int(10) unsigned NOT NULL COMMENT 'ID сообщения в Telegram',
+  `published_headline` varchar(500) DEFAULT NULL COMMENT 'Опубликованный заголовок',
+  `published_text` text DEFAULT NULL COMMENT 'Опубликованный текст',
+  `published_language` varchar(10) DEFAULT NULL COMMENT 'Язык публикации',
+  `published_media` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Массив опубликованных медиа-файлов' CHECK (json_valid(`published_media`)),
+  `published_categories` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Категории новости' CHECK (json_valid(`published_categories`)),
+  `importance_rating` tinyint(3) unsigned DEFAULT NULL COMMENT 'Рейтинг важности',
+  `publication_status` enum('pending','processing','published','failed','skipped') NOT NULL DEFAULT 'pending' COMMENT 'Статус публикации',
+  `retry_count` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT 'Количество повторов публикации',
+  `error_message` text DEFAULT NULL COMMENT 'Сообщение об ошибке',
+  `error_code` varchar(50) DEFAULT NULL COMMENT 'Код ошибки Telegram API',
+  `published_at` datetime NOT NULL COMMENT 'Время публикации',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Время создания записи',
+  PRIMARY KEY (`id`),
+  KEY `idx_item_id` (`item_id`),
+  KEY `idx_feed_id` (`feed_id`),
+  KEY `idx_destination` (`destination_type`,`destination_id`),
+  KEY `idx_published_at` (`published_at`),
+  KEY `idx_publication_status` (`publication_status`),
+  KEY `idx_published_language` (`published_language`),
+  KEY `idx_importance_rating` (`importance_rating`),
+  KEY `idx_feed_destination` (`feed_id`,`destination_type`,`destination_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Журнал публикаций новостей в Telegram';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `rss2tlg_publications`
+--
+
+LOCK TABLES `rss2tlg_publications` WRITE;
+/*!40000 ALTER TABLE `rss2tlg_publications` DISABLE KEYS */;
+/*!40000 ALTER TABLE `rss2tlg_publications` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2025-11-09 13:37:59

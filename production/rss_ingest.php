@@ -195,19 +195,20 @@ function main(): void
  */
 function loadConfiguration(): array
 {
-    $configPath = __DIR__ . '/../config.json';
+    $configDir = __DIR__ . '/configs';
     
-    if (!file_exists($configPath)) {
-        throw new \RuntimeException("Config file not found: {$configPath}");
+    // Загрузка основного конфига
+    $mainConfigPath = $configDir . '/main.json';
+    if (!file_exists($mainConfigPath)) {
+        throw new \RuntimeException("Main config not found: {$mainConfigPath}");
     }
     
-    $config = ConfigLoader::load($configPath);
-    
-    if (!$config) {
-        throw new \RuntimeException("Failed to load configuration");
+    $mainConfig = json_decode(file_get_contents($mainConfigPath), true);
+    if (!$mainConfig) {
+        throw new \RuntimeException("Failed to parse main config");
     }
     
-    return $config;
+    return $mainConfig;
 }
 
 /**
@@ -229,14 +230,15 @@ function initLogger(array $config): Logger
  */
 function initDatabase(array $config, Logger $logger): MySQL
 {
-    $dbConfig = [
-        'host' => 'localhost',
-        'port' => 3306,
-        'database' => 'rss2tlg',
-        'username' => 'rss2tlg_user',
-        'password' => 'rss2tlg_password_2024',
-        'charset' => 'utf8mb4',
-    ];
+    $configPath = __DIR__ . '/configs/database.json';
+    if (!file_exists($configPath)) {
+        throw new \RuntimeException("Database config not found: {$configPath}");
+    }
+    
+    $dbConfig = json_decode(file_get_contents($configPath), true);
+    if (!$dbConfig) {
+        throw new \RuntimeException("Failed to parse database config");
+    }
     
     return new MySQL($dbConfig, $logger);
 }
@@ -246,11 +248,15 @@ function initDatabase(array $config, Logger $logger): MySQL
  */
 function initTelegram(array $config, Logger $logger): Telegram
 {
-    $telegramConfig = [
-        'token' => '8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI',
-        'default_chat_id' => '366442475',
-        'timeout' => 30,
-    ];
+    $configPath = __DIR__ . '/configs/telegram.json';
+    if (!file_exists($configPath)) {
+        throw new \RuntimeException("Telegram config not found: {$configPath}");
+    }
+    
+    $telegramConfig = json_decode(file_get_contents($configPath), true);
+    if (!$telegramConfig) {
+        throw new \RuntimeException("Failed to parse telegram config");
+    }
     
     return new Telegram($telegramConfig, $logger);
 }
