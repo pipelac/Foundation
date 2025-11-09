@@ -1,11 +1,12 @@
 {
     "enabled": true,
     "models": [
-        "anthropic/claude-3.5-sonnet",
+        "deepseek/deepseek-v3.2-exp",
+        "google/gemma-3-27b-it",
         "deepseek/deepseek-chat"
     ],
     "retry_count": 2,
     "timeout": 120,
     "fallback_strategy": "sequential",
-    "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/summarization_prompt_v2.txt"
+    "prompt_file": "/home/engine/project/production/prompts/summarization_prompt_v2.txt"
 }
