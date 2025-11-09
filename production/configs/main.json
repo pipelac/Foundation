@@ -1,0 +1,7 @@
+{
+    "log_directory": "/home/engine/project/logs",
+    "log_level": "info",
+    "cron_interval_minutes": 2,
+    "fetch_timeout": 30,
+    "max_retries": 3
+}

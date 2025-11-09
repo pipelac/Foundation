@@ -1,0 +1,8 @@
+{
+    "host": "localhost",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "rss2tlg_password_2024",
+    "charset": "utf8mb4"
+}
