@@ -20,40 +20,19 @@ use Exception;
  * - Сохранение изображения на диск
  * - Добавление водяного знака (опционально)
  * - Сохранение метаданных в БД
+ * 
+ * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule
  */
-class IllustrationService implements PipelineModuleInterface
+class IllustrationService extends AbstractPipelineModule
 {
-    private MySQL $db;
     private OpenRouter $openRouter;
-    private ?Logger $logger;
-    private array $config;
-    
-    private array $metrics = [
-        'total_processed' => 0,
-        'successful' => 0,
-        'failed' => 0,
-        'skipped' => 0,
-        'total_generation_time_ms' => 0,
-        'model_attempts' => [],
-    ];
 
     /**
      * Конструктор сервиса генерации иллюстраций
      *
      * @param MySQL $db Подключение к БД
      * @param OpenRouter $openRouter Клиент OpenRouter API
-     * @param array<string, mixed> $config Конфигурация модуля:
-     *   - enabled (bool): Включен ли модуль
-     *   - models (array): Массив AI моделей для генерации в порядке приоритета
-     *   - retry_count (int): Количество повторов при ошибке (default: 2)
-     *   - timeout (int): Таймаут запроса в секундах (default: 180)
-     *   - fallback_strategy (string): 'sequential'|'random' (default: 'sequential')
-     *   - aspect_ratio (string): Соотношение сторон (default: '16:9')
-     *   - image_path (string): Путь для сохранения изображений
-     *   - watermark_text (string|null): Текст водяного знака (опционально)
-     *   - watermark_size (int): Размер текста водяного знака (default: 24)
-     *   - watermark_position (string): Позиция watermark (default: 'bottom-right')
-     *   - prompt_file (string): Путь к файлу с промптом для анализа
+     * @param array<string, mixed> $config Конфигурация модуля
      * @param Logger|null $logger Логгер
      */
     public function __construct(
@@ -64,18 +43,23 @@ class IllustrationService implements PipelineModuleInterface
     ) {
         $this->db = $db;
         $this->openRouter = $openRouter;
-        $this->config = $this->validateConfig($config);
         $this->logger = $logger;
+        $this->config = $this->validateConfig($config);
+        $this->metrics = $this->initializeMetrics();
     }
 
     /**
-     * Валидирует конфигурацию модуля
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     * @throws AIAnalysisException
+     * {@inheritdoc}
      */
-    private function validateConfig(array $config): array
+    protected function getModuleName(): string
+    {
+        return 'Illustration';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function validateModuleConfig(array $config): array
     {
         if (empty($config['models']) || !is_array($config['models'])) {
             throw new AIAnalysisException('Не указаны AI модели для генерации иллюстраций');
@@ -98,10 +82,7 @@ class IllustrationService implements PipelineModuleInterface
         }
 
         return [
-            'enabled' => $config['enabled'] ?? true,
             'models' => $config['models'],
-            'retry_count' => max(0, (int)($config['retry_count'] ?? 2)),
-            'timeout' => max(30, (int)($config['timeout'] ?? 180)),
             'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
             'aspect_ratio' => $config['aspect_ratio'] ?? '16:9',
             'image_path' => rtrim($imagePath, '/'),
@@ -115,22 +96,38 @@ class IllustrationService implements PipelineModuleInterface
     /**
      * {@inheritdoc}
      */
+    protected function initializeMetrics(): array
+    {
+        return [
+            'total_processed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'total_generation_time_ms' => 0,
+            'total_time_ms' => 0,
+            'model_attempts' => [],
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function processItem(int $itemId): bool
     {
         if (!$this->config['enabled']) {
-            $this->logDebug('Модуль иллюстраций отключен', ['item_id' => $itemId]);
+            $this->logDebug('Модуль отключен', ['item_id' => $itemId]);
             return false;
         }
 
         $startTime = microtime(true);
-        $this->metrics['total_processed']++;
+        $this->incrementMetric('total_processed');
 
         try {
             // Проверяем не сгенерирована ли уже иллюстрация
             $existingStatus = $this->getStatus($itemId);
             if ($existingStatus === 'success') {
                 $this->logInfo('Иллюстрация уже сгенерирована', ['item_id' => $itemId]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return true;
             }
 
@@ -142,22 +139,22 @@ class IllustrationService implements PipelineModuleInterface
 
             // Проверяем что новость прошла дедупликацию и может быть опубликована
             if (!$this->canPublish($itemId)) {
-                $this->updateStatus($itemId, $itemData['feed_id'], 'skipped', [
+                $this->updateStatus($itemId, (int)$itemData['feed_id'], 'skipped', [
                     'error_message' => 'Новость не прошла дедупликацию или не может быть опубликована',
                 ]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 $this->logInfo('Новость пропущена (дубликат или запрещена к публикации)', ['item_id' => $itemId]);
                 return true;
             }
 
             // Обновляем статус на processing
-            $this->updateStatus($itemId, $itemData['feed_id'], 'processing');
+            $this->updateStatus($itemId, (int)$itemData['feed_id'], 'processing');
 
             // Подготавливаем промпт для анализа и генерации
             $analysisPrompt = $this->prepareAnalysisPrompt($itemData);
             
             // Получаем промпт для генерации изображения от AI
-            $generationData = $this->analyzeAndPreparePrompt($itemId, $itemData['feed_id'], $analysisPrompt);
+            $generationData = $this->analyzeAndPreparePrompt($itemId, (int)$itemData['feed_id'], $analysisPrompt);
             
             if (!$generationData || empty($generationData['final_prompt'])) {
                 throw new AIAnalysisException("Не удалось создать промпт для генерации");
@@ -166,7 +163,7 @@ class IllustrationService implements PipelineModuleInterface
             // Генерируем изображение
             $imageData = $this->generateImageWithFallback(
                 $itemId,
-                $itemData['feed_id'],
+                (int)$itemData['feed_id'],
                 $generationData['final_prompt']
             );
 
@@ -175,7 +172,7 @@ class IllustrationService implements PipelineModuleInterface
             }
 
             // Сохраняем изображение на диск
-            $savedPath = $this->saveImage($itemId, $itemData['feed_id'], $imageData);
+            $savedPath = $this->saveImage($itemId, (int)$itemData['feed_id'], $imageData);
 
             // Добавляем водяной знак если настроен
             if ($this->config['watermark_text']) {
@@ -186,7 +183,7 @@ class IllustrationService implements PipelineModuleInterface
             $imageInfo = $this->getImageInfo($savedPath);
 
             // Сохраняем результат в БД
-            $this->saveResult($itemId, $itemData['feed_id'], [
+            $this->saveResult($itemId, (int)$itemData['feed_id'], [
                 'image_path' => $savedPath,
                 'image_width' => $imageInfo['width'],
                 'image_height' => $imageInfo['height'],
@@ -197,9 +194,9 @@ class IllustrationService implements PipelineModuleInterface
                 'generation_time_ms' => $imageData['generation_time_ms'],
             ]);
 
-            $processingTime = (int)((microtime(true) - $startTime) * 1000);
-            $this->metrics['successful']++;
-            $this->metrics['total_generation_time_ms'] += $processingTime;
+            $processingTime = $this->recordProcessingTime($startTime);
+            $this->incrementMetric('successful');
+            $this->incrementMetric('total_generation_time_ms', $processingTime);
 
             $this->logInfo('Иллюстрация успешно сгенерирована', [
                 'item_id' => $itemId,
@@ -210,9 +207,10 @@ class IllustrationService implements PipelineModuleInterface
             return true;
 
         } catch (Exception $e) {
-            $this->metrics['failed']++;
+            $this->incrementMetric('failed');
             
-            $this->updateStatus($itemId, $itemData['feed_id'] ?? 0, 'failed', [
+            $feedId = isset($itemData) ? (int)($itemData['feed_id'] ?? 0) : 0;
+            $this->updateStatus($itemId, $feedId, 'failed', [
                 'error_message' => $e->getMessage(),
                 'error_code' => (string)$e->getCode(),
             ]);
@@ -220,40 +218,10 @@ class IllustrationService implements PipelineModuleInterface
             $this->logError('Ошибка генерации иллюстрации', [
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return false;
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function processBatch(array $itemIds): array
-    {
-        $stats = [
-            'success' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ];
-
-        foreach ($itemIds as $itemId) {
-            $result = $this->processItem($itemId);
-            
-            if ($result) {
-                $existingStatus = $this->getStatus($itemId);
-                if ($existingStatus === 'success') {
-                    $stats['success']++;
-                } elseif ($existingStatus === 'skipped') {
-                    $stats['skipped']++;
-                }
-            } else {
-                $stats['failed']++;
-            }
-        }
-
-        return $stats;
     }
 
     /**
@@ -265,29 +233,6 @@ class IllustrationService implements PipelineModuleInterface
         $result = $this->db->queryOne($query, ['item_id' => $itemId]);
         
         return $result['status'] ?? null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMetrics(): array
-    {
-        return $this->metrics;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resetMetrics(): void
-    {
-        $this->metrics = [
-            'total_processed' => 0,
-            'successful' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-            'total_generation_time_ms' => 0,
-            'model_attempts' => [],
-        ];
     }
 
     /**
@@ -817,37 +762,5 @@ class IllustrationService implements PipelineModuleInterface
         ];
 
         $this->db->execute($query, $params);
-    }
-
-    /**
-     * Логирование debug сообщения
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        $this->logger?->debug('[IllustrationService] ' . $message, $context);
-    }
-
-    /**
-     * Логирование info сообщения
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        $this->logger?->info('[IllustrationService] ' . $message, $context);
-    }
-
-    /**
-     * Логирование warning сообщения
-     */
-    private function logWarning(string $message, array $context = []): void
-    {
-        $this->logger?->warning('[IllustrationService] ' . $message, $context);
-    }
-
-    /**
-     * Логирование error сообщения
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        $this->logger?->error('[IllustrationService] ' . $message, $context);
     }
 }

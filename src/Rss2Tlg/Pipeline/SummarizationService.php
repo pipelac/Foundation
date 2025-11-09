@@ -19,24 +19,12 @@ use Exception;
  * - Определение языка статьи
  * - Подготовка данных для дедупликации
  * - Оценка важности новости (1-20)
+ * 
+ * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule и AIAnalysisTrait
  */
-class SummarizationService implements PipelineModuleInterface
+class SummarizationService extends AbstractPipelineModule
 {
-    private MySQL $db;
-    private OpenRouter $openRouter;
-    private ?Logger $logger;
-    private array $config;
-    
-    private array $metrics = [
-        'total_processed' => 0,
-        'successful' => 0,
-        'failed' => 0,
-        'skipped' => 0,
-        'total_tokens' => 0,
-        'total_time_ms' => 0,
-        'cache_hits' => 0,
-        'model_attempts' => [],
-    ];
+    use AIAnalysisTrait;
 
     /**
      * Конструктор сервиса суммаризации
@@ -60,34 +48,43 @@ class SummarizationService implements PipelineModuleInterface
     ) {
         $this->db = $db;
         $this->openRouter = $openRouter;
-        $this->config = $this->validateConfig($config);
         $this->logger = $logger;
+        $this->config = $this->validateConfig($config);
+        $this->metrics = $this->initializeMetrics();
     }
 
     /**
-     * Валидирует конфигурацию модуля
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     * @throws AIAnalysisException
+     * {@inheritdoc}
      */
-    private function validateConfig(array $config): array
+    protected function getModuleName(): string
     {
-        if (empty($config['models']) || !is_array($config['models'])) {
-            throw new AIAnalysisException('Не указаны AI модели для суммаризации');
-        }
+        return 'Summarization';
+    }
 
-        if (empty($config['prompt_file']) || !file_exists($config['prompt_file'])) {
-            throw new AIAnalysisException('Не указан или не найден файл промпта');
-        }
+    /**
+     * {@inheritdoc}
+     */
+    protected function validateModuleConfig(array $config): array
+    {
+        $aiConfig = $this->validateAIConfig($config);
 
+        return $aiConfig;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function initializeMetrics(): array
+    {
         return [
-            'enabled' => $config['enabled'] ?? true,
-            'models' => $config['models'],
-            'retry_count' => max(0, (int)($config['retry_count'] ?? 2)),
-            'timeout' => max(30, (int)($config['timeout'] ?? 120)),
-            'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
-            'prompt_file' => $config['prompt_file'],
+            'total_processed' => 0,
+            'successful' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'total_tokens' => 0,
+            'total_time_ms' => 0,
+            'cache_hits' => 0,
+            'model_attempts' => [],
         ];
     }
 
@@ -97,19 +94,19 @@ class SummarizationService implements PipelineModuleInterface
     public function processItem(int $itemId): bool
     {
         if (!$this->config['enabled']) {
-            $this->logDebug('Модуль суммаризации отключен', ['item_id' => $itemId]);
+            $this->logDebug('Модуль отключен', ['item_id' => $itemId]);
             return false;
         }
 
         $startTime = microtime(true);
-        $this->metrics['total_processed']++;
+        $this->incrementMetric('total_processed');
 
         try {
             // Проверяем не обработана ли уже новость
             $existingStatus = $this->getStatus($itemId);
             if ($existingStatus === 'success') {
                 $this->logInfo('Новость уже обработана', ['item_id' => $itemId]);
-                $this->metrics['skipped']++;
+                $this->incrementMetric('skipped');
                 return true;
             }
 
@@ -120,25 +117,24 @@ class SummarizationService implements PipelineModuleInterface
             }
 
             // Обновляем статус на processing
-            $this->updateStatus($itemId, $item['feed_id'], 'processing');
+            $this->updateStatus($itemId, (int)$item['feed_id'], 'processing');
 
             // Подготавливаем промпт
-            $systemPrompt = $this->loadPrompt();
+            $systemPrompt = $this->loadPromptFromFile($this->config['prompt_file']);
             $userPrompt = $this->prepareUserPrompt($item);
 
             // Получаем результат от AI с fallback
-            $result = $this->analyzeWithFallback($itemId, $item['feed_id'], $systemPrompt, $userPrompt);
+            $result = $this->analyzeWithFallback($systemPrompt, $userPrompt);
 
             if (!$result) {
                 throw new AIAnalysisException("Не удалось получить результат от AI");
             }
 
             // Сохраняем результат
-            $this->saveResult($itemId, $item['feed_id'], $result);
+            $this->saveResult($itemId, (int)$item['feed_id'], $result);
 
-            $processingTime = (int)((microtime(true) - $startTime) * 1000);
-            $this->metrics['successful']++;
-            $this->metrics['total_time_ms'] += $processingTime;
+            $processingTime = $this->recordProcessingTime($startTime);
+            $this->incrementMetric('successful');
 
             $this->logInfo('Новость успешно обработана', [
                 'item_id' => $itemId,
@@ -148,9 +144,10 @@ class SummarizationService implements PipelineModuleInterface
             return true;
 
         } catch (Exception $e) {
-            $this->metrics['failed']++;
+            $this->incrementMetric('failed');
             
-            $this->updateStatus($itemId, $item['feed_id'] ?? 0, 'failed', [
+            $feedId = isset($item) ? (int)($item['feed_id'] ?? 0) : 0;
+            $this->updateStatus($itemId, $feedId, 'failed', [
                 'error_message' => $e->getMessage(),
                 'error_code' => $e->getCode(),
             ]);
@@ -158,40 +155,10 @@ class SummarizationService implements PipelineModuleInterface
             $this->logError('Ошибка обработки новости', [
                 'item_id' => $itemId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return false;
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function processBatch(array $itemIds): array
-    {
-        $stats = [
-            'success' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-        ];
-
-        foreach ($itemIds as $itemId) {
-            $result = $this->processItem($itemId);
-            
-            if ($result) {
-                $stats['success']++;
-            } else {
-                $existingStatus = $this->getStatus($itemId);
-                if ($existingStatus === 'success') {
-                    $stats['skipped']++;
-                } else {
-                    $stats['failed']++;
-                }
-            }
-        }
-
-        return $stats;
     }
 
     /**
@@ -203,31 +170,6 @@ class SummarizationService implements PipelineModuleInterface
         $result = $this->db->queryOne($query, ['item_id' => $itemId]);
         
         return $result['status'] ?? null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMetrics(): array
-    {
-        return $this->metrics;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resetMetrics(): void
-    {
-        $this->metrics = [
-            'total_processed' => 0,
-            'successful' => 0,
-            'failed' => 0,
-            'skipped' => 0,
-            'total_tokens' => 0,
-            'total_time_ms' => 0,
-            'cache_hits' => 0,
-            'model_attempts' => [],
-        ];
     }
 
     /**
@@ -249,23 +191,6 @@ class SummarizationService implements PipelineModuleInterface
     }
 
     /**
-     * Загружает промпт из файла
-     *
-     * @return string
-     * @throws AIAnalysisException
-     */
-    private function loadPrompt(): string
-    {
-        $prompt = file_get_contents($this->config['prompt_file']);
-        
-        if ($prompt === false) {
-            throw new AIAnalysisException('Не удалось загрузить промпт из файла');
-        }
-
-        return $prompt;
-    }
-
-    /**
      * Подготавливает пользовательский промпт с данными новости
      *
      * @param array<string, mixed> $item
@@ -282,167 +207,6 @@ class SummarizationService implements PipelineModuleInterface
         $prompt .= "Provide analysis in JSON format according to the schema.";
         
         return $prompt;
-    }
-
-    /**
-     * Анализирует новость через AI с использованием fallback моделей
-     *
-     * @param int $itemId
-     * @param int $feedId
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     */
-    private function analyzeWithFallback(
-        int $itemId,
-        int $feedId,
-        string $systemPrompt,
-        string $userPrompt
-    ): ?array {
-        $models = $this->config['models'];
-        
-        if ($this->config['fallback_strategy'] === 'random') {
-            shuffle($models);
-        }
-
-        $lastError = null;
-
-        foreach ($models as $modelConfig) {
-            $modelName = is_array($modelConfig) ? ($modelConfig['model'] ?? '') : $modelConfig;
-            $retryCount = $this->config['retry_count'];
-
-            // Увеличиваем счетчик попыток для модели
-            if (!isset($this->metrics['model_attempts'][$modelName])) {
-                $this->metrics['model_attempts'][$modelName] = 0;
-            }
-            $this->metrics['model_attempts'][$modelName]++;
-
-            $this->logDebug('Попытка анализа с моделью', [
-                'item_id' => $itemId,
-                'model' => $modelName,
-            ]);
-
-            for ($attempt = 0; $attempt <= $retryCount; $attempt++) {
-                try {
-                    $result = $this->callAI($modelName, $modelConfig, $systemPrompt, $userPrompt);
-                    
-                    if ($result) {
-                        // Обновляем метрики
-                        if (isset($result['tokens_used'])) {
-                            $this->metrics['total_tokens'] += $result['tokens_used'];
-                        }
-                        if (isset($result['cache_hit']) && $result['cache_hit']) {
-                            $this->metrics['cache_hits']++;
-                        }
-
-                        $result['model_used'] = $modelName;
-                        return $result;
-                    }
-
-                } catch (Exception $e) {
-                    $lastError = $e->getMessage();
-                    
-                    $this->logWarning('Ошибка при вызове AI', [
-                        'item_id' => $itemId,
-                        'model' => $modelName,
-                        'attempt' => $attempt + 1,
-                        'error' => $lastError,
-                    ]);
-
-                    if ($attempt < $retryCount) {
-                        sleep(1); // Пауза перед повтором
-                    }
-                }
-            }
-        }
-
-        $this->logError('Все модели не смогли обработать новость', [
-            'item_id' => $itemId,
-            'last_error' => $lastError,
-        ]);
-
-        return null;
-    }
-
-    /**
-     * Вызывает AI модель для анализа
-     *
-     * @param string $model
-     * @param array<string, mixed>|string $modelConfig
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @return array<string, mixed>|null
-     * @throws Exception
-     */
-    private function callAI(string $model, $modelConfig, string $systemPrompt, string $userPrompt): ?array
-    {
-        // Формируем messages для chatWithMessages
-        $messages = [
-            [
-                'role' => 'system',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'text' => $systemPrompt,
-                        'cache_control' => ['type' => 'ephemeral'], // Для кеширования Claude
-                    ],
-                ],
-            ],
-            [
-                'role' => 'user',
-                'content' => $userPrompt,
-            ],
-        ];
-
-        // Извлекаем параметры модели из конфигурации
-        $options = ['response_format' => ['type' => 'json_object']];
-        
-        if (is_array($modelConfig)) {
-            if (isset($modelConfig['max_tokens'])) {
-                $options['max_tokens'] = $modelConfig['max_tokens'];
-            }
-            if (isset($modelConfig['temperature'])) {
-                $options['temperature'] = $modelConfig['temperature'];
-            }
-            if (isset($modelConfig['top_p'])) {
-                $options['top_p'] = $modelConfig['top_p'];
-            }
-            if (isset($modelConfig['frequency_penalty'])) {
-                $options['frequency_penalty'] = $modelConfig['frequency_penalty'];
-            }
-            if (isset($modelConfig['presence_penalty'])) {
-                $options['presence_penalty'] = $modelConfig['presence_penalty'];
-            }
-        } else {
-            // Дефолтные значения для обратной совместимости
-            $options['max_tokens'] = 1500;
-            $options['temperature'] = 0.2;
-        }
-
-        $response = $this->openRouter->chatWithMessages($model, $messages, $options);
-
-        if (!$response || !isset($response['content'])) {
-            return null;
-        }
-
-        $content = $response['content'];
-        $analysisData = json_decode($content, true);
-
-        if (!$analysisData) {
-            throw new AIAnalysisException('Не удалось распарсить JSON ответ от AI');
-        }
-
-        // Извлекаем метрики
-        $usage = $response['usage'] ?? [];
-        
-        return [
-            'analysis_data' => $analysisData,
-            'tokens_used' => $usage['total_tokens'] ?? 0,
-            'tokens_prompt' => $usage['prompt_tokens'] ?? 0,
-            'tokens_completion' => $usage['completion_tokens'] ?? 0,
-            'tokens_cached' => $usage['cached_tokens'] ?? 0,
-            'cache_hit' => ($usage['cached_tokens'] ?? 0) > 0,
-        ];
     }
 
     /**
@@ -542,45 +306,5 @@ class SummarizationService implements PipelineModuleInterface
         ];
 
         $this->db->execute($query, $params);
-    }
-
-    /**
-     * Логирование debug
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->debug("[Summarization] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирование info
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->info("[Summarization] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирование warning
-     */
-    private function logWarning(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->warning("[Summarization] {$message}", $context);
-        }
-    }
-
-    /**
-     * Логирование error
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        if ($this->logger) {
-            $this->logger->error("[Summarization] {$message}", $context);
-        }
     }
 }
