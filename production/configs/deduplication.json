@@ -1,0 +1,13 @@
+{
+    "models": [
+        "google/gemma-3-27b-it",
+        "deepseek/deepseek-chat",
+        "deepseek/deepseek-v3.2-exp"
+    ],
+    "prompt_file": "production/prompts/deduplication_prompt_v2.txt",
+    "lookback_hours": 72,
+    "max_compare_items": 50,
+    "similarity_threshold": 70,
+    "retry_attempts": 3,
+    "retry_delay_ms": 1000
+}

@@ -24,7 +24,7 @@ Production-ready скрипты для сбора и обработки ново
            │ rss2tlg_summarization
            ↓
 ┌─────────────────────┐
-│  3. Deduplication   │  (в разработке)
+│  3. Deduplication   │  ← rss_deduplication.php ✅ ГОТОВ
 │  Проверка дубликатов│
 └──────────┬──────────┘
            │ rss2tlg_deduplication
@@ -50,7 +50,8 @@ Production-ready скрипты для сбора и обработки ново
 **Статус:**
 - ✅ **Этап 1: RSS Ingest** - Production Ready (v1.0.0)
 - ✅ **Этап 2: Summarization** - Production Ready (v1.0.0)
-- ⏳ Этапы 3-6 - в разработке
+- ✅ **Этап 3: Deduplication** - Production Ready (v1.0.0)
+- ⏳ Этапы 4-6 - в разработке
 
 ---
 
@@ -64,17 +65,23 @@ production/
 │   ├── telegram.json          # Telegram бот
 │   ├── openrouter.json        # OpenRouter API
 │   ├── summarization.json     # Настройки суммаризации
+│   ├── deduplication.json     # Настройки дедупликации
 │   └── feeds.json             # RSS источники (справочно)
+├── prompts/                    # AI промпты
+│   ├── summarization_prompt_v2.txt
+│   └── deduplication_prompt_v2.txt
 ├── sql/                        # SQL дампы
 │   ├── rss2tlg_feeds_dump.sql
 │   ├── rss2tlg_items_dump.sql
 │   └── ... (9 файлов)
 ├── rss_ingest.php             # 1️⃣ Скрипт сбора RSS
 ├── rss_summarization.php      # 2️⃣ Скрипт AI суммаризации
-├── run_3_tests.sh             # Тест: 3 запуска с интервалом 2 мин
-├── run_3_tests_fast.sh        # Быстрый тест: 3 запуска за 30 сек
-├── setup_cron.sh              # Настройка cron
-├── TEST_REPORT.md             # Отчет о тестировании
+├── rss_deduplication.php      # 3️⃣ Скрипт проверки дубликатов
+├── TEST_REPORT.md             # Отчет: RSS Ingest
+├── TEST_REPORT_SUMMARIZATION.md    # Отчет: Summarization
+├── TEST_REPORT_DEDUPLICATION.md    # Отчет: Deduplication
+├── QUICKSTART_SUMMARIZATION_TESTED.md   # Quickstart: Summarization
+├── QUICKSTART_DEDUPLICATION.md          # Quickstart: Deduplication
 └── README.md                  # Эта документация
 ```
 
@@ -306,6 +313,144 @@ SELECT
     SUM(cache_hit) as cache_hits
 FROM rss2tlg_summarization
 WHERE status = 'success';
+```
+
+---
+
+## 🔍 Скрипт 3: rss_deduplication.php
+
+### Описание
+
+Production скрипт для проверки суммаризованных новостей на дубликаты с помощью AI анализа.
+
+### Функционал
+
+- ✅ AI проверка на дубликаты (семантический анализ)
+- ✅ Сравнение сущностей, событий, фактов из новостей
+- ✅ Определение процента схожести (0-100)
+- ✅ Решение о публикуемости (can_be_published)
+- ✅ Fallback между моделями (Gemma 3 → DeepSeek Chat → DeepSeek v3.2)
+- ✅ Сравнение с новостями за последние 72 часа
+- ✅ Telegram уведомления о дубликатах
+- ✅ Детальное логирование
+
+### Режимы работы
+
+**PRODUCTION MODE (по умолчанию):**
+- Обрабатывает все суммаризованные новости без ограничений
+- Константа: `TEST_MODE = false`
+
+**TEST MODE:**
+- Обрабатывает только указанное количество новостей
+- Установите: `TEST_MODE = true`
+- Лимит: `TEST_ITEMS_LIMIT = 10`
+
+### Конфигурационные файлы
+
+| Файл | Назначение |
+|------|------------|
+| `configs/main.json` | Пути логов, интервалы, таймауты |
+| `configs/database.json` | Подключение к БД |
+| `configs/telegram.json` | Telegram бот (token, chat_id) |
+| `configs/openrouter.json` | OpenRouter API (ключ, URL) |
+| `configs/deduplication.json` | Модели AI, промпт файл, параметры дедупликации |
+
+### AI Модели
+
+По умолчанию используются модели в порядке приоритета:
+
+1. **Google Gemma 3 27B** - основная модель (высокая точность)
+2. **DeepSeek Chat** - fallback 1 (низкая стоимость)
+3. **DeepSeek v3.2 Exp** - fallback 2 (экспериментальная)
+
+### Параметры дедупликации
+
+```json
+{
+    "lookback_hours": 72,           // Сравнивать с новостями за последние 72 часа
+    "max_compare_items": 50,        // Максимум 50 новостей для сравнения
+    "similarity_threshold": 70,     // Порог схожести для определения дубликата
+    "retry_attempts": 3,            // Количество повторов при ошибке
+    "retry_delay_ms": 1000          // Задержка между повторами
+}
+```
+
+### Ручной запуск
+
+```bash
+# Production режим (все новости)
+php production/rss_deduplication.php
+
+# В background с логированием
+php production/rss_deduplication.php > logs/dedup_$(date +%Y%m%d_%H%M%S).log 2>&1 &
+```
+
+### Логи
+
+- **Основной лог:** `/home/engine/project/logs/rss_deduplication.log`
+
+### Просмотр логов
+
+```bash
+# Последние записи
+tail -100 logs/rss_deduplication.log
+
+# В реальном времени
+tail -f logs/rss_deduplication.log
+
+# Только ошибки
+grep ERROR logs/rss_deduplication.log
+
+# Найденные дубликаты
+grep "ДУБЛИКАТ" logs/rss_deduplication.log
+```
+
+### Проверка результатов
+
+```sql
+-- Статистика дедупликации
+SELECT 
+    is_duplicate,
+    COUNT(*) as count,
+    AVG(similarity_score) as avg_similarity
+FROM rss2tlg_deduplication
+GROUP BY is_duplicate;
+
+-- Найденные дубликаты
+SELECT 
+    d.item_id,
+    i.title,
+    d.similarity_score,
+    d.duplicate_of_item_id,
+    d.checked_at
+FROM rss2tlg_deduplication d
+JOIN rss2tlg_items i ON d.item_id = i.id
+WHERE d.is_duplicate = 1
+ORDER BY d.checked_at DESC
+LIMIT 10;
+
+-- Уникальные новости готовые к публикации
+SELECT 
+    d.item_id,
+    i.title,
+    d.similarity_score,
+    d.can_be_published
+FROM rss2tlg_deduplication d
+JOIN rss2tlg_items i ON d.item_id = i.id
+WHERE d.is_duplicate = 0 AND d.can_be_published = 1
+ORDER BY d.checked_at DESC
+LIMIT 10;
+```
+
+### Настройка Cron
+
+Рекомендуемый интервал: каждые 10 минут (после summarization)
+
+```bash
+crontab -e
+
+# Добавить:
+*/10 * * * * /usr/bin/php /home/engine/project/production/rss_deduplication.php >> /home/engine/project/logs/cron_deduplication.log 2>&1
 ```
 
 ---
