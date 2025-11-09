@@ -1,0 +1,56 @@
+{
+    "openrouter": {
+        "api_key": "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",
+        "base_url": "https://openrouter.ai/api/v1",
+        "timeout": 120
+    },
+    "summarization": {
+        "enabled": true,
+        "models": [
+            "anthropic/claude-3.5-sonnet",
+            "deepseek/deepseek-chat"
+        ],
+        "retry_count": 2,
+        "timeout": 120,
+        "fallback_strategy": "sequential",
+        "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/summarization_prompt_v2.txt"
+    },
+    "deduplication": {
+        "enabled": true,
+        "models": [
+            "anthropic/claude-3.5-sonnet",
+            "deepseek/deepseek-chat"
+        ],
+        "retry_count": 2,
+        "timeout": 120,
+        "fallback_strategy": "sequential",
+        "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/deduplication_prompt_v2.txt"
+    },
+    "translation": {
+        "enabled": true,
+        "models": [
+            "anthropic/claude-3.5-sonnet",
+            "deepseek/deepseek-chat"
+        ],
+        "retry_count": 2,
+        "timeout": 120,
+        "fallback_strategy": "sequential",
+        "prompt_file": "/home/engine/project/src/Rss2Tlg/prompts/translation_prompt_v2.txt"
+    },
+    "illustration": {
+        "enabled": false,
+        "output_directory": "/home/engine/project/public/illustrations",
+        "watermark": {
+            "enabled": false,
+            "text": "© Rss2Tlg",
+            "font_size": 12,
+            "opacity": 50
+        }
+    },
+    "publication": {
+        "enabled": true,
+        "dry_run": false,
+        "retry_count": 3,
+        "timeout": 30
+    }
+}
