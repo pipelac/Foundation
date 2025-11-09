@@ -39,7 +39,7 @@ const LOG_PREFIX = '[RSS_SUMMARIZATION]';
 
 // PRODUCTION РЕЖИМ: Снять ограничение на количество новостей
 // TEST РЕЖИМ: Обработать только последние 3 новости
-const TEST_MODE = true; // Установите false для production
+const TEST_MODE = false; // Установите false для production
 const TEST_ITEMS_LIMIT = 3; // Количество новостей для тестового режима
 
 // ============================================================================
