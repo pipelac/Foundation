@@ -33,7 +33,7 @@ CREATE TABLE `rss2tlg_feeds` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_feed_url` (`feed_url`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -46,7 +46,7 @@ INSERT INTO `rss2tlg_feeds` VALUES
 (1,'РИА Новости','https://ria.ru/export/rss2/index.xml','https://ria.ru',1,'2025-11-09 13:33:16','2025-11-09 13:33:16'),
 (2,'Коммерсантъ','https://www.kommersant.ru/rss/news.xml','https://www.kommersant.ru',1,'2025-11-09 13:33:16','2025-11-09 13:33:16'),
 (3,'Интерфакс','https://www.interfax.ru/rss','https://www.interfax.ru',1,'2025-11-09 13:33:16','2025-11-09 13:33:16'),
-(4,'Медуза','https://meduza.io/rss2/news','https://meduza.io',1,'2025-11-09 13:33:16','2025-11-09 13:33:16');
+(5,'TechCrunch','https://techcrunch.com/feed/','https://techcrunch.com',1,'2025-11-10 10:24:29','2025-11-10 10:24:29');
 /*!40000 ALTER TABLE `rss2tlg_feeds` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -59,4 +59,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-09 13:37:40
+-- Dump completed on 2025-11-10 10:25:07

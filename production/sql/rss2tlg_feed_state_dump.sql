@@ -41,7 +41,7 @@ CREATE TABLE `rss2tlg_feed_state` (
   UNIQUE KEY `idx_url` (`url`),
   KEY `idx_backoff_until` (`backoff_until`),
   KEY `idx_error_count` (`error_count`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Состояние RSS/Atom источников для модуля fetch';
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Состояние RSS/Atom источников для модуля fetch';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -51,10 +51,11 @@ CREATE TABLE `rss2tlg_feed_state` (
 LOCK TABLES `rss2tlg_feed_state` WRITE;
 /*!40000 ALTER TABLE `rss2tlg_feed_state` DISABLE KEYS */;
 INSERT INTO `rss2tlg_feed_state` VALUES
-(5,1,'https://ria.ru/export/rss2/index.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:21','2025-11-09 13:37:21','2025-11-09 13:36:49'),
-(6,2,'https://www.kommersant.ru/rss/news.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:23','2025-11-09 13:37:23','2025-11-09 13:36:51'),
-(7,3,'https://www.interfax.ru/rss',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:24','2025-11-09 13:37:24','2025-11-09 13:36:52'),
-(8,4,'https://meduza.io/rss2/news',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:24','2025-11-09 13:37:24','2025-11-09 13:36:53');
+(5,1,'https://ria.ru/export/rss2/index.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:55','2025-11-10 10:24:55','2025-11-09 13:36:49'),
+(6,2,'https://www.kommersant.ru/rss/news.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:57','2025-11-10 10:24:57','2025-11-09 13:36:51'),
+(7,3,'https://www.interfax.ru/rss',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:58','2025-11-10 10:24:58','2025-11-09 13:36:52'),
+(8,4,'https://meduza.io/rss2/news',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:24','2025-11-09 13:37:24','2025-11-09 13:36:53'),
+(9,5,'https://techcrunch.com/feed/',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:58','2025-11-10 10:24:58','2025-11-10 10:24:58');
 /*!40000 ALTER TABLE `rss2tlg_feed_state` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -67,4 +68,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-09 13:37:52
+-- Dump completed on 2025-11-10 10:25:07

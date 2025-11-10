@@ -57,7 +57,7 @@ CREATE TABLE `rss2tlg_deduplication` (
   KEY `idx_checked_at` (`checked_at`),
   KEY `idx_feed_status` (`feed_id`,`status`),
   KEY `idx_publish_ready` (`can_be_published`,`is_duplicate`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Результаты проверки новостей на дубликаты';
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Результаты проверки новостей на дубликаты';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -66,6 +66,13 @@ CREATE TABLE `rss2tlg_deduplication` (
 
 LOCK TABLES `rss2tlg_deduplication` WRITE;
 /*!40000 ALTER TABLE `rss2tlg_deduplication` DISABLE KEYS */;
+INSERT INTO `rss2tlg_deduplication` VALUES
+(1,928,3,'checked',0,NULL,25.00,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3492,0,2,0,NULL,NULL,'2025-11-10 10:47:56','2025-11-10 10:47:48','2025-11-10 10:47:56'),
+(3,927,3,'checked',0,NULL,25.00,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3532,0,2,0,NULL,NULL,'2025-11-10 10:48:10','2025-11-10 10:47:57','2025-11-10 10:48:10'),
+(5,929,3,'checked',0,NULL,25.00,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3510,0,2,0,NULL,NULL,'2025-11-10 10:48:19','2025-11-10 10:48:10','2025-11-10 10:48:19'),
+(7,952,5,'checked',0,NULL,35.00,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3467,0,2,0,NULL,NULL,'2025-11-10 10:48:31','2025-11-10 10:48:19','2025-11-10 10:48:31'),
+(9,953,5,'checked',0,NULL,35.20,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3451,0,2,0,NULL,NULL,'2025-11-10 10:48:57','2025-11-10 10:48:32','2025-11-10 10:48:57'),
+(11,954,5,'checked',0,NULL,35.00,'ai',1,'[]',NULL,'[]','google/gemma-3-27b-it',3452,0,2,0,NULL,NULL,'2025-11-10 10:49:23','2025-11-10 10:48:57','2025-11-10 10:49:23');
 /*!40000 ALTER TABLE `rss2tlg_deduplication` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -78,4 +85,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-09 13:37:59
+-- Dump completed on 2025-11-10 10:49:41
