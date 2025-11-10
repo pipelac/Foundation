@@ -1,0 +1,5 @@
+2025-11-10T21:41:30+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.509,"body_size":1207,"content_type":"application/json"}
+2025-11-10T21:43:00+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.447,"body_size":1543,"content_type":"application/json"}
+2025-11-10T21:50:42+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.431,"body_size":1400,"content_type":"application/json"}
+2025-11-10T21:52:21+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.439,"body_size":2999,"content_type":"application/json"}
+2025-11-10T21:55:36+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.482,"body_size":3159,"content_type":"application/json"}
