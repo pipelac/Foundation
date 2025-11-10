@@ -1,5 +1,15 @@
 {
     "enabled": true,
+    
+    "min_importance_threshold": 5,
+    
+    "similarity_weights": {
+        "entities": 30.0,
+        "event": 25.0,
+        "keywords": 20.0,
+        "categories": 25.0
+    },
+    
     "models": [
         "google/gemma-3-27b-it",
         "deepseek/deepseek-chat",
