@@ -210,14 +210,26 @@ class OpenRouter
     /**
      * Генерирует изображение на основе текстового описания (text2image)
      *
-     * @param string $model Модель генерации изображений (например, "google/gemini-2.5-flash-image")
+     * Поддерживает модели генерации изображений через OpenRouter API.
+     * Модели возвращают изображение в формате:
+     * - data URI (data:image/png;base64,...)
+     * - Base64 строка
+     * - URL изображения
+     *
+     * @param string $model Модель генерации изображений:
+     *                      - google/gemini-2.5-flash-image-preview
+     *                      - google/gemini-2.5-flash-image
+     *                      - anthropic/claude-3-5-sonnet (с text+image генерацией)
      * @param string $prompt Текстовое описание изображения для генерации
      * @param array<string, mixed> $options Дополнительные параметры запроса:
-     *                                      - max_tokens (int): Максимальное количество токенов
-     * @return string Base64-encoded изображение или URL (в зависимости от модели)
+     *                                      - max_tokens (int): Максимальное количество токенов (по умолчанию 4096)
+     *                                      - size (string): Размер изображения, если поддерживается моделью
+     *                                      - quality (string): Качество изображения, если поддерживается
+     * @return string Data URI изображения (data:image/png;base64,...) или URL
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
      * @throws OpenRouterException Если модель не вернула изображение
+     * @link https://openrouter.ai/docs/features/multimodal/image-generation Документация по генерации изображений
      */
     public function text2image(string $model, string $prompt, array $options = []): string
     {
@@ -235,22 +247,65 @@ class OpenRouter
 
         $response = $this->sendRequest('/chat/completions', $payload);
 
-        // Проверяем наличие изображения в base64
-        if (isset($response['choices'][0]['message']['content'])) {
-            $content = $response['choices'][0]['message']['content'];
+        // Проверяем наличие ответа
+        if (!isset($response['choices'][0]['message'])) {
+            throw new OpenRouterException('Модель не вернула message в ответе.');
+        }
+
+        $message = $response['choices'][0]['message'];
+
+        // Вариант 1: OpenRouter возвращает изображение в поле images[] (основной формат для image generation)
+        if (isset($message['images']) && is_array($message['images']) && count($message['images']) > 0) {
+            // Берем первое изображение
+            $firstImage = $message['images'][0];
             
-            // Если это массив с изображением
-            if (is_array($content) && isset($content[0]['image'])) {
-                return (string)$content[0]['image'];
+            // Проверяем наличие image_url
+            if (isset($firstImage['image_url']['url'])) {
+                return (string)$firstImage['image_url']['url'];
             }
             
-            // Если это строка с base64
-            if (is_string($content)) {
-                return $content;
+            // Альтернативный формат: прямое поле url
+            if (isset($firstImage['url'])) {
+                return (string)$firstImage['url'];
             }
         }
 
-        throw new OpenRouterException('Модель не вернула изображение.');
+        // Вариант 2: content - это массив с элементами (альтернативный формат)
+        if (isset($message['content']) && is_array($message['content'])) {
+            $content = $message['content'];
+            
+            // Ищем элемент с типом image_url
+            foreach ($content as $item) {
+                if (isset($item['type']) && $item['type'] === 'image_url') {
+                    if (isset($item['image_url']['url'])) {
+                        return (string)$item['image_url']['url'];
+                    }
+                }
+                // Старый формат: прямое поле image
+                if (isset($item['image'])) {
+                    return (string)$item['image'];
+                }
+            }
+        }
+
+        // Вариант 3: content - это строка с data URI или base64 (устаревший формат)
+        if (isset($message['content']) && is_string($message['content'])) {
+            $content = $message['content'];
+            
+            // Проверяем, что это не пустая строка и не просто текст
+            if (!empty($content)) {
+                // Если начинается с data:image - это data URI
+                if (str_starts_with($content, 'data:image')) {
+                    return $content;
+                }
+                // Если похоже на base64 (длинная строка с base64 символами)
+                if (strlen($content) > 100 && preg_match('/^[A-Za-z0-9+\/=]+$/', substr($content, 0, 100))) {
+                    return $content;
+                }
+            }
+        }
+
+        throw new OpenRouterException('Модель не вернула изображение в ожидаемом формате.');
     }
 
     /**
