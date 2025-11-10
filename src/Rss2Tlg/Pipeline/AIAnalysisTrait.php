@@ -127,10 +127,14 @@ trait AIAnalysisTrait
         }
 
         $content = $response['content'];
-        $analysisData = json_decode($content, true);
+        
+        // Извлекаем JSON из ответа (может быть обернут в markdown блоки или иметь префикс)
+        $jsonContent = $this->extractJSON($content);
+        
+        $analysisData = json_decode($jsonContent, true);
 
         if (!$analysisData) {
-            throw new Exception('Не удалось распарсить JSON ответ от AI');
+            throw new Exception('Не удалось распарсить JSON ответ от AI: ' . json_last_error_msg());
         }
 
         // Извлекаем метрики
@@ -216,6 +220,36 @@ trait AIAnalysisTrait
         }
 
         return $options;
+    }
+
+    /**
+     * Извлекает JSON из ответа AI (удаляет markdown блоки и префиксы)
+     *
+     * @param string $content Ответ от AI
+     * @return string Очищенный JSON
+     */
+    protected function extractJSON(string $content): string
+    {
+        // Убираем лишние пробелы в начале и конце
+        $content = trim($content);
+        
+        // Паттерн 1: JSON внутри markdown блоков ```json...``` или ```...```
+        if (preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $matches)) {
+            return trim($matches[1]);
+        }
+        
+        // Паттерн 2: JSON начинается с { и заканчивается }
+        if (preg_match('/(\{.*\})/s', $content, $matches)) {
+            return $matches[1];
+        }
+        
+        // Паттерн 3: JSON начинается с [ и заканчивается ]
+        if (preg_match('/(\[.*\])/s', $content, $matches)) {
+            return $matches[1];
+        }
+        
+        // Возвращаем как есть, если не нашли паттернов
+        return $content;
     }
 
     /**
