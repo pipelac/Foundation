@@ -17,9 +17,11 @@ use Exception;
  * - Суммаризация полного текста новости
  * - Категоризация (основная + 2 дополнительные категории)
  * - Определение языка статьи
- * - Подготовка данных для дедупликации
+ * - Подготовка данных для дедупликации (оригинал + английский)
  * - Оценка важности новости (1-20)
+ * - Нормализация метаданных на английский язык для кроссязычной дедупликации
  * 
+ * @version 2.1 - Добавлена поддержка билингвальных метаданных (оригинал + английский)
  * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule и AIAnalysisTrait
  */
 class SummarizationService extends AbstractPipelineModule
@@ -260,19 +262,42 @@ class SummarizationService extends AbstractPipelineModule
     {
         $analysisData = $result['analysis_data'];
 
+        // Категории: всегда на английском (стандартизированные идентификаторы)
+        $categoryPrimary = $analysisData['category']['primary'] ?? null;
+        $categoryPrimaryEn = $analysisData['category']['primary_en'] ?? $categoryPrimary;
+        $categorySecondary = $analysisData['category']['secondary'] ?? [];
+        $categorySecondaryEn = $analysisData['category']['secondary_en'] ?? $categorySecondary;
+
+        // Ключевые слова: оригинал + английский
+        $keywords = $analysisData['content']['keywords'] ?? [];
+        $keywordsEn = $analysisData['content']['keywords_en'] ?? $keywords;
+
+        // Сущности для дедупликации: оригинал + английский
+        $entities = $analysisData['deduplication']['canonical_entities'] ?? [];
+        $entitiesEn = $analysisData['deduplication']['canonical_entities_en'] ?? $entities;
+
+        // Описание события: оригинал + английский
+        $coreEvent = $analysisData['deduplication']['core_event'] ?? null;
+        $coreEventEn = $analysisData['deduplication']['core_event_en'] ?? $coreEvent;
+
         $query = "
             UPDATE rss2tlg_summarization
             SET
                 status = 'success',
                 article_language = :article_language,
                 category_primary = :category_primary,
+                category_primary_en = :category_primary_en,
                 category_secondary = :category_secondary,
+                category_secondary_en = :category_secondary_en,
                 headline = :headline,
                 summary = :summary,
                 keywords = :keywords,
+                keywords_en = :keywords_en,
                 importance_rating = :importance_rating,
                 dedup_canonical_entities = :dedup_canonical_entities,
+                dedup_canonical_entities_en = :dedup_canonical_entities_en,
                 dedup_core_event = :dedup_core_event,
+                dedup_core_event_en = :dedup_core_event_en,
                 dedup_numeric_facts = :dedup_numeric_facts,
                 model_used = :model_used,
                 tokens_used = :tokens_used,
@@ -288,14 +313,19 @@ class SummarizationService extends AbstractPipelineModule
         $params = [
             'item_id' => $itemId,
             'article_language' => $analysisData['article_language'] ?? null,
-            'category_primary' => $analysisData['category']['primary'] ?? null,
-            'category_secondary' => json_encode($analysisData['category']['secondary'] ?? [], JSON_UNESCAPED_UNICODE),
+            'category_primary' => $categoryPrimary,
+            'category_primary_en' => $categoryPrimaryEn,
+            'category_secondary' => json_encode($categorySecondary, JSON_UNESCAPED_UNICODE),
+            'category_secondary_en' => json_encode($categorySecondaryEn, JSON_UNESCAPED_UNICODE),
             'headline' => $analysisData['content']['headline'] ?? null,
             'summary' => $analysisData['content']['summary'] ?? null,
-            'keywords' => json_encode($analysisData['content']['keywords'] ?? [], JSON_UNESCAPED_UNICODE),
+            'keywords' => json_encode($keywords, JSON_UNESCAPED_UNICODE),
+            'keywords_en' => json_encode($keywordsEn, JSON_UNESCAPED_UNICODE),
             'importance_rating' => $analysisData['importance']['rating'] ?? null,
-            'dedup_canonical_entities' => json_encode($analysisData['deduplication']['canonical_entities'] ?? [], JSON_UNESCAPED_UNICODE),
-            'dedup_core_event' => $analysisData['deduplication']['core_event'] ?? null,
+            'dedup_canonical_entities' => json_encode($entities, JSON_UNESCAPED_UNICODE),
+            'dedup_canonical_entities_en' => json_encode($entitiesEn, JSON_UNESCAPED_UNICODE),
+            'dedup_core_event' => $coreEvent,
+            'dedup_core_event_en' => $coreEventEn,
             'dedup_numeric_facts' => json_encode($analysisData['deduplication']['numeric_facts'] ?? [], JSON_UNESCAPED_UNICODE),
             'model_used' => $result['model_used'],
             'tokens_used' => $result['tokens_used'],
