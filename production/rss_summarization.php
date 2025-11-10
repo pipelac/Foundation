@@ -40,7 +40,9 @@ const LOG_PREFIX = '[RSS_SUMMARIZATION]';
 // PRODUCTION РЕЖИМ: Снять ограничение на количество новостей
 // TEST РЕЖИМ: Обработать только последние N новостей
 const TEST_MODE = true; // Установите false для production
-const TEST_ITEMS_LIMIT = 10; // Количество новостей для тестового режима
+const TEST_ITEMS_LIMIT = 6; // Количество новостей для тестового режима (3 RU + 3 EN)
+const TEST_RU_LIMIT = 3; // Количество русских новостей
+const TEST_EN_LIMIT = 3; // Количество английских новостей
 
 // ============================================================================
 // ГЛАВНАЯ ФУНКЦИЯ
@@ -424,32 +426,73 @@ function getUnprocessedItems(MySQL $db, Logger $logger): array
 {
     // Получаем новости которых еще нет в таблице rss2tlg_summarization
     // или статус которых не 'success'
-    $query = "
-        SELECT 
-            i.id,
-            i.feed_id,
-            i.title,
-            i.link,
-            i.pub_date,
-            i.created_at
-        FROM rss2tlg_items i
-        LEFT JOIN rss2tlg_summarization s ON i.id = s.item_id
-        WHERE s.id IS NULL OR s.status != 'success'
-        ORDER BY i.created_at DESC
-    ";
     
-    // В тестовом режиме ограничиваем количество
+    // В тестовом режиме выбираем 3 русских + 3 английских новости
     if (TEST_MODE) {
-        $query .= " LIMIT " . TEST_ITEMS_LIMIT;
+        // Русские новости (feed_id IN (1,2,3))
+        $queryRu = "
+            SELECT 
+                i.id,
+                i.feed_id,
+                i.title,
+                i.link,
+                i.pub_date,
+                i.created_at
+            FROM rss2tlg_items i
+            LEFT JOIN rss2tlg_summarization s ON i.id = s.item_id
+            WHERE (s.id IS NULL OR s.status != 'success')
+              AND i.feed_id IN (1,2,3)
+            ORDER BY i.created_at DESC
+            LIMIT " . TEST_RU_LIMIT;
+        
+        // Английские новости (feed_id = 5)
+        $queryEn = "
+            SELECT 
+                i.id,
+                i.feed_id,
+                i.title,
+                i.link,
+                i.pub_date,
+                i.created_at
+            FROM rss2tlg_items i
+            LEFT JOIN rss2tlg_summarization s ON i.id = s.item_id
+            WHERE (s.id IS NULL OR s.status != 'success')
+              AND i.feed_id = 5
+            ORDER BY i.created_at DESC
+            LIMIT " . TEST_EN_LIMIT;
+        
+        $itemsRu = $db->query($queryRu);
+        $itemsEn = $db->query($queryEn);
+        $items = array_merge($itemsRu, $itemsEn);
+        
+        $logger->debug(LOG_PREFIX . ' Unprocessed items query executed (TEST MODE)', [
+            'count_ru' => count($itemsRu),
+            'count_en' => count($itemsEn),
+            'count_total' => count($items)
+        ]);
+    } else {
+        // Production режим - все непроцессированные
+        $query = "
+            SELECT 
+                i.id,
+                i.feed_id,
+                i.title,
+                i.link,
+                i.pub_date,
+                i.created_at
+            FROM rss2tlg_items i
+            LEFT JOIN rss2tlg_summarization s ON i.id = s.item_id
+            WHERE s.id IS NULL OR s.status != 'success'
+            ORDER BY i.created_at DESC
+        ";
+        
+        $items = $db->query($query);
+        
+        $logger->debug(LOG_PREFIX . ' Unprocessed items query executed', [
+            'count' => count($items),
+            'test_mode' => false
+        ]);
     }
-    
-    $items = $db->query($query);
-    
-    $logger->debug(LOG_PREFIX . ' Unprocessed items query executed', [
-        'count' => count($items),
-        'test_mode' => TEST_MODE,
-        'limit' => TEST_MODE ? TEST_ITEMS_LIMIT : 'none'
-    ]);
     
     return $items;
 }

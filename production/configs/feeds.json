@@ -19,9 +19,9 @@
             "enabled": true
         },
         {
-            "name": "Медуза",
-            "feed_url": "https://meduza.io/rss2/news",
-            "website_url": "https://meduza.io",
+            "name": "TechCrunch",
+            "feed_url": "https://techcrunch.com/feed/",
+            "website_url": "https://techcrunch.com",
             "enabled": true
         }
     ]
