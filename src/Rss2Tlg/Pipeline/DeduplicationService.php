@@ -88,6 +88,9 @@ class DeduplicationService extends AbstractPipelineModule
             'total_tokens' => 0,
             'total_time_ms' => 0,
             'total_comparisons' => 0,
+            'preliminary_checks' => 0,
+            'preliminary_filtered' => 0,
+            'ai_skipped' => 0,
             'model_attempts' => [],
         ];
     }
@@ -232,6 +235,9 @@ class DeduplicationService extends AbstractPipelineModule
                 s.dedup_canonical_entities,
                 s.dedup_core_event,
                 s.dedup_numeric_facts,
+                s.dedup_canonical_entities_en,
+                s.dedup_core_event_en,
+                s.keywords_en,
                 i.title as original_title,
                 i.link,
                 i.pub_date
@@ -254,7 +260,7 @@ class DeduplicationService extends AbstractPipelineModule
     private function getSimilarItems(int $itemId, array $itemData): array
     {
         $daysBack = $this->config['compare_last_n_days'];
-        $maxComparisons = $this->config['max_comparisons'];
+        $maxComparisons = $this->config['max_preliminary_comparisons'] ?? $this->config['max_comparisons'];
         
         $query = "
             SELECT 
@@ -266,6 +272,9 @@ class DeduplicationService extends AbstractPipelineModule
                 s.dedup_canonical_entities,
                 s.dedup_core_event,
                 s.dedup_numeric_facts,
+                s.dedup_canonical_entities_en,
+                s.dedup_core_event_en,
+                s.keywords_en,
                 i.pub_date
             FROM rss2tlg_summarization s
             INNER JOIN rss2tlg_items i ON s.item_id = i.id
@@ -308,8 +317,75 @@ class DeduplicationService extends AbstractPipelineModule
      */
     private function analyzeDeduplication(int $itemId, array $itemData, array $similarItems): ?array
     {
+        // Предварительная фильтрация через текстовую схожесть
+        $preliminaryThreshold = (float)($this->config['preliminary_similarity_threshold'] ?? 60.0);
+        $maxAIComparisons = (int)($this->config['max_ai_comparisons'] ?? 10);
+        
+        $scoredItems = [];
+        foreach ($similarItems as $item) {
+            $similarity = $this->calculatePreliminarySimilarity($itemData, $item);
+            
+            $this->incrementMetric('preliminary_checks');
+            
+            if ($similarity >= $preliminaryThreshold) {
+                $scoredItems[] = [
+                    'item' => $item,
+                    'preliminary_score' => $similarity,
+                ];
+            } else {
+                $this->incrementMetric('preliminary_filtered');
+                $this->logDebug('Пропущен по preliminary similarity', [
+                    'item_id' => $itemId,
+                    'compared_with' => $item['item_id'],
+                    'similarity' => round($similarity, 2),
+                    'threshold' => $preliminaryThreshold,
+                ]);
+            }
+        }
+        
+        // Если все отфильтровались - точно не дубликат
+        if (empty($scoredItems)) {
+            $this->incrementMetric('ai_skipped');
+            $this->logInfo('Все новости отфильтрованы preliminary check - уникальна', [
+                'item_id' => $itemId,
+                'checked' => count($similarItems),
+            ]);
+            
+            return [
+                'is_duplicate' => false,
+                'can_be_published' => true,
+                'similarity_score' => 0.0,
+                'similarity_method' => 'preliminary',
+                'items_compared' => count($similarItems),
+                'model_used' => null,
+                'tokens_used' => 0,
+                'matched_entities' => json_encode([], JSON_UNESCAPED_UNICODE),
+                'matched_events' => null,
+                'matched_facts' => json_encode([], JSON_UNESCAPED_UNICODE),
+                'processing_time_ms' => 0,
+            ];
+        }
+        
+        // Сортируем по убыванию схожести
+        usort($scoredItems, function($a, $b) {
+            return $b['preliminary_score'] <=> $a['preliminary_score'];
+        });
+        
+        // Берем топ-N для AI
+        $topItems = array_slice($scoredItems, 0, $maxAIComparisons);
+        $itemsForAI = array_map(fn($x) => $x['item'], $topItems);
+        
+        $this->logInfo('Отобрано для AI анализа после preliminary filter', [
+            'item_id' => $itemId,
+            'total_similar' => count($similarItems),
+            'passed_filter' => count($scoredItems),
+            'sent_to_ai' => count($itemsForAI),
+            'top_score' => round($scoredItems[0]['preliminary_score'], 2),
+        ]);
+        
+        // AI анализ
         $systemPrompt = $this->loadPromptFromFile($this->config['prompt_file']);
-        $userPrompt = $this->prepareComparisonPrompt($itemData, $similarItems);
+        $userPrompt = $this->prepareComparisonPrompt($itemData, $itemsForAI);
 
         // Выполняем анализ с fallback
         $result = $this->analyzeWithFallback($systemPrompt, $userPrompt);
@@ -343,7 +419,7 @@ class DeduplicationService extends AbstractPipelineModule
             'model_used' => $result['model_used'],
             'tokens_used' => $result['tokens_used'],
             'processing_time_ms' => 0, // будет заполнено в processItem
-            'items_compared' => count($similarItems),
+            'items_compared' => count($itemsForAI),
         ];
     }
 
@@ -529,5 +605,131 @@ class DeduplicationService extends AbstractPipelineModule
         ];
 
         $this->db->execute($query, $params);
+    }
+
+    /**
+     * Вычисляет предварительную схожесть между двумя новостями
+     * Использует билингвальные поля для кросс-языковой дедупликации
+     *
+     * @param array<string, mixed> $newItem Новая новость
+     * @param array<string, mixed> $existingItem Существующая новость
+     * @return float Схожесть 0-100
+     */
+    private function calculatePreliminarySimilarity(array $newItem, array $existingItem): float
+    {
+        $scores = [];
+        
+        // 1. Entities similarity (40%)
+        $newEntities = json_decode($newItem['dedup_canonical_entities_en'] ?? '[]', true) ?: [];
+        $existEntities = json_decode($existingItem['dedup_canonical_entities_en'] ?? '[]', true) ?: [];
+        $scores['entities'] = $this->jaccardSimilarity($newEntities, $existEntities) * 40.0;
+        
+        // 2. Event similarity (30%)
+        $newEvent = $newItem['dedup_core_event_en'] ?? '';
+        $existEvent = $existingItem['dedup_core_event_en'] ?? '';
+        $scores['event'] = $this->cosineSimilarity($newEvent, $existEvent) * 30.0;
+        
+        // 3. Keywords similarity (30%)
+        $newKeywords = json_decode($newItem['keywords_en'] ?? '[]', true) ?: [];
+        $existKeywords = json_decode($existingItem['keywords_en'] ?? '[]', true) ?: [];
+        $scores['keywords'] = $this->jaccardSimilarity($newKeywords, $existKeywords) * 30.0;
+        
+        return array_sum($scores);
+    }
+
+    /**
+     * Вычисляет Jaccard similarity для двух массивов
+     * J(A,B) = |A ∩ B| / |A ∪ B|
+     *
+     * @param array<string> $arr1
+     * @param array<string> $arr2
+     * @return float 0-1
+     */
+    private function jaccardSimilarity(array $arr1, array $arr2): float
+    {
+        if (empty($arr1) && empty($arr2)) {
+            return 1.0;
+        }
+        
+        if (empty($arr1) || empty($arr2)) {
+            return 0.0;
+        }
+        
+        $arr1 = array_map('mb_strtolower', array_map('trim', $arr1));
+        $arr2 = array_map('mb_strtolower', array_map('trim', $arr2));
+        
+        $intersection = count(array_intersect($arr1, $arr2));
+        $union = count(array_unique(array_merge($arr1, $arr2)));
+        
+        return $union > 0 ? ($intersection / $union) : 0.0;
+    }
+
+    /**
+     * Вычисляет Cosine similarity для двух текстов
+     * Использует bag-of-words векторизацию
+     *
+     * @param string $text1
+     * @param string $text2
+     * @return float 0-1
+     */
+    private function cosineSimilarity(string $text1, string $text2): float
+    {
+        if (empty($text1) && empty($text2)) {
+            return 1.0;
+        }
+        
+        if (empty($text1) || empty($text2)) {
+            return 0.0;
+        }
+        
+        $words1 = $this->tokenize($text1);
+        $words2 = $this->tokenize($text2);
+        
+        if (empty($words1) || empty($words2)) {
+            return 0.0;
+        }
+        
+        $freq1 = array_count_values($words1);
+        $freq2 = array_count_values($words2);
+        
+        $allWords = array_unique(array_merge(array_keys($freq1), array_keys($freq2)));
+        
+        $dotProduct = 0.0;
+        $magnitude1 = 0.0;
+        $magnitude2 = 0.0;
+        
+        foreach ($allWords as $word) {
+            $f1 = $freq1[$word] ?? 0;
+            $f2 = $freq2[$word] ?? 0;
+            
+            $dotProduct += $f1 * $f2;
+            $magnitude1 += $f1 * $f1;
+            $magnitude2 += $f2 * $f2;
+        }
+        
+        $magnitude1 = sqrt($magnitude1);
+        $magnitude2 = sqrt($magnitude2);
+        
+        if ($magnitude1 == 0 || $magnitude2 == 0) {
+            return 0.0;
+        }
+        
+        return $dotProduct / ($magnitude1 * $magnitude2);
+    }
+
+    /**
+     * Токенизирует текст в массив слов
+     * Удаляет пунктуацию и приводит к нижнему регистру
+     *
+     * @param string $text
+     * @return array<string>
+     */
+    private function tokenize(string $text): array
+    {
+        $text = mb_strtolower($text);
+        $text = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text);
+        $words = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
+        
+        return $words ?: [];
     }
 }

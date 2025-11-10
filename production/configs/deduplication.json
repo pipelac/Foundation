@@ -11,9 +11,8 @@
     "timeout": 120,
     
     "compare_last_n_days": 7,
-    "max_comparisons": 50,
-    "max_ai_comparisons": 10,
-    
+    "max_preliminary_comparisons": 50,
     "preliminary_similarity_threshold": 60,
+    "max_ai_comparisons": 10,
     "similarity_threshold": 70
 }
