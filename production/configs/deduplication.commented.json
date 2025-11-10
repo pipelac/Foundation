@@ -1,0 +1,140 @@
+{
+    "_comment_module": "======================================================================",
+    "_comment_module_desc": "DeduplicationService v2.2 - Модуль дедупликации новостей",
+    "_comment_module_desc2": "Проверка новостей на дубликаты через двухэтапный процесс:",
+    "_comment_module_desc3": "1. Preliminary similarity filter (быстрая текстовая проверка)",
+    "_comment_module_desc4": "2. AI анализ (глубокая проверка только для подозрительных)",
+    "_comment_module_desc5": "======================================================================",
+    
+    "enabled": true,
+    "_enabled_desc": "Включить/выключить модуль дедупликации. При false все новости помечаются как уникальные.",
+    "_enabled_values": "true | false",
+    
+    "_comment_importance": "======================================================================",
+    "_comment_importance_desc": "ФИЛЬТР ПО ВАЖНОСТИ НОВОСТИ",
+    "_comment_importance_desc2": "Пропускает дедупликацию для низкоприоритетных новостей",
+    "_comment_importance_desc3": "======================================================================",
+    
+    "min_importance_threshold": 5,
+    "_min_importance_threshold_desc": "Минимальная важность новости для дедупликации (из rss2tlg_summarization.importance_rating).",
+    "_min_importance_threshold_desc2": "Новости с importance_rating < этого значения пропускаются (can_be_published = false).",
+    "_min_importance_threshold_desc3": "Экономия: ~30-40% токенов при threshold = 5",
+    "_min_importance_threshold_values": "Диапазон: 0-20 (0 = дедуплицировать все, 20 = только самые важные)",
+    "_min_importance_threshold_recommendations": "Консервативный: 3, Сбалансированный: 5 (рекомендуется), Агрессивный: 7",
+    
+    "_comment_weights": "======================================================================",
+    "_comment_weights_desc": "ВЕСА ДЛЯ PRELIMINARY SIMILARITY SCORING",
+    "_comment_weights_desc2": "Определяют важность каждого фактора при вычислении схожести",
+    "_comment_weights_desc3": "ВАЖНО: Сумма всех весов должна быть строго 100.0",
+    "_comment_weights_desc4": "======================================================================",
+    
+    "similarity_weights": {
+        "entities": 30.0,
+        "_entities_desc": "Вес схожести сущностей (люди, организации, места). Jaccard similarity для массивов.",
+        "_entities_desc2": "Высокий вес = больше внимания на совпадение ключевых персон/организаций",
+        "_entities_values": "Диапазон: 0-100, Рекомендуется: 25-35",
+        
+        "event": 25.0,
+        "_event_desc": "Вес схожести описания события (dedup_core_event). Cosine similarity для текста.",
+        "_event_desc2": "Высокий вес = больше внимания на суть происходящего события",
+        "_event_values": "Диапазон: 0-100, Рекомендуется: 20-30",
+        
+        "keywords": 20.0,
+        "_keywords_desc": "Вес схожести ключевых слов. Jaccard similarity для массивов.",
+        "_keywords_desc2": "Высокий вес = больше внимания на тематические термины",
+        "_keywords_values": "Диапазон: 0-100, Рекомендуется: 15-25",
+        
+        "categories": 25.0,
+        "_categories_desc": "Вес схожести категорий (primary + secondary). Специальный алгоритм.",
+        "_categories_desc2": "Primary == Primary: 1.0, Primary == Secondary: 0.5, Secondary overlap: 0.25",
+        "_categories_desc3": "Высокий вес = сильная фильтрация кросс-категорийных новостей",
+        "_categories_values": "Диапазон: 0-100, Рекомендуется: 20-30"
+    },
+    
+    "_comment_preliminary": "======================================================================",
+    "_comment_preliminary_desc": "PRELIMINARY SIMILARITY FILTER (Этап 1)",
+    "_comment_preliminary_desc2": "Быстрая текстовая проверка без AI для экономии ресурсов",
+    "_comment_preliminary_desc3": "======================================================================",
+    
+    "max_preliminary_comparisons": 50,
+    "_max_preliminary_comparisons_desc": "Максимум новостей из БД для preliminary check (последние N новостей из той же категории/языка).",
+    "_max_preliminary_comparisons_desc2": "Больше = точнее, но медленнее. Меньше = быстрее, но может пропустить дубликаты.",
+    "_max_preliminary_comparisons_values": "Диапазон: 10-100, Рекомендуется: 30-50",
+    "_max_preliminary_comparisons_performance": "50 новостей = ~50ms обработки (текстовая проверка очень быстрая)",
+    
+    "preliminary_similarity_threshold": 60,
+    "_preliminary_similarity_threshold_desc": "Порог схожести для отправки в AI (0-100). Новости с similarity >= threshold идут в AI.",
+    "_preliminary_similarity_threshold_desc2": "Выше = меньше новостей в AI = экономия, но риск пропустить дубликаты.",
+    "_preliminary_similarity_threshold_desc3": "Ниже = больше новостей в AI = точнее, но дороже.",
+    "_preliminary_similarity_threshold_values": "Диапазон: 0-100, Рекомендуется: 50-70",
+    "_preliminary_similarity_threshold_recommendations": "Консервативный: 50 (больше проверок), Сбалансированный: 60 (рекомендуется), Агрессивный: 70 (меньше проверок)",
+    "_preliminary_similarity_threshold_economy": "При 60%: отфильтровывается ~75-85% новостей, экономия ~80% токенов",
+    
+    "max_ai_comparisons": 10,
+    "_max_ai_comparisons_desc": "Максимум новостей для отправки в AI (топ-N наиболее похожих после preliminary filter).",
+    "_max_ai_comparisons_desc2": "Больше = точнее, но дороже (больше токенов). Меньше = быстрее и дешевле.",
+    "_max_ai_comparisons_values": "Диапазон: 1-30, Рекомендуется: 5-15",
+    "_max_ai_comparisons_recommendations": "Консервативный: 15, Сбалансированный: 10 (рекомендуется), Агрессивный: 5",
+    "_max_ai_comparisons_cost": "10 новостей = ~2,000-3,000 токенов, 5 новостей = ~1,000-1,500 токенов",
+    
+    "_comment_ai": "======================================================================",
+    "_comment_ai_desc": "AI АНАЛИЗ (Этап 2)",
+    "_comment_ai_desc2": "Глубокая проверка через LLM только для подозрительных новостей",
+    "_comment_ai_desc3": "======================================================================",
+    
+    "similarity_threshold": 70,
+    "_similarity_threshold_desc": "Порог схожести от AI для признания дубликатом (0-100). Если AI оценка >= threshold → дубликат.",
+    "_similarity_threshold_desc2": "Выше = строже (меньше дубликатов), ниже = мягче (больше дубликатов).",
+    "_similarity_threshold_values": "Диапазон: 50-95, Рекомендуется: 70-80",
+    "_similarity_threshold_recommendations": "Консервативный: 75 (меньше ложных дубликатов), Сбалансированный: 70 (рекомендуется), Агрессивный: 65",
+    
+    "compare_last_n_days": 7,
+    "_compare_last_n_days_desc": "Период сравнения в днях. Сравниваем только с новостями не старше N дней.",
+    "_compare_last_n_days_desc2": "Больше = точнее (проверяет архив), но медленнее. Меньше = быстрее, но может пропустить старые дубликаты.",
+    "_compare_last_n_days_values": "Диапазон: 1-30, Рекомендуется: 5-10",
+    "_compare_last_n_days_recommendations": "Новостной сайт: 3-5 дней, Аналитика: 7-14 дней, Архив: 30 дней",
+    
+    "_comment_models": "======================================================================",
+    "_comment_models_desc": "AI МОДЕЛИ И FALLBACK",
+    "_comment_models_desc2": "Список моделей в порядке приоритета (fallback при ошибках)",
+    "_comment_models_desc3": "======================================================================",
+    
+    "models": [
+        "google/gemma-3-27b-it",
+        "deepseek/deepseek-chat",
+        "deepseek/deepseek-v3.2-exp"
+    ],
+    "_models_desc": "Массив AI моделей для дедупликации. Первая модель = primary, остальные = fallback при ошибках.",
+    "_models_desc2": "Рекомендованные модели: google/gemma-3-27b-it (высокая точность), deepseek/deepseek-chat (низкая стоимость)",
+    "_models_performance": "google/gemma-3-27b-it: ~10 сек/запрос, ~$0.001. deepseek/deepseek-chat: ~15 сек, ~$0.0003",
+    
+    "retry_count": 2,
+    "_retry_count_desc": "Количество повторных попыток при ошибках модели (network errors, timeouts, rate limits).",
+    "_retry_count_desc2": "Больше = надежнее, но медленнее при ошибках. 0 = без повторов.",
+    "_retry_count_values": "Диапазон: 0-5, Рекомендуется: 2-3",
+    
+    "timeout": 120,
+    "_timeout_desc": "Таймаут запроса к AI API в секундах.",
+    "_timeout_desc2": "Меньше = быстрее отказ при проблемах, но может прервать долгий анализ. Больше = надежнее.",
+    "_timeout_values": "Диапазон: 30-300, Рекомендуется: 120-180",
+    
+    "fallback_strategy": "sequential",
+    "_fallback_strategy_desc": "Стратегия выбора fallback модели. sequential = по порядку из списка, random = случайный выбор.",
+    "_fallback_strategy_values": "sequential | random",
+    "_fallback_strategy_recommendations": "Почти всегда: sequential (предсказуемо и надежно)",
+    
+    "_comment_prompt": "======================================================================",
+    "_comment_prompt_desc": "ПРОМПТ ДЛЯ AI",
+    "_comment_prompt_desc2": "======================================================================",
+    
+    "prompt_file": "production/prompts/deduplication_prompt_v2.txt",
+    "_prompt_file_desc": "Путь к файлу с system prompt для AI анализа дедупликации.",
+    "_prompt_file_desc2": "Относительно корня проекта или абсолютный путь.",
+    
+    "_comment_summary": "======================================================================",
+    "_comment_summary_desc": "РЕКОМЕНДОВАННЫЕ РЕЖИМЫ РАБОТЫ",
+    "_comment_summary_desc2": "======================================================================",
+    "_comment_summary_conservative": "КОНСЕРВАТИВНЫЙ (меньше ложных дубликатов): min_importance=3, preliminary_threshold=50, max_ai=15, similarity=75, weights: entities=35/event=25/keywords=15/categories=25",
+    "_comment_summary_balanced": "СБАЛАНСИРОВАННЫЙ (рекомендуется): min_importance=5, preliminary_threshold=60, max_ai=10, similarity=70, weights: entities=30/event=25/keywords=20/categories=25",
+    "_comment_summary_aggressive": "АГРЕССИВНЫЙ (максимальная экономия): min_importance=7, preliminary_threshold=70, max_ai=5, similarity=65, weights: entities=25/event=25/keywords=20/categories=30"
+}

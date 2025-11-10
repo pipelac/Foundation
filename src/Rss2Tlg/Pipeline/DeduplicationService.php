@@ -19,7 +19,7 @@ use Exception;
  * - Определение схожести через AI анализ
  * - Маркировка дубликатов и определение возможности публикации
  * 
- * @version 2.0 - Рефакторинг с использованием AbstractPipelineModule и AIAnalysisTrait
+ * @version 2.2 - Category scoring и importance threshold
  */
 class DeduplicationService extends AbstractPipelineModule
 {
@@ -66,10 +66,35 @@ class DeduplicationService extends AbstractPipelineModule
             throw new AIAnalysisException('similarity_threshold должен быть между 0 и 100');
         }
 
+        $minImportance = (int)($config['min_importance_threshold'] ?? 5);
+        if ($minImportance < 0 || $minImportance > 20) {
+            throw new AIAnalysisException('min_importance_threshold должен быть между 0 и 20');
+        }
+
+        $weights = $config['similarity_weights'] ?? [
+            'entities' => 30.0,
+            'event' => 25.0,
+            'keywords' => 20.0,
+            'categories' => 25.0,
+        ];
+
+        $totalWeight = array_sum($weights);
+        if (abs($totalWeight - 100.0) > 0.01) {
+            throw new AIAnalysisException("Сумма весов similarity_weights должна быть 100, получено: {$totalWeight}");
+        }
+
+        foreach ($weights as $key => $weight) {
+            if ($weight < 0 || $weight > 100) {
+                throw new AIAnalysisException("Вес '{$key}' должен быть между 0 и 100, получено: {$weight}");
+            }
+        }
+
         return array_merge($aiConfig, [
             'similarity_threshold' => $similarityThreshold,
             'compare_last_n_days' => max(1, (int)($config['compare_last_n_days'] ?? 7)),
             'max_comparisons' => max(10, (int)($config['max_comparisons'] ?? 50)),
+            'min_importance_threshold' => $minImportance,
+            'similarity_weights' => $weights,
         ]);
     }
 
@@ -83,6 +108,7 @@ class DeduplicationService extends AbstractPipelineModule
             'successful' => 0,
             'failed' => 0,
             'skipped' => 0,
+            'skipped_low_importance' => 0,
             'duplicates_found' => 0,
             'unique_items' => 0,
             'total_tokens' => 0,
@@ -132,6 +158,34 @@ class DeduplicationService extends AbstractPipelineModule
                 $this->updateStatus($itemId, (int)$itemData['feed_id'], 'skipped');
                 $this->incrementMetric('skipped');
                 return false;
+            }
+
+            // Проверяем важность новости (v2.2)
+            $importanceRating = (int)($itemData['importance_rating'] ?? 0);
+            
+            if ($importanceRating < $this->config['min_importance_threshold']) {
+                $this->logInfo('Новость пропущена: низкая важность', [
+                    'item_id' => $itemId,
+                    'importance' => $importanceRating,
+                    'threshold' => $this->config['min_importance_threshold'],
+                ]);
+                
+                $this->saveDedupResult($itemId, (int)$itemData['feed_id'], [
+                    'is_duplicate' => false,
+                    'can_be_published' => false,
+                    'similarity_score' => 0.0,
+                    'similarity_method' => 'skipped',
+                    'items_compared' => 0,
+                    'model_used' => null,
+                    'tokens_used' => 0,
+                    'matched_entities' => json_encode([], JSON_UNESCAPED_UNICODE),
+                    'matched_events' => null,
+                    'matched_facts' => json_encode([], JSON_UNESCAPED_UNICODE),
+                    'processing_time_ms' => 0,
+                ]);
+                
+                $this->incrementMetric('skipped_low_importance');
+                return true;
             }
 
             // Обновляем статус на processing
@@ -231,6 +285,7 @@ class DeduplicationService extends AbstractPipelineModule
                 s.summary,
                 s.article_language,
                 s.category_primary,
+                s.category_secondary,
                 s.importance_rating,
                 s.dedup_canonical_entities,
                 s.dedup_core_event,
@@ -269,6 +324,7 @@ class DeduplicationService extends AbstractPipelineModule
                 s.summary,
                 s.article_language,
                 s.category_primary,
+                s.category_secondary,
                 s.dedup_canonical_entities,
                 s.dedup_core_event,
                 s.dedup_numeric_facts,
@@ -610,6 +666,7 @@ class DeduplicationService extends AbstractPipelineModule
     /**
      * Вычисляет предварительную схожесть между двумя новостями
      * Использует билингвальные поля для кросс-языковой дедупликации
+     * v2.2: Добавлен категорийный скоринг и конфигурируемые веса
      *
      * @param array<string, mixed> $newItem Новая новость
      * @param array<string, mixed> $existingItem Существующая новость
@@ -617,22 +674,26 @@ class DeduplicationService extends AbstractPipelineModule
      */
     private function calculatePreliminarySimilarity(array $newItem, array $existingItem): float
     {
+        $weights = $this->config['similarity_weights'];
         $scores = [];
         
-        // 1. Entities similarity (40%)
+        // 1. Entities similarity
         $newEntities = json_decode($newItem['dedup_canonical_entities_en'] ?? '[]', true) ?: [];
         $existEntities = json_decode($existingItem['dedup_canonical_entities_en'] ?? '[]', true) ?: [];
-        $scores['entities'] = $this->jaccardSimilarity($newEntities, $existEntities) * 40.0;
+        $scores['entities'] = $this->jaccardSimilarity($newEntities, $existEntities) * $weights['entities'];
         
-        // 2. Event similarity (30%)
+        // 2. Event similarity
         $newEvent = $newItem['dedup_core_event_en'] ?? '';
         $existEvent = $existingItem['dedup_core_event_en'] ?? '';
-        $scores['event'] = $this->cosineSimilarity($newEvent, $existEvent) * 30.0;
+        $scores['event'] = $this->cosineSimilarity($newEvent, $existEvent) * $weights['event'];
         
-        // 3. Keywords similarity (30%)
+        // 3. Keywords similarity
         $newKeywords = json_decode($newItem['keywords_en'] ?? '[]', true) ?: [];
         $existKeywords = json_decode($existingItem['keywords_en'] ?? '[]', true) ?: [];
-        $scores['keywords'] = $this->jaccardSimilarity($newKeywords, $existKeywords) * 30.0;
+        $scores['keywords'] = $this->jaccardSimilarity($newKeywords, $existKeywords) * $weights['keywords'];
+        
+        // 4. Categories similarity (v2.2 - НОВОЕ!)
+        $scores['categories'] = $this->calculateCategorySimilarity($newItem, $existingItem) * $weights['categories'];
         
         return array_sum($scores);
     }
@@ -731,5 +792,55 @@ class DeduplicationService extends AbstractPipelineModule
         $words = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
         
         return $words ?: [];
+    }
+
+    /**
+     * Вычисляет схожесть категорий между двумя новостями (v2.2)
+     *
+     * Алгоритм приоритета:
+     * 1. Совпадение primary категорий: 1.0 (100%)
+     * 2. Primary совпадает с secondary: 0.5 (50%)
+     * 3. Совпадение secondary категорий: 0.25 (25%)
+     * 4. Нет совпадений: 0.0 (0%)
+     *
+     * @param array<string, mixed> $newItem Новая новость
+     * @param array<string, mixed> $existingItem Существующая новость
+     * @return float Схожесть категорий 0-1
+     */
+    private function calculateCategorySimilarity(array $newItem, array $existingItem): float
+    {
+        $newPrimary = $newItem['category_primary'] ?? '';
+        $existPrimary = $existingItem['category_primary'] ?? '';
+        
+        if (empty($newPrimary) && empty($existPrimary)) {
+            return 0.0;
+        }
+        
+        $newSecondary = json_decode($newItem['category_secondary'] ?? '[]', true) ?: [];
+        $existSecondary = json_decode($existingItem['category_secondary'] ?? '[]', true) ?: [];
+        
+        // 1. Primary vs Primary (вес 100%)
+        if (!empty($newPrimary) && $newPrimary === $existPrimary) {
+            return 1.0;
+        }
+        
+        // 2. Primary vs Secondary (вес 50%)
+        if (!empty($newPrimary) && in_array($newPrimary, $existSecondary)) {
+            return 0.5;
+        }
+        
+        if (!empty($existPrimary) && in_array($existPrimary, $newSecondary)) {
+            return 0.5;
+        }
+        
+        // 3. Secondary overlap (вес 25%)
+        if (!empty($newSecondary) && !empty($existSecondary)) {
+            $intersection = array_intersect($newSecondary, $existSecondary);
+            if (!empty($intersection)) {
+                return 0.25;
+            }
+        }
+        
+        return 0.0;
     }
 }
