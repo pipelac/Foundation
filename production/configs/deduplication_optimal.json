@@ -1,0 +1,30 @@
+{
+    "enabled": true,
+    
+    "min_importance_threshold": 5,
+    
+    "similarity_weights": {
+        "entities": 20.0,
+        "event": 40.0,
+        "keywords": 20.0,
+        "categories": 20.0
+    },
+    
+    "models": [
+        "google/gemma-3-27b-it",
+        "deepseek/deepseek-chat",
+        "deepseek/deepseek-v3.2-exp"
+    ],
+    "prompt_file": "production/prompts/deduplication_prompt_v2.txt",
+    "fallback_strategy": "sequential",
+    "retry_count": 2,
+    "timeout": 120,
+    
+    "compare_last_n_days": 7,
+    "max_preliminary_comparisons": 50,
+    "preliminary_similarity_threshold": 60,
+    "max_ai_comparisons": 10,
+    "similarity_threshold": 70,
+    
+    "_comment": "Optimal weights from testing 2025-11-10: Strong Event (40%) configuration showed best results (RMSE: 15.6168)"
+}
