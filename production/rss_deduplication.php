@@ -39,7 +39,7 @@ const LOG_PREFIX = '[RSS_DEDUPLICATION]';
 
 // PRODUCTION РЕЖИМ: Обработать все новости без ограничения
 // TEST РЕЖИМ: Обработать только указанное количество новостей
-const TEST_MODE = false; // Установите false для production
+const TEST_MODE = true; // Установите false для production
 const TEST_ITEMS_LIMIT = 10; // Количество новостей для тестового режима
 
 // ============================================================================
