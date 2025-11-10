@@ -1,12 +1,94 @@
 {
+    "_comment_1": "=== RSS2TLG SUMMARIZATION SERVICE CONFIGURATION ===",
+    "_comment_2": "Конфигурация для AI суммаризации и категоризации новостей",
+    "_comment_3": "Версия: 2.1 (поддержка билингвальных метаданных)",
+    
+    "_comment_enabled": "Включить/выключить модуль суммаризации (true/false)",
     "enabled": true,
+    
+    "_comment_models": "Список AI моделей в порядке приоритета для fallback механизма",
+    "_comment_models_notes": [
+        "deepseek/deepseek-v3.2-exp - быстрая, дешевая (~$0.0008/новость), требует extractJSON()",
+        "google/gemma-3-27b-it - высокое качество, средняя стоимость",
+        "deepseek/deepseek-chat - резервная, очень дешевая",
+        "anthropic/claude-3.5-sonnet - лучшее качество + prompt caching (но дороже)"
+    ],
     "models": [
         "deepseek/deepseek-v3.2-exp",
         "google/gemma-3-27b-it",
         "deepseek/deepseek-chat"
     ],
+    
+    "_comment_retry_count": "Количество повторных попыток при ошибке для каждой модели (рекомендуется: 1-3)",
+    "_comment_retry_count_range": "Допустимый диапазон: 0-5, оптимально: 2",
     "retry_count": 2,
+    
+    "_comment_timeout": "Таймаут HTTP запроса к AI в секундах (рекомендуется: 60-180)",
+    "_comment_timeout_range": "Допустимый диапазон: 30-300, оптимально: 120",
+    "_comment_timeout_notes": "Суммаризация обычно занимает 20-30 секунд на новость",
     "timeout": 120,
+    
+    "_comment_fallback_strategy": "Стратегия переключения между моделями при ошибке",
+    "_comment_fallback_strategy_options": [
+        "sequential - последовательный перебор по списку (по умолчанию)",
+        "random - случайный выбор из списка"
+    ],
     "fallback_strategy": "sequential",
-    "prompt_file": "/home/engine/project/production/prompts/summarization_prompt_v2.txt"
+    
+    "_comment_prompt_file": "Абсолютный путь к файлу с промптом для AI",
+    "_comment_prompt_file_notes": [
+        "Промпт содержит инструкции для AI по суммаризации, категоризации и извлечению метаданных",
+        "Файл: summarization_prompt_v2.txt (~220 строк, ~7.6KB)",
+        "Поддерживает prompt caching для Claude моделей"
+    ],
+    "prompt_file": "/home/engine/project/production/prompts/summarization_prompt_v2.txt",
+    
+    "_comment_metrics": "=== МЕТРИКИ ПРОИЗВОДИТЕЛЬНОСТИ (справочно) ===",
+    "_metrics_tested": {
+        "test_date": "2025-11-10",
+        "test_items": 6,
+        "success_rate": "100%",
+        "avg_time_per_item": "24.19 seconds",
+        "avg_tokens_per_item": 3796,
+        "avg_cost_per_item": "$0.0008",
+        "models_used": "deepseek/deepseek-v3.2-exp (6/6 успешно)"
+    },
+    
+    "_comment_features": "=== ФУНКЦИИ МОДУЛЯ ===",
+    "_features": [
+        "AI суммаризация полного текста новости",
+        "Категоризация (основная + 2 дополнительные категории)",
+        "Определение языка статьи (en, ru, и другие)",
+        "Оценка важности новости (1-20)",
+        "Билингвальные метаданные (оригинал + английский)",
+        "Подготовка данных для кроссязычной дедупликации",
+        "Извлечение ключевых фактов и сущностей",
+        "Автоматический fallback между AI моделями",
+        "Поддержка prompt caching (Claude)",
+        "Детальное логирование и метрики"
+    ],
+    
+    "_comment_output": "=== ВЫХОДНЫЕ ДАННЫЕ ===",
+    "_output_fields": [
+        "summary - краткая суммаризация (100-150 слов)",
+        "category_primary - основная категория новости",
+        "category_secondary - дополнительные категории (JSON массив)",
+        "keywords - ключевые слова (JSON массив)",
+        "language_detected - определенный язык (ISO 639-1)",
+        "importance_score - важность (1-20)",
+        "dedup_canonical_entities - сущности для дедупликации (оригинал + английский)",
+        "dedup_core_event - описание события для дедупликации (оригинал + английский)",
+        "dedup_key_facts - ключевые факты (оригинал + английский)",
+        "ai_model_used - использованная AI модель",
+        "ai_tokens_used - количество использованных токенов",
+        "ai_cached_tokens - количество кэшированных токенов"
+    ],
+    
+    "_comment_database": "=== БАЗА ДАННЫХ ===",
+    "_database_table": "rss2tlg_summarization",
+    "_database_notes": [
+        "Таблица создается автоматически при первом запуске",
+        "Поддержка билингвальных полей (*_en) для кроссязычной дедупликации",
+        "Все JSON поля сохраняются с JSON_UNESCAPED_UNICODE"
+    ]
 }

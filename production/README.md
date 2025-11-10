@@ -2,7 +2,7 @@
 
 Production-ready скрипты для сбора и обработки новостей из RSS источников.
 
-**📖 [Примеры использования](USAGE_EXAMPLES.md)** | **📊 [Отчет о тестировании](TEST_REPORT.md)** | **📝 [История изменений](CHANGES.md)**
+**📖 [Примеры использования](USAGE_EXAMPLES.md)** | **📊 [RSS Ingest Test](TEST_REPORT.md)** | **📊 [Summarization Test (15 items)](TEST_REPORT_SUMMARIZATION_15ITEMS.md)** | **📝 [История изменений](CHANGES.md)**
 
 ---
 
@@ -48,9 +48,9 @@ Production-ready скрипты для сбора и обработки ново
 ```
 
 **Статус:**
-- ✅ **Этап 1: RSS Ingest** - Production Ready (v1.0.0)
-- ✅ **Этап 2: Summarization** - Production Ready (v1.0.0)
-- ✅ **Этап 3: Deduplication** - Production Ready (v1.0.0)
+- ✅ **Этап 1: RSS Ingest** - Production Ready (v1.0.0) - [Test Report](TEST_REPORT.md)
+- ✅ **Этап 2: Summarization** - Production Ready (v2.1) - [Test Report (15 items)](TEST_REPORT_SUMMARIZATION_15ITEMS.md)
+- ✅ **Этап 3: Deduplication** - Production Ready (v2.1) - [Test Report](TEST_REPORT_DEDUPLICATION.md)
 - ⏳ Этапы 4-6 - в разработке
 
 ---
@@ -64,7 +64,7 @@ production/
 │   ├── database.json          # Подключение к БД
 │   ├── telegram.json          # Telegram бот
 │   ├── openrouter.json        # OpenRouter API
-│   ├── summarization.json     # Настройки суммаризации
+│   ├── summarization.json     # 📝 Настройки суммаризации (с детальными комментариями)
 │   ├── deduplication.json     # Настройки дедупликации
 │   └── feeds.json             # RSS источники (справочно)
 ├── prompts/                    # AI промпты
@@ -72,16 +72,18 @@ production/
 │   └── deduplication_prompt_v2.txt
 ├── sql/                        # SQL дампы
 │   ├── rss2tlg_feeds_dump.sql
-│   ├── rss2tlg_items_dump.sql
-│   └── ... (9 файлов)
+│   ├── rss2tlg_items_dump.sql (628 KB, 569 записей) ✨ ОБНОВЛЕНО 2025-11-10
+│   ├── rss2tlg_summarization_dump.sql (46 KB, 21 запись) ✨ ОБНОВЛЕНО 2025-11-10
+│   └── ... (8 других файлов)
 ├── rss_ingest.php             # 1️⃣ Скрипт сбора RSS
-├── rss_summarization.php      # 2️⃣ Скрипт AI суммаризации
+├── rss_summarization.php      # 2️⃣ Скрипт AI суммаризации (TEST_MODE: 15 items)
 ├── rss_deduplication.php      # 3️⃣ Скрипт проверки дубликатов
 ├── TEST_REPORT.md             # Отчет: RSS Ingest
-├── TEST_REPORT_SUMMARIZATION.md    # Отчет: Summarization
-├── TEST_REPORT_DEDUPLICATION.md    # Отчет: Deduplication
-├── QUICKSTART_SUMMARIZATION_TESTED.md   # Quickstart: Summarization
-├── QUICKSTART_DEDUPLICATION.md          # Quickstart: Deduplication
+├── TEST_REPORT_SUMMARIZATION_15ITEMS.md  # 🆕 Отчет: Summarization (15 новостей)
+├── TEST_REPORT_SUMMARIZATION.md          # Отчет: Summarization (6 новостей)
+├── TEST_REPORT_DEDUPLICATION.md          # Отчет: Deduplication
+├── QUICKSTART_SUMMARIZATION_TESTED.md    # Quickstart: Summarization
+├── QUICKSTART_DEDUPLICATION.md           # Quickstart: Deduplication
 └── README.md                  # Эта документация
 ```
 

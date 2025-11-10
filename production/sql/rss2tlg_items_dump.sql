@@ -1,26 +1,4 @@
 /*M!999999\- enable the sandbox mode */ 
--- MariaDB dump 10.19  Distrib 10.11.13-MariaDB, for debian-linux-gnu (x86_64)
---
--- Host: localhost    Database: rss2tlg
--- ------------------------------------------------------
--- Server version	10.11.13-MariaDB-0ubuntu0.24.04.1
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `rss2tlg_items`
---
-
-DROP TABLE IF EXISTS `rss2tlg_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `rss2tlg_items` (
@@ -54,13 +32,6 @@ CREATE TABLE `rss2tlg_items` (
   KEY `idx_extraction_status` (`extraction_status`)
 ) ENGINE=InnoDB AUTO_INCREMENT=972 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Новости из RSS/Atom источников с извлеченным контентом';
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `rss2tlg_items`
---
-
-LOCK TABLES `rss2tlg_items` WRITE;
-/*!40000 ALTER TABLE `rss2tlg_items` DISABLE KEYS */;
 INSERT INTO `rss2tlg_items` VALUES
 (403,1,'6dc2565990b7bcada3b9a424a1066102','https://ria.ru/20251109/izrail-2053797613.html','Израиль получил гроб с останками заложника из сектора Газа','https://ria.ru/20251109/izrail-2053797613.html','',NULL,'2025-11-09 16:35:39','','[\"Лента новостей\"]',NULL,NULL,NULL,NULL,'pending',NULL,NULL,0,'2025-11-09 13:36:49','2025-11-09 13:36:49'),
 (404,1,'9c9e316472a549b6dfd4ee3a46cb0a7d','https://ria.ru/20251109/rossiya-2053797469.html','Патриарх Кирилл призвал создавать группы поддержки родственников зависимых','https://ria.ru/20251109/rossiya-2053797469.html','',NULL,'2025-11-09 16:35:32','','[\"Лента новостей\"]','[{\"url\":\"https:\\/\\/cdnn21.img.ria.ru\\/images\\/07e9\\/08\\/15\\/2036655364_0:34:3126:1792_650x0_80_0_0_1fadbc58a9e9032a15f036cf52d798e5.jpg\",\"type\":\"image\\/jpeg\",\"length\":0}]',NULL,NULL,NULL,'pending',NULL,NULL,0,'2025-11-09 13:36:49','2025-11-09 13:36:49'),
@@ -631,16 +602,3 @@ INSERT INTO `rss2tlg_items` VALUES
 (969,5,'63eaa0b025dc755271b242b364fd642b','https://techcrunch.com/?p=3066056','Congressional Budget Office confirms it was hacked','https://techcrunch.com/2025/11/07/congressional-budget-office-confirms-it-was-hacked/','The congressional research office confirmed a breach, but did not comment on the cause. A security researcher suggested the hack may have originated because CBO failed to patch a firewall for more than a year. ',NULL,'2025-11-07 16:36:55','','[\"Security\",\"hacking\",\"cybersecurity\",\"data breach\",\"infosec\",\"Congressional Budget Office\",\"CBO\"]',NULL,NULL,NULL,NULL,'pending',NULL,NULL,0,'2025-11-10 10:24:58','2025-11-10 10:24:58'),
 (970,5,'f247251d3e5e027d622cf0d72fd3a473','https://techcrunch.com/?p=3066036','Amazon launches a low-price standalone shopping app, Amazon Bazaar, in over a dozen markets','https://techcrunch.com/2025/11/07/amazon-launches-a-low-price-standalone-shopping-app-amazon-bazaar-in-over-a-dozen-markets/','Amazon Bazaar, a new low-cost shopping destination for Asia, Africa, and Latin America that will be available separately from the main Amazon shopping app.',NULL,'2025-11-07 15:25:41','','[\"TC\",\"Apps\",\"Commerce\",\"Amazon\",\"e-commerce\",\"commerce\",\"temu\",\"amazon bazaar\"]',NULL,NULL,NULL,NULL,'pending',NULL,NULL,0,'2025-11-10 10:24:58','2025-11-10 10:24:58'),
 (971,5,'ec575ecef7957e7e0ff7e08fff644767','https://techcrunch.com/?p=3065900','How one founder plans to save cities from flooding with terraforming robots','https://techcrunch.com/2025/11/07/one-founders-plan-to-save-his-city-san-rafael-with-terraforming-robots/','Instead of building seawalls or dikes, Terranova has developed a new way to raise cities to protect them from sea-level rise.',NULL,'2025-11-07 15:02:00','','[\"Startups\",\"Climate\",\"Robotics\",\"Exclusive\",\"Congruent Ventures\",\"Outlander VC\",\"goahead ventures\",\"Terranova\"]',NULL,NULL,NULL,NULL,'pending',NULL,NULL,0,'2025-11-10 10:24:58','2025-11-10 10:24:58');
-/*!40000 ALTER TABLE `rss2tlg_items` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2025-11-10 10:25:07
