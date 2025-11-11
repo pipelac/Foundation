@@ -194,6 +194,34 @@ class OpenRouter
             throw new OpenRouterException('Модель не вернула текстовый ответ.');
         }
 
+        $generationId = $response['id'] ?? null;
+        
+        // Парсим базовые метрики из response
+        $detailedMetrics = $this->parseDetailedMetrics($response);
+        
+        // Если есть generation_id, получаем расширенные метрики через отдельный API
+        if ($generationId !== null) {
+            try {
+                // Небольшая задержка, чтобы метрики успели сохраниться
+                usleep(500000); // 0.5 секунды
+                
+                $enhancedMetrics = $this->fetchGenerationMetrics($generationId);
+                if ($enhancedMetrics !== null) {
+                    $detailedMetrics = array_merge($detailedMetrics, $enhancedMetrics);
+                } else {
+                    $this->logWarning('Расширенные метрики не получены', [
+                        'generation_id' => $generationId
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // Логируем ошибку, но не прерываем основной запрос
+                $this->logWarning('Не удалось получить расширенные метрики', [
+                    'generation_id' => $generationId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
         return [
             'content' => (string)$response['choices'][0]['message']['content'],
             'usage' => $response['usage'] ?? [
@@ -203,9 +231,9 @@ class OpenRouter
                 'cached_tokens' => 0,
             ],
             'model' => $response['model'] ?? $model,
-            'id' => $response['id'] ?? null,
+            'id' => $generationId,
             'created' => $response['created'] ?? null,
-            'detailed_metrics' => $this->parseDetailedMetrics($response),
+            'detailed_metrics' => $detailedMetrics,
         ];
     }
 
@@ -812,6 +840,78 @@ class OpenRouter
      * @param array<string, mixed> $response Полный ответ от OpenRouter API
      * @return array<string, mixed> Детальные метрики для записи в БД
      */
+    private function fetchGenerationMetrics(string $generationId): ?array
+    {
+        try {
+            $ch = curl_init();
+            $url = rtrim(self::BASE_URL, '/') . '/generation?id=' . urlencode($generationId);
+            
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $this->apiKey,
+                    'HTTP-Referer: https://' . $this->appName,
+                    'X-Title: ' . $this->appName,
+                ],
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            
+            $responseBody = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode !== 200 || $responseBody === false) {
+                return null;
+            }
+            
+            $data = json_decode($responseBody, true);
+            if (!is_array($data)) {
+                $this->logWarning('fetchGenerationMetrics: invalid JSON response', [
+                    'generation_id' => $generationId,
+                    'response_body' => substr($responseBody, 0, 200)
+                ]);
+                return null;
+            }
+            
+            if (isset($data['error'])) {
+                $this->logWarning('fetchGenerationMetrics: API error', [
+                    'generation_id' => $generationId,
+                    'error' => $data['error']
+                ]);
+                return null;
+            }
+            
+            if (!isset($data['data'])) {
+                $this->logWarning('fetchGenerationMetrics: no data field', [
+                    'generation_id' => $generationId,
+                    'keys' => array_keys($data)
+                ]);
+                return null;
+            }
+            
+            $metrics = $data['data'];
+            
+            return [
+                'generation_time' => $metrics['generation_time'] ?? null,
+                'latency' => $metrics['latency'] ?? null,
+                'moderation_latency' => $metrics['moderation_latency'] ?? null,
+                'native_tokens_prompt' => $metrics['native_tokens_prompt'] ?? null,
+                'native_tokens_completion' => $metrics['native_tokens_completion'] ?? null,
+                'native_tokens_cached' => $metrics['native_tokens_cached'] ?? null,
+                'native_tokens_reasoning' => $metrics['native_tokens_reasoning'] ?? null,
+                'usage_total' => isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : null,
+                'usage_cache' => isset($metrics['usage_cache']) ? (float)$metrics['usage_cache'] : null,
+                'usage_data' => isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : null,
+                'usage_file' => isset($metrics['usage_file']) ? (float)$metrics['usage_file'] : null,
+            ];
+            
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+    
     private function parseDetailedMetrics(array $response): array
     {
         $usage = $response['usage'] ?? [];
@@ -839,26 +939,26 @@ class OpenRouter
             'provider_name' => $providerName,
             'created_at' => $response['created'] ?? null,
             
-            // Временные метрики (мс)
-            'generation_time' => $usage['generation_time'] ?? null,
-            'latency' => $usage['latency'] ?? null,
-            'moderation_latency' => $usage['moderation_latency'] ?? null,
+            // Временные метрики (мс) - на верхнем уровне response
+            'generation_time' => $response['generation_time'] ?? null,
+            'latency' => $response['latency'] ?? null,
+            'moderation_latency' => $response['moderation_latency'] ?? null,
             
-            // Токены (OpenRouter подсчет)
+            // Токены (OpenRouter подсчет) - в usage
             'tokens_prompt' => $usage['prompt_tokens'] ?? null,
             'tokens_completion' => $usage['completion_tokens'] ?? null,
             
-            // Токены (native провайдера)
-            'native_tokens_prompt' => $usage['native_tokens_prompt'] ?? null,
-            'native_tokens_completion' => $usage['native_tokens_completion'] ?? null,
-            'native_tokens_cached' => $usage['cached_tokens'] ?? null,
-            'native_tokens_reasoning' => $usage['reasoning_tokens'] ?? null,
+            // Токены (native провайдера) - на верхнем уровне response
+            'native_tokens_prompt' => $response['native_tokens_prompt'] ?? null,
+            'native_tokens_completion' => $response['native_tokens_completion'] ?? null,
+            'native_tokens_cached' => $response['native_tokens_cached'] ?? null,
+            'native_tokens_reasoning' => $response['native_tokens_reasoning'] ?? null,
             
-            // Стоимость (USD)
-            'usage_total' => isset($usage['total_cost']) ? (float)$usage['total_cost'] : null,
-            'usage_cache' => isset($usage['cache_cost']) ? (float)$usage['cache_cost'] : null,
-            'usage_data' => isset($usage['data_cost']) ? (float)$usage['data_cost'] : null,
-            'usage_file' => isset($usage['file_cost']) ? (float)$usage['file_cost'] : null,
+            // Стоимость (USD) - на верхнем уровне response
+            'usage_total' => isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : null,
+            'usage_cache' => isset($response['usage_cache']) ? (float)$response['usage_cache'] : null,
+            'usage_data' => isset($response['usage_data']) ? (float)$response['usage_data'] : null,
+            'usage_file' => isset($response['usage_file']) ? (float)$response['usage_file'] : null,
             
             // Статус завершения
             'finish_reason' => $choice['finish_reason'] ?? null,
