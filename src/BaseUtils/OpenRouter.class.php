@@ -893,6 +893,9 @@ class OpenRouter
             
             $metrics = $data['data'];
             
+            $usageTotal = isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : 0.0;
+            $usageData = isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : 0.0;
+            
             return [
                 'generation_time' => $metrics['generation_time'] ?? null,
                 'latency' => $metrics['latency'] ?? null,
@@ -901,10 +904,11 @@ class OpenRouter
                 'native_tokens_completion' => $metrics['native_tokens_completion'] ?? null,
                 'native_tokens_cached' => $metrics['native_tokens_cached'] ?? null,
                 'native_tokens_reasoning' => $metrics['native_tokens_reasoning'] ?? null,
-                'usage_total' => isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : null,
+                'usage_total' => $usageTotal > 0 ? $usageTotal : null,
                 'usage_cache' => isset($metrics['usage_cache']) ? (float)$metrics['usage_cache'] : null,
-                'usage_data' => isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : null,
+                'usage_data' => $usageData > 0 ? $usageData : null,
                 'usage_file' => isset($metrics['usage_file']) ? (float)$metrics['usage_file'] : null,
+                'final_cost' => $this->calculateFinalCost($usageTotal, $usageData),
             ];
             
         } catch (\Exception $e) {
@@ -959,6 +963,10 @@ class OpenRouter
             'usage_cache' => isset($response['usage_cache']) ? (float)$response['usage_cache'] : null,
             'usage_data' => isset($response['usage_data']) ? (float)$response['usage_data'] : null,
             'usage_file' => isset($response['usage_file']) ? (float)$response['usage_file'] : null,
+            'final_cost' => $this->calculateFinalCost(
+                isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : 0.0,
+                isset($response['usage_data']) ? (float)$response['usage_data'] : 0.0
+            ),
             
             // Статус завершения
             'finish_reason' => $choice['finish_reason'] ?? null,
@@ -980,5 +988,31 @@ class OpenRouter
         if ($this->logger !== null) {
             $this->logger->warning($message, $context);
         }
+    }
+    
+    /**
+     * Вычисляет итоговую стоимость запроса после компенсаций
+     * 
+     * Формула: final_cost = usage_total - usage_data
+     * 
+     * usage_data - это компенсация от OpenRouter, если пользователь разрешил
+     * обучение на своих промптах в настройках аккаунта.
+     *
+     * @param float $usageTotal Общая стоимость запроса
+     * @param float $usageData Компенсация за обучение на промптах
+     * @return float|null Итоговая стоимость или null если данных недостаточно
+     */
+    private function calculateFinalCost(float $usageTotal, float $usageData): ?float
+    {
+        // Если оба значения нулевые, возвращаем null
+        if ($usageTotal === 0.0 && $usageData === 0.0) {
+            return null;
+        }
+        
+        // Вычисляем итоговую стоимость
+        $finalCost = $usageTotal - $usageData;
+        
+        // Защита от отрицательных значений (на всякий случай)
+        return max(0.0, $finalCost);
     }
 }

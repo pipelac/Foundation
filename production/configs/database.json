@@ -1,8 +1,8 @@
 {
     "host": "127.0.0.1",
     "port": 3306,
-    "database": "rss2tlg",
-    "username": "rss2tlg_user",
-    "password": "rss2tlg_password_2024",
+    "database": "rss2tlg_production",
+    "username": "rss2tlg",
+    "password": "rss2tlg_pass_2025",
     "charset": "utf8mb4"
 }
