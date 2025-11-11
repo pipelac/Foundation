@@ -696,6 +696,470 @@ trait AIAnalysisTrait
     }
 
     /**
+     * Формирует аналитику эффективности кеширования запросов OpenRouter
+     *
+     * @param string|null $dateFrom Дата начала периода (YYYY-MM-DD или YYYY-MM-DD HH:MM:SS)
+     * @param string|null $dateTo Дата окончания периода (YYYY-MM-DD или YYYY-MM-DD HH:MM:SS)
+     * @param string|null $model Фильтр по конкретной модели OpenRouter
+     * @return array<string, mixed> Структурированная аналитика кеша
+     */
+    protected function getCacheAnalytics(
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?string $model = null
+    ): array {
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, возвращаем пустую аналитику кеша');
+            return [];
+        }
+
+        try {
+            $bounds = $this->resolveDateBounds($dateFrom, $dateTo);
+
+            $params = [
+                ':date_from' => $bounds['start'],
+                ':date_to' => $bounds['end'],
+                ':model' => $model,
+            ];
+
+            $baseSql = "
+                SELECT
+                    COUNT(*) AS total_requests,
+                    SUM(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS requests_with_cache,
+                    AVG(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS cache_hit_rate,
+                    COALESCE(SUM(COALESCE(tokens_prompt, 0)), 0) AS total_prompt,
+                    COALESCE(SUM(COALESCE(native_tokens_cached, 0)), 0) AS total_cached,
+                    COALESCE(SUM(usage_total), 0) AS total_cost,
+                    COALESCE(SUM(usage_cache), 0) AS cache_cost_saved
+                FROM openrouter_metrics
+                WHERE (:date_from IS NULL OR recorded_at >= :date_from)
+                    AND (:date_to IS NULL OR recorded_at <= :date_to)
+                    AND (:model IS NULL OR model = :model)
+            ";
+
+            $baseStats = $this->metricsDb->queryOne($baseSql, $params) ?? [
+                'total_requests' => 0,
+                'requests_with_cache' => 0,
+                'cache_hit_rate' => 0.0,
+                'total_prompt' => 0,
+                'total_cached' => 0,
+                'total_cost' => 0.0,
+                'cache_cost_saved' => 0.0,
+            ];
+
+            $totalRequests = (int)($baseStats['total_requests'] ?? 0);
+            $requestsWithCache = (int)($baseStats['requests_with_cache'] ?? 0);
+            $cacheHitRateRaw = $baseStats['cache_hit_rate'] ?? null;
+            $cacheHitRate = $cacheHitRateRaw !== null ? (float)round((float)$cacheHitRateRaw, 4) : 0.0;
+            $totalPromptTokens = (int)($baseStats['total_prompt'] ?? 0);
+            $totalCachedTokens = (int)($baseStats['total_cached'] ?? 0);
+            $totalCost = isset($baseStats['total_cost']) ? (float)$baseStats['total_cost'] : 0.0;
+            $cacheSavings = isset($baseStats['cache_cost_saved']) ? (float)$baseStats['cache_cost_saved'] : 0.0;
+
+            $cacheTokenPercentage = $totalPromptTokens > 0
+                ? (float)round($totalCachedTokens / $totalPromptTokens, 4)
+                : 0.0;
+
+            $costWithoutCache = $totalCost + $cacheSavings;
+            $savingsPercentage = $costWithoutCache > 0.0
+                ? (float)round($cacheSavings / $costWithoutCache, 4)
+                : 0.0;
+
+            $byModelSql = "
+                SELECT
+                    model,
+                    COUNT(*) AS total_requests,
+                    SUM(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS requests_with_cache,
+                    AVG(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS cache_hit_rate,
+                    COALESCE(SUM(COALESCE(native_tokens_cached, 0)), 0) AS tokens_cached,
+                    COALESCE(SUM(COALESCE(tokens_prompt, 0)), 0) AS tokens_prompt,
+                    COALESCE(SUM(usage_cache), 0) AS cost_savings
+                FROM openrouter_metrics
+                WHERE (:date_from IS NULL OR recorded_at >= :date_from)
+                    AND (:date_to IS NULL OR recorded_at <= :date_to)
+                    AND (:model IS NULL OR model = :model)
+                GROUP BY model
+                ORDER BY cache_hit_rate DESC, model ASC
+            ";
+
+            $byModelRows = $this->metricsDb->query($byModelSql, $params);
+            $byModel = [];
+
+            foreach ($byModelRows as $row) {
+                $modelName = (string)$row['model'];
+                $modelTotalRequests = (int)($row['total_requests'] ?? 0);
+                $modelRequestsWithCache = (int)($row['requests_with_cache'] ?? 0);
+                $modelCacheRateRaw = $row['cache_hit_rate'] ?? null;
+                $modelCacheRate = $modelCacheRateRaw !== null ? (float)round((float)$modelCacheRateRaw, 4) : 0.0;
+                $modelPromptTokens = (int)($row['tokens_prompt'] ?? 0);
+                $modelCachedTokens = (int)($row['tokens_cached'] ?? 0);
+                $modelCacheTokenPercentage = $modelPromptTokens > 0
+                    ? (float)round($modelCachedTokens / $modelPromptTokens, 4)
+                    : 0.0;
+                $modelCostSavings = isset($row['cost_savings']) ? (float)$row['cost_savings'] : 0.0;
+
+                $byModel[$modelName] = [
+                    'total_requests' => $modelTotalRequests,
+                    'requests_with_cache' => $modelRequestsWithCache,
+                    'cache_hit_rate' => $modelCacheRate,
+                    'tokens_prompt' => $modelPromptTokens,
+                    'tokens_cached' => $modelCachedTokens,
+                    'cache_tokens_percentage' => $modelCacheTokenPercentage,
+                    'cost_savings' => (float)round($modelCostSavings, 6),
+                ];
+            }
+
+            $analytics = [
+                'date_from' => $bounds['start'],
+                'date_to' => $bounds['end'],
+                'model' => $model,
+                'total_requests' => $totalRequests,
+                'requests_with_cache' => $requestsWithCache,
+                'cache_hit_rate' => $cacheHitRate,
+                'tokens' => [
+                    'total_prompt' => $totalPromptTokens,
+                    'total_cached' => $totalCachedTokens,
+                    'cache_percentage' => $cacheTokenPercentage,
+                ],
+                'cost_savings' => [
+                    'total_cost' => (float)round($totalCost, 6),
+                    'cost_without_cache' => (float)round($costWithoutCache, 6),
+                    'savings' => (float)round($cacheSavings, 6),
+                    'savings_percentage' => $savingsPercentage,
+                ],
+                'by_model' => $byModel,
+            ];
+
+            $this->logDebug('Сформирована аналитика кеша OpenRouter', [
+                'date_from' => $bounds['start'],
+                'date_to' => $bounds['end'],
+                'model' => $model,
+                'total_requests' => $totalRequests,
+                'cache_hit_rate' => $cacheHitRate,
+                'total_cache_savings' => $analytics['cost_savings']['savings'],
+            ]);
+
+            return $analytics;
+        } catch (Exception $e) {
+            $this->logError('Ошибка формирования аналитики кеша OpenRouter', [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Генерирует детальный отчет по метрикам OpenRouter в указанном формате
+     *
+     * @param array<string, mixed> $filters Фильтры выборки (model, pipeline_module, generation_id, batch_id, provider_name, finish_reason, date_from, date_to)
+     * @param string $format Формат отчета: array, json, csv
+     * @param string|null $outputFile Путь для сохранения отчета (только для json/csv)
+     * @return array<string, mixed>|string Детальный отчет в выбранном формате
+     */
+    protected function getDetailReport(array $filters, string $format, ?string $outputFile = null): array|string
+    {
+        $normalizedFormat = strtolower(trim($format));
+        if (!in_array($normalizedFormat, ['array', 'json', 'csv'], true)) {
+            $this->logError('Неподдерживаемый формат детального отчета', [
+                'format' => $format,
+            ]);
+            return [];
+        }
+
+        $failureResult = $normalizedFormat === 'array' ? [] : '';
+
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, возвращаем пустой детальный отчет');
+            return $failureResult;
+        }
+
+        if ($normalizedFormat === 'array' && $outputFile !== null) {
+            $this->logWarning('Формат array не поддерживает сохранение в файл, параметр outputFile будет проигнорирован', [
+                'output_file' => $outputFile,
+            ]);
+        }
+
+        try {
+            $bounds = $this->resolveDateBounds(
+                isset($filters['date_from']) ? (string)$filters['date_from'] : null,
+                isset($filters['date_to']) ? (string)$filters['date_to'] : null
+            );
+
+            $conditions = [];
+            $params = [];
+
+            if ($bounds['start'] !== null) {
+                $conditions[] = 'recorded_at >= :date_from';
+                $params[':date_from'] = $bounds['start'];
+            }
+
+            if ($bounds['end'] !== null) {
+                $conditions[] = 'recorded_at <= :date_to';
+                $params[':date_to'] = $bounds['end'];
+            }
+
+            $filterMap = [
+                'model' => 'model',
+                'pipeline_module' => 'pipeline_module',
+                'generation_id' => 'generation_id',
+                'batch_id' => 'batch_id',
+                'provider_name' => 'provider_name',
+                'finish_reason' => 'finish_reason',
+                'task_context' => 'task_context',
+            ];
+
+            foreach ($filterMap as $filterKey => $column) {
+                if (isset($filters[$filterKey]) && $filters[$filterKey] !== '') {
+                    $paramName = ':' . $filterKey;
+                    $conditions[] = sprintf('%s = %s', $column, $paramName);
+                    $params[$paramName] = $filters[$filterKey];
+                }
+            }
+
+            $whereClause = count($conditions) > 0 ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+            $sql = "
+                SELECT
+                    recorded_at,
+                    generation_id,
+                    model,
+                    provider_name,
+                    pipeline_module,
+                    tokens_prompt,
+                    tokens_completion,
+                    native_tokens_cached,
+                    generation_time,
+                    latency,
+                    usage_total,
+                    usage_cache,
+                    usage_data,
+                    usage_file,
+                    finish_reason
+                FROM openrouter_metrics
+                {$whereClause}
+                ORDER BY recorded_at DESC
+            ";
+
+            $rows = $this->metricsDb->query($sql, $params);
+
+            $totalTokens = 0;
+            $totalCachedTokens = 0;
+            $totalCost = 0.0;
+            $totalCacheSavings = 0.0;
+            $cacheHits = 0;
+            $details = [];
+
+            foreach ($rows as $row) {
+                $tokensPrompt = (int)($row['tokens_prompt'] ?? 0);
+                $tokensCompletion = (int)($row['tokens_completion'] ?? 0);
+                $tokensCached = (int)($row['native_tokens_cached'] ?? 0);
+                $generationTime = $row['generation_time'] !== null ? (float)$row['generation_time'] : null;
+                $latency = $row['latency'] !== null ? (float)$row['latency'] : null;
+                $cost = isset($row['usage_total']) ? (float)$row['usage_total'] : 0.0;
+                $cacheSaved = isset($row['usage_cache']) ? (float)$row['usage_cache'] : 0.0;
+                $dataCost = isset($row['usage_data']) ? (float)$row['usage_data'] : 0.0;
+                $fileCost = isset($row['usage_file']) ? (float)$row['usage_file'] : 0.0;
+
+                $totalTokens += $tokensPrompt + $tokensCompletion;
+                $totalCachedTokens += $tokensCached;
+                $totalCost += $cost;
+                $totalCacheSavings += $cacheSaved;
+
+                if ($tokensCached > 0) {
+                    $cacheHits++;
+                }
+
+                $details[] = [
+                    'date' => (string)$row['recorded_at'],
+                    'generation_id' => $row['generation_id'],
+                    'model' => $row['model'],
+                    'provider' => $row['provider_name'],
+                    'pipeline_module' => $row['pipeline_module'],
+                    'tokens_prompt' => $tokensPrompt,
+                    'tokens_completion' => $tokensCompletion,
+                    'tokens_cached' => $tokensCached,
+                    'generation_time' => $generationTime,
+                    'latency' => $latency,
+                    'cost' => (float)round($cost, 6),
+                    'cache_saved' => (float)round($cacheSaved, 6),
+                    'data_cost' => (float)round($dataCost, 6),
+                    'file_cost' => (float)round($fileCost, 6),
+                    'finish_reason' => $row['finish_reason'],
+                ];
+            }
+
+            $totalRequests = count($details);
+            $cacheHitRate = $totalRequests > 0
+                ? (float)round($cacheHits / $totalRequests, 4)
+                : 0.0;
+
+            $normalizedFilters = array_filter([
+                'date_from' => $bounds['start'],
+                'date_to' => $bounds['end'],
+                'model' => $filters['model'] ?? null,
+                'pipeline_module' => $filters['pipeline_module'] ?? null,
+                'generation_id' => $filters['generation_id'] ?? null,
+                'batch_id' => $filters['batch_id'] ?? null,
+                'provider_name' => $filters['provider_name'] ?? null,
+                'finish_reason' => $filters['finish_reason'] ?? null,
+                'task_context' => $filters['task_context'] ?? null,
+            ], static fn($value) => $value !== null && $value !== '');
+
+            $report = [
+                'report_generated_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'filters' => $normalizedFilters,
+                'summary' => [
+                    'total_requests' => $totalRequests,
+                    'total_cost' => (float)round($totalCost, 6),
+                    'total_tokens' => $totalTokens,
+                    'total_cached_tokens' => $totalCachedTokens,
+                    'total_cache_savings' => (float)round($totalCacheSavings, 6),
+                    'cache_hit_rate' => $cacheHitRate,
+                ],
+                'details' => $details,
+            ];
+
+            switch ($normalizedFormat) {
+                case 'array':
+                    $this->logDebug('Сформирован детальный отчет OpenRouter (array)', [
+                        'filters' => $normalizedFilters,
+                        'records' => $totalRequests,
+                    ]);
+                    return $report;
+
+                case 'json':
+                    $json = json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                    if ($json === false) {
+                        throw new Exception('Не удалось сериализовать отчет в JSON');
+                    }
+
+                    if ($outputFile !== null) {
+                        $fileHandle = fopen($outputFile, 'wb');
+                        if ($fileHandle === false) {
+                            throw new Exception(sprintf('Не удалось открыть файл "%s" для записи JSON отчета', $outputFile));
+                        }
+                        if (fwrite($fileHandle, $json) === false) {
+                            fclose($fileHandle);
+                            throw new Exception(sprintf('Не удалось записать JSON отчет в файл "%s"', $outputFile));
+                        }
+                        fclose($fileHandle);
+
+                        $this->logInfo('JSON отчет OpenRouter сохранен в файл', [
+                            'path' => $outputFile,
+                            'records' => $totalRequests,
+                        ]);
+                    }
+
+                    $this->logDebug('Сформирован детальный отчет OpenRouter (json)', [
+                        'filters' => $normalizedFilters,
+                        'records' => $totalRequests,
+                    ]);
+
+                    return $json;
+
+                case 'csv':
+                    $csvHandle = fopen('php://temp', 'r+');
+                    if ($csvHandle === false) {
+                        throw new Exception('Не удалось создать временный поток для CSV отчета');
+                    }
+
+                    $header = [
+                        'Date',
+                        'Generation ID',
+                        'Model',
+                        'Provider',
+                        'Pipeline Module',
+                        'Tokens Prompt',
+                        'Tokens Completion',
+                        'Tokens Cached',
+                        'Generation Time (ms)',
+                        'Latency (ms)',
+                        'Cost (USD)',
+                        'Cache Saved (USD)',
+                        'Data Cost (USD)',
+                        'File Cost (USD)',
+                        'Finish Reason',
+                    ];
+
+                    if (fputcsv($csvHandle, $header) === false) {
+                        fclose($csvHandle);
+                        throw new Exception('Не удалось записать заголовок CSV отчета');
+                    }
+
+                    foreach ($details as $row) {
+                        $csvRow = [
+                            $row['date'],
+                            $row['generation_id'],
+                            $row['model'],
+                            $row['provider'],
+                            $row['pipeline_module'],
+                            $row['tokens_prompt'],
+                            $row['tokens_completion'],
+                            $row['tokens_cached'],
+                            $row['generation_time'],
+                            $row['latency'],
+                            $row['cost'],
+                            $row['cache_saved'],
+                            $row['data_cost'],
+                            $row['file_cost'],
+                            $row['finish_reason'],
+                        ];
+
+                        if (fputcsv($csvHandle, $csvRow) === false) {
+                            fclose($csvHandle);
+                            throw new Exception('Не удалось записать строку CSV отчета');
+                        }
+                    }
+
+                    rewind($csvHandle);
+                    $csvContent = stream_get_contents($csvHandle);
+                    fclose($csvHandle);
+
+                    if ($csvContent === false) {
+                        throw new Exception('Не удалось прочитать CSV отчет из временного потока');
+                    }
+
+                    if ($outputFile !== null) {
+                        $fileHandle = fopen($outputFile, 'wb');
+                        if ($fileHandle === false) {
+                            throw new Exception(sprintf('Не удалось открыть файл "%s" для записи CSV отчета', $outputFile));
+                        }
+                        if (fwrite($fileHandle, $csvContent) === false) {
+                            fclose($fileHandle);
+                            throw new Exception(sprintf('Не удалось записать CSV отчет в файл "%s"', $outputFile));
+                        }
+                        fclose($fileHandle);
+
+                        $this->logInfo('CSV отчет OpenRouter сохранен в файл', [
+                            'path' => $outputFile,
+                            'records' => $totalRequests,
+                        ]);
+                    }
+
+                    $this->logDebug('Сформирован детальный отчет OpenRouter (csv)', [
+                        'filters' => $normalizedFilters,
+                        'records' => $totalRequests,
+                    ]);
+
+                    return $csvContent;
+            }
+
+            return $failureResult;
+        } catch (Exception $e) {
+            $this->logError('Ошибка генерации детального отчета OpenRouter', [
+                'filters' => $filters,
+                'format' => $format,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $failureResult;
+        }
+    }
+
+    /**
      * Устанавливает БД для записи метрик
      *
      * @param \App\Component\MySQL $db Экземпляр MySQL для записи метрик
