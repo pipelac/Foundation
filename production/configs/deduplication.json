@@ -22,7 +22,7 @@
     
     "compare_last_n_days": 7,
     "max_preliminary_comparisons": 50,
-    "preliminary_similarity_threshold": 60,
-    "max_ai_comparisons": 10,
+    "preliminary_similarity_threshold": 10,
+    "max_ai_comparisons": 3,
     "similarity_threshold": 70
 }

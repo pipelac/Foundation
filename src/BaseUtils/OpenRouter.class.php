@@ -967,4 +967,18 @@ class OpenRouter
             'full_response' => json_encode($response, JSON_UNESCAPED_UNICODE),
         ];
     }
+    
+    /**
+     * Логирует предупреждение
+     *
+     * @param string $message Сообщение
+     * @param array<string, mixed> $context Контекст
+     * @return void
+     */
+    private function logWarning(string $message, array $context = []): void
+    {
+        if ($this->logger !== null) {
+            $this->logger->warning($message, $context);
+        }
+    }
 }
