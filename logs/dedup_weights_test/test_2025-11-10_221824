@@ -1,0 +1,13 @@
+2025-11-10T22:18:24+00:00 DEBUG Версия MySQL проверена {"version":"10.11.13-MariaDB-0ubuntu0.24.04.1","major":10,"minor":11,"patch":13}
+2025-11-10T22:18:24+00:00 DEBUG Успешное подключение к БД {"host":"localhost","database":"rss2tlg","persistent":false,"charset":"utf8mb4"}
+2025-11-10T22:18:24+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.533,"body_size":468,"content_type":"application/json"}
+2025-11-10T22:18:24+00:00 INFO Telegram notification sent {"message":"🚀 Начинается тестирование весов для DeduplicationService v2.2"}
+2025-11-10T22:18:25+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.176,"body_size":419,"content_type":"application/json"}
+2025-11-10T22:18:25+00:00 INFO Telegram notification sent {"message":"📊 Подготовлено 5 тестовых кейсов"}
+2025-11-10T22:18:25+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.174,"body_size":426,"content_type":"application/json"}
+2025-11-10T22:18:25+00:00 INFO Telegram notification sent {"message":"⚖️ Подготовлено 10 комбинаций весов"}
+2025-11-10T22:18:25+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.178,"body_size":420,"content_type":"application/json"}
+2025-11-10T22:18:25+00:00 INFO Telegram notification sent {"message":"🏆 ПОБЕДИТЕЛЬ: Strong Entities\nВеса: E=45%, EV=25%, K=15%, C=15%\nRMSE: 19.3158, MAE: 15.4758"}
+2025-11-10T22:18:25+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.18,"body_size":518,"content_type":"application/json"}
+2025-11-10T22:18:25+00:00 INFO Telegram notification sent {"message":"✅ Тестирование завершено! Отчет сохранен в docs/Rss2Tlg/DEDUPLICATION_WEIGHTS_TEST_REPORT.md"}
+2025-11-10T22:18:25+00:00 INFO Weight testing completed successfully {"best_combo":"Strong Entities","rmse":19.31575891569968,"mae":15.475804147109551}
