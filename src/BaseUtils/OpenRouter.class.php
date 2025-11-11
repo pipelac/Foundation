@@ -170,6 +170,7 @@ class OpenRouter
      *                              - usage (array): Информация об использованных токенах (включая cached_tokens)
      *                              - model (string): Использованная модель
      *                              - id (string): ID генерации
+     *                              - detailed_metrics (array): Детальные метрики для записи в БД
      * @throws OpenRouterValidationException Если параметры невалидны
      * @throws OpenRouterApiException Если API вернул ошибку
      * @throws OpenRouterException Если модель не вернула текстовый ответ
@@ -204,6 +205,7 @@ class OpenRouter
             'model' => $response['model'] ?? $model,
             'id' => $response['id'] ?? null,
             'created' => $response['created'] ?? null,
+            'detailed_metrics' => $this->parseDetailedMetrics($response),
         ];
     }
 
@@ -796,5 +798,73 @@ class OpenRouter
         if ($this->logger !== null) {
             $this->logger->error($message, $context);
         }
+    }
+
+    /**
+     * Парсит детальные метрики из ответа OpenRouter API
+     *
+     * Извлекает все доступные метрики для сохранения в БД:
+     * - Временные метрики (generation_time, latency, moderation_latency)
+     * - Токены (prompt, completion, native, cached, reasoning)
+     * - Стоимость (usage, cache, data, file)
+     * - Статус (finish_reason, provider_name)
+     *
+     * @param array<string, mixed> $response Полный ответ от OpenRouter API
+     * @return array<string, mixed> Детальные метрики для записи в БД
+     */
+    private function parseDetailedMetrics(array $response): array
+    {
+        $usage = $response['usage'] ?? [];
+        $choice = $response['choices'][0] ?? [];
+        
+        // Извлекаем метаданные провайдера
+        $providerName = null;
+        if (isset($response['model']) && is_string($response['model'])) {
+            // Провайдер обычно указан в формате "provider/model-name"
+            $parts = explode('/', $response['model'], 2);
+            if (count($parts) === 2) {
+                $providerName = $parts[0];
+            }
+        }
+        
+        // Альтернативный способ получения провайдера (если есть в metadata)
+        if (isset($response['provider']) && is_string($response['provider'])) {
+            $providerName = $response['provider'];
+        }
+        
+        return [
+            // Идентификация запроса
+            'generation_id' => $response['id'] ?? null,
+            'model' => $response['model'] ?? null,
+            'provider_name' => $providerName,
+            'created_at' => $response['created'] ?? null,
+            
+            // Временные метрики (мс)
+            'generation_time' => $usage['generation_time'] ?? null,
+            'latency' => $usage['latency'] ?? null,
+            'moderation_latency' => $usage['moderation_latency'] ?? null,
+            
+            // Токены (OpenRouter подсчет)
+            'tokens_prompt' => $usage['prompt_tokens'] ?? null,
+            'tokens_completion' => $usage['completion_tokens'] ?? null,
+            
+            // Токены (native провайдера)
+            'native_tokens_prompt' => $usage['native_tokens_prompt'] ?? null,
+            'native_tokens_completion' => $usage['native_tokens_completion'] ?? null,
+            'native_tokens_cached' => $usage['cached_tokens'] ?? null,
+            'native_tokens_reasoning' => $usage['reasoning_tokens'] ?? null,
+            
+            // Стоимость (USD)
+            'usage_total' => isset($usage['total_cost']) ? (float)$usage['total_cost'] : null,
+            'usage_cache' => isset($usage['cache_cost']) ? (float)$usage['cache_cost'] : null,
+            'usage_data' => isset($usage['data_cost']) ? (float)$usage['data_cost'] : null,
+            'usage_file' => isset($usage['file_cost']) ? (float)$usage['file_cost'] : null,
+            
+            // Статус завершения
+            'finish_reason' => $choice['finish_reason'] ?? null,
+            
+            // Полный response для будущего анализа
+            'full_response' => json_encode($response, JSON_UNESCAPED_UNICODE),
+        ];
     }
 }

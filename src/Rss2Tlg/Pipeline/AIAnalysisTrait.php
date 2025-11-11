@@ -15,10 +15,12 @@ use Exception;
  * - Retry механизм
  * - Кеширование промптов (Claude)
  * - Сбор метрик использования
+ * - Детальное хранение метрик OpenRouter в БД
  */
 trait AIAnalysisTrait
 {
     protected OpenRouter $openRouter;
+    protected ?\App\Component\MySQL $metricsDb = null;
 
     /**
      * Анализирует с использованием fallback моделей
@@ -139,6 +141,19 @@ trait AIAnalysisTrait
 
         // Извлекаем метрики
         $usage = $response['usage'] ?? [];
+        
+        // Записываем детальные метрики в БД (если доступна)
+        if (isset($response['detailed_metrics'])) {
+            $pipelineModule = get_class($this); // Получаем название класса как pipeline_module
+            $pipelineModule = str_replace('App\\Rss2Tlg\\Pipeline\\', '', $pipelineModule);
+            
+            $this->recordDetailedMetrics(
+                $response['detailed_metrics'],
+                $pipelineModule,
+                null, // batch_id можно передать извне при необходимости
+                null  // task_context можно передать извне при необходимости
+            );
+        }
         
         return [
             'analysis_data' => $analysisData,
@@ -274,5 +289,197 @@ trait AIAnalysisTrait
             'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
             'prompt_file' => $config['prompt_file'],
         ];
+    }
+
+    /**
+     * Записывает детальные метрики OpenRouter в БД
+     *
+     * @param array<string, mixed> $detailedMetrics Детальные метрики из OpenRouter.parseDetailedMetrics()
+     * @param string|null $pipelineModule Название модуля pipeline (Summarization, Deduplication, etc)
+     * @param int|null $batchId ID batch обработки
+     * @param string|null $taskContext Дополнительный контекст задачи (JSON)
+     * @return int|null ID записанной записи или null при ошибке
+     */
+    protected function recordDetailedMetrics(
+        array $detailedMetrics,
+        ?string $pipelineModule = null,
+        ?int $batchId = null,
+        ?string $taskContext = null
+    ): ?int {
+        // Проверяем доступность БД для метрик
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, пропускаем запись метрик');
+            return null;
+        }
+
+        try {
+            $sql = "
+                INSERT INTO openrouter_metrics (
+                    generation_id, model, provider_name, created_at,
+                    generation_time, latency, moderation_latency,
+                    tokens_prompt, tokens_completion,
+                    native_tokens_prompt, native_tokens_completion, native_tokens_cached, native_tokens_reasoning,
+                    usage_total, usage_cache, usage_data, usage_file,
+                    finish_reason,
+                    pipeline_module, batch_id, task_context,
+                    full_response
+                ) VALUES (
+                    :generation_id, :model, :provider_name, :created_at,
+                    :generation_time, :latency, :moderation_latency,
+                    :tokens_prompt, :tokens_completion,
+                    :native_tokens_prompt, :native_tokens_completion, :native_tokens_cached, :native_tokens_reasoning,
+                    :usage_total, :usage_cache, :usage_data, :usage_file,
+                    :finish_reason,
+                    :pipeline_module, :batch_id, :task_context,
+                    :full_response
+                )
+            ";
+
+            $params = [
+                ':generation_id' => $detailedMetrics['generation_id'] ?? null,
+                ':model' => $detailedMetrics['model'] ?? null,
+                ':provider_name' => $detailedMetrics['provider_name'] ?? null,
+                ':created_at' => $detailedMetrics['created_at'] ?? null,
+                
+                ':generation_time' => $detailedMetrics['generation_time'] ?? null,
+                ':latency' => $detailedMetrics['latency'] ?? null,
+                ':moderation_latency' => $detailedMetrics['moderation_latency'] ?? null,
+                
+                ':tokens_prompt' => $detailedMetrics['tokens_prompt'] ?? null,
+                ':tokens_completion' => $detailedMetrics['tokens_completion'] ?? null,
+                
+                ':native_tokens_prompt' => $detailedMetrics['native_tokens_prompt'] ?? null,
+                ':native_tokens_completion' => $detailedMetrics['native_tokens_completion'] ?? null,
+                ':native_tokens_cached' => $detailedMetrics['native_tokens_cached'] ?? null,
+                ':native_tokens_reasoning' => $detailedMetrics['native_tokens_reasoning'] ?? null,
+                
+                ':usage_total' => $detailedMetrics['usage_total'] ?? null,
+                ':usage_cache' => $detailedMetrics['usage_cache'] ?? null,
+                ':usage_data' => $detailedMetrics['usage_data'] ?? null,
+                ':usage_file' => $detailedMetrics['usage_file'] ?? null,
+                
+                ':finish_reason' => $detailedMetrics['finish_reason'] ?? null,
+                
+                ':pipeline_module' => $pipelineModule,
+                ':batch_id' => $batchId,
+                ':task_context' => $taskContext,
+                
+                ':full_response' => $detailedMetrics['full_response'] ?? null,
+            ];
+
+            $this->metricsDb->execute($sql, $params);
+            $insertId = (int)$this->metricsDb->getLastInsertId();
+
+            $this->logDebug('Детальные метрики записаны в БД', [
+                'metrics_id' => $insertId,
+                'generation_id' => $detailedMetrics['generation_id'] ?? null,
+                'model' => $detailedMetrics['model'] ?? null,
+                'tokens_total' => ($detailedMetrics['tokens_prompt'] ?? 0) + ($detailedMetrics['tokens_completion'] ?? 0),
+                'usage_total' => $detailedMetrics['usage_total'] ?? null,
+            ]);
+
+            return $insertId;
+
+        } catch (Exception $e) {
+            $this->logError('Ошибка записи детальных метрик в БД', [
+                'error' => $e->getMessage(),
+                'generation_id' => $detailedMetrics['generation_id'] ?? null,
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Получает детальные метрики из БД по различным критериям
+     *
+     * @param array<string, mixed> $filters Фильтры поиска:
+     *                                       - generation_id (string): ID генерации
+     *                                       - model (string): Название модели
+     *                                       - pipeline_module (string): Модуль pipeline
+     *                                       - batch_id (int): ID batch
+     *                                       - date_from (string): Дата начала (YYYY-MM-DD)
+     *                                       - date_to (string): Дата окончания (YYYY-MM-DD)
+     *                                       - limit (int): Лимит записей (по умолчанию 100)
+     * @return array<int, array<string, mixed>> Массив записей метрик
+     */
+    protected function getDetailedMetrics(array $filters = []): array
+    {
+        // Проверяем доступность БД для метрик
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, возвращаем пустой массив');
+            return [];
+        }
+
+        try {
+            $where = [];
+            $params = [];
+
+            if (isset($filters['generation_id'])) {
+                $where[] = 'generation_id = :generation_id';
+                $params[':generation_id'] = $filters['generation_id'];
+            }
+
+            if (isset($filters['model'])) {
+                $where[] = 'model = :model';
+                $params[':model'] = $filters['model'];
+            }
+
+            if (isset($filters['pipeline_module'])) {
+                $where[] = 'pipeline_module = :pipeline_module';
+                $params[':pipeline_module'] = $filters['pipeline_module'];
+            }
+
+            if (isset($filters['batch_id'])) {
+                $where[] = 'batch_id = :batch_id';
+                $params[':batch_id'] = $filters['batch_id'];
+            }
+
+            if (isset($filters['date_from'])) {
+                $where[] = 'recorded_at >= :date_from';
+                $params[':date_from'] = $filters['date_from'];
+            }
+
+            if (isset($filters['date_to'])) {
+                $where[] = 'recorded_at <= :date_to';
+                $params[':date_to'] = $filters['date_to'] . ' 23:59:59';
+            }
+
+            $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
+            $limit = isset($filters['limit']) ? (int)$filters['limit'] : 100;
+
+            $sql = "
+                SELECT *
+                FROM openrouter_metrics
+                {$whereClause}
+                ORDER BY recorded_at DESC
+                LIMIT {$limit}
+            ";
+
+            $results = $this->metricsDb->query($sql, $params);
+
+            $this->logDebug('Получены детальные метрики из БД', [
+                'filters' => $filters,
+                'count' => count($results),
+            ]);
+
+            return $results;
+
+        } catch (Exception $e) {
+            $this->logError('Ошибка получения детальных метрик из БД', [
+                'error' => $e->getMessage(),
+                'filters' => $filters,
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Устанавливает БД для записи метрик
+     *
+     * @param \App\Component\MySQL $db Экземпляр MySQL для записи метрик
+     */
+    protected function setMetricsDb(\App\Component\MySQL $db): void
+    {
+        $this->metricsDb = $db;
     }
 }
