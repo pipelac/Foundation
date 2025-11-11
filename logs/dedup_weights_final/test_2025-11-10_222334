@@ -1,2 +1,0 @@
-2025-11-10T22:23:34+00:00 DEBUG Версия MySQL проверена {"version":"10.11.13-MariaDB-0ubuntu0.24.04.1","major":10,"minor":11,"patch":13}
-2025-11-10T22:23:34+00:00 DEBUG Успешное подключение к БД {"host":"localhost","database":"rss2tlg","persistent":false,"charset":"utf8mb4"}
