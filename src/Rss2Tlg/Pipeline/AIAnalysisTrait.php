@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Rss2Tlg\Pipeline;
 
 use App\Component\OpenRouter;
+use DateTimeImmutable;
 use Exception;
 
 /**
@@ -474,6 +475,227 @@ trait AIAnalysisTrait
     }
 
     /**
+     * Получает сводную статистику по метрикам OpenRouter за указанный период
+     *
+     * @param string $periodType Тип периода: day, week, month, custom
+     * @param string|null $dateFrom Дата начала (используется для periodType=custom или в качестве опорной даты)
+     * @param string|null $dateTo Дата окончания (используется для periodType=custom)
+     * @param string|null $pipelineModule Фильтр по модулю pipeline
+     * @return array<string, mixed> Сводная статистика по запросам и моделям
+     */
+    protected function getSummaryByPeriod(
+        string $periodType,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?string $pipelineModule = null
+    ): array {
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, возвращаем пустую сводку по периодам');
+            return [];
+        }
+
+        try {
+            $range = $this->resolvePeriodRange($periodType, $dateFrom, $dateTo);
+
+            $params = [
+                ':date_from' => $range['start'],
+                ':date_to' => $range['end'],
+                ':pipeline_module' => $pipelineModule,
+            ];
+
+            $baseSql = "
+                SELECT
+                    COUNT(*) AS total_requests,
+                    COALESCE(SUM(COALESCE(tokens_prompt, 0) + COALESCE(tokens_completion, 0)), 0) AS total_tokens,
+                    COALESCE(SUM(usage_total), 0) AS total_cost,
+                    AVG(generation_time) AS avg_generation_time,
+                    AVG(latency) AS avg_latency
+                FROM openrouter_metrics
+                WHERE recorded_at BETWEEN :date_from AND :date_to
+                    AND (:pipeline_module IS NULL OR pipeline_module = :pipeline_module)
+            ";
+
+            $baseStats = $this->metricsDb->queryOne($baseSql, $params) ?? [
+                'total_requests' => 0,
+                'total_tokens' => 0,
+                'total_cost' => 0.0,
+                'avg_generation_time' => null,
+                'avg_latency' => null,
+            ];
+
+            $modelsSql = "
+                SELECT
+                    model,
+                    COUNT(*) AS requests,
+                    COALESCE(SUM(usage_total), 0) AS cost,
+                    COALESCE(SUM(COALESCE(tokens_prompt, 0) + COALESCE(tokens_completion, 0)), 0) AS tokens
+                FROM openrouter_metrics
+                WHERE recorded_at BETWEEN :date_from AND :date_to
+                    AND (:pipeline_module IS NULL OR pipeline_module = :pipeline_module)
+                GROUP BY model
+                ORDER BY cost DESC
+            ";
+
+            $modelsRaw = $this->metricsDb->query($modelsSql, $params);
+            $models = [];
+            foreach ($modelsRaw as $row) {
+                $modelName = (string)$row['model'];
+                $models[$modelName] = [
+                    'requests' => (int)($row['requests'] ?? 0),
+                    'cost' => isset($row['cost']) ? (float)$row['cost'] : 0.0,
+                    'tokens' => (int)($row['tokens'] ?? 0),
+                ];
+            }
+
+            $pipelineSql = "
+                SELECT
+                    COALESCE(pipeline_module, 'unknown') AS module_name,
+                    COUNT(*) AS requests,
+                    COALESCE(SUM(usage_total), 0) AS cost
+                FROM openrouter_metrics
+                WHERE recorded_at BETWEEN :date_from AND :date_to
+                    AND (:pipeline_module IS NULL OR pipeline_module = :pipeline_module)
+                GROUP BY module_name
+                ORDER BY cost DESC
+            ";
+
+            $pipelineRaw = $this->metricsDb->query($pipelineSql, $params);
+            $pipelineSummary = [];
+            foreach ($pipelineRaw as $row) {
+                $moduleName = (string)$row['module_name'];
+                $pipelineSummary[$moduleName] = [
+                    'requests' => (int)($row['requests'] ?? 0),
+                    'cost' => isset($row['cost']) ? (float)$row['cost'] : 0.0,
+                ];
+            }
+
+            $avgGenerationTime = $baseStats['avg_generation_time'] ?? null;
+            $avgLatency = $baseStats['avg_latency'] ?? null;
+
+            $summary = [
+                'period' => $range['label'],
+                'date_from' => $range['start'],
+                'date_to' => $range['end'],
+                'total_requests' => (int)($baseStats['total_requests'] ?? 0),
+                'total_cost' => isset($baseStats['total_cost']) ? (float)$baseStats['total_cost'] : 0.0,
+                'total_tokens' => (int)($baseStats['total_tokens'] ?? 0),
+                'avg_generation_time' => $avgGenerationTime !== null ? (float)round((float)$avgGenerationTime, 2) : null,
+                'avg_latency' => $avgLatency !== null ? (float)round((float)$avgLatency, 2) : null,
+                'models' => $models,
+                'pipeline_modules' => $pipelineSummary,
+            ];
+
+            $this->logDebug('Сформирована сводка метрик за период', [
+                'period_type' => $periodType,
+                'period' => $summary['period'],
+                'pipeline_module' => $pipelineModule,
+                'total_requests' => $summary['total_requests'],
+            ]);
+
+            return $summary;
+        } catch (Exception $e) {
+            $this->logError('Ошибка формирования сводки метрик за период', [
+                'period_type' => $periodType,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'pipeline_module' => $pipelineModule,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Получает детальную статистику по моделям OpenRouter
+     *
+     * @param string|null $dateFrom Дата начала выборки (формат YYYY-MM-DD или YYYY-MM-DD HH:MM:SS)
+     * @param string|null $dateTo Дата окончания выборки (формат YYYY-MM-DD или YYYY-MM-DD HH:MM:SS)
+     * @param string|null $pipelineModule Фильтр по модулю pipeline
+     * @return array<string, array<string, float|int|null>> Ассоциативный массив статистики по моделям
+     */
+    protected function getSummaryByModel(
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?string $pipelineModule = null
+    ): array {
+        if ($this->metricsDb === null) {
+            $this->logWarning('Metrics DB не инициализирована, возвращаем пустую сводку по моделям');
+            return [];
+        }
+
+        try {
+            $bounds = $this->resolveDateBounds($dateFrom, $dateTo);
+
+            $params = [
+                ':date_from' => $bounds['start'],
+                ':date_to' => $bounds['end'],
+                ':pipeline_module' => $pipelineModule,
+            ];
+
+            $sql = "
+                SELECT
+                    model,
+                    COUNT(*) AS total_requests,
+                    COALESCE(SUM(usage_total), 0) AS total_cost,
+                    COALESCE(SUM(COALESCE(tokens_prompt, 0) + COALESCE(tokens_completion, 0)), 0) AS total_tokens,
+                    AVG(generation_time) AS avg_generation_time,
+                    AVG(COALESCE(tokens_prompt, 0) + COALESCE(tokens_completion, 0)) AS avg_tokens_per_request,
+                    AVG(usage_total) AS avg_cost_per_request,
+                    SUM(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS cache_hits,
+                    AVG(CASE WHEN COALESCE(native_tokens_cached, 0) > 0 THEN 1 ELSE 0 END) AS cache_rate
+                FROM openrouter_metrics
+                WHERE (:date_from IS NULL OR recorded_at >= :date_from)
+                    AND (:date_to IS NULL OR recorded_at <= :date_to)
+                    AND (:pipeline_module IS NULL OR pipeline_module = :pipeline_module)
+                GROUP BY model
+                ORDER BY total_cost DESC
+            ";
+
+            $rows = $this->metricsDb->query($sql, $params);
+            $summary = [];
+
+            foreach ($rows as $row) {
+                $model = (string)$row['model'];
+                $summary[$model] = [
+                    'total_requests' => (int)($row['total_requests'] ?? 0),
+                    'total_cost' => isset($row['total_cost']) ? (float)$row['total_cost'] : 0.0,
+                    'total_tokens' => (int)($row['total_tokens'] ?? 0),
+                    'avg_generation_time' => isset($row['avg_generation_time']) && $row['avg_generation_time'] !== null
+                        ? (float)round((float)$row['avg_generation_time'], 2)
+                        : null,
+                    'avg_tokens_per_request' => isset($row['avg_tokens_per_request']) && $row['avg_tokens_per_request'] !== null
+                        ? (float)round((float)$row['avg_tokens_per_request'], 2)
+                        : null,
+                    'avg_cost_per_request' => isset($row['avg_cost_per_request']) && $row['avg_cost_per_request'] !== null
+                        ? (float)round((float)$row['avg_cost_per_request'], 6)
+                        : null,
+                    'cache_hits' => (int)($row['cache_hits'] ?? 0),
+                    'cache_rate' => isset($row['cache_rate']) && $row['cache_rate'] !== null
+                        ? (float)round((float)$row['cache_rate'], 4)
+                        : null,
+                ];
+            }
+
+            $this->logDebug('Сформирована сводка метрик по моделям', [
+                'date_from' => $bounds['start'],
+                'date_to' => $bounds['end'],
+                'pipeline_module' => $pipelineModule,
+                'models' => count($summary),
+            ]);
+
+            return $summary;
+        } catch (Exception $e) {
+            $this->logError('Ошибка формирования сводки метрик по моделям', [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'pipeline_module' => $pipelineModule,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Устанавливает БД для записи метрик
      *
      * @param \App\Component\MySQL $db Экземпляр MySQL для записи метрик
@@ -481,5 +703,122 @@ trait AIAnalysisTrait
     protected function setMetricsDb(\App\Component\MySQL $db): void
     {
         $this->metricsDb = $db;
+    }
+
+    /**
+     * Определяет временные границы периода для агрегации метрик
+     *
+     * @param string $periodType Тип периода
+     * @param string|null $dateFrom Опорная дата или начало периода
+     * @param string|null $dateTo Конечная дата (для кастомного периода)
+     * @return array{start: string, end: string, label: string} Подготовленные временные границы
+     *
+     * @throws Exception При некорректных параметрах периода
+     */
+    private function resolvePeriodRange(string $periodType, ?string $dateFrom, ?string $dateTo): array
+    {
+        $normalizedType = strtolower($periodType);
+
+        switch ($normalizedType) {
+            case 'day':
+                $reference = $this->createDateTime($dateFrom ?? 'now', false);
+                $start = $reference->setTime(0, 0, 0);
+                $end = $reference->setTime(23, 59, 59);
+                break;
+
+            case 'week':
+                $reference = $this->createDateTime($dateFrom ?? 'now', false);
+                $start = $reference->modify('monday this week')->setTime(0, 0, 0);
+                $end = $start->modify('+6 days')->setTime(23, 59, 59);
+                break;
+
+            case 'month':
+                $reference = $this->createDateTime($dateFrom ?? 'now', false);
+                $start = $reference->modify('first day of this month')->setTime(0, 0, 0);
+                $end = $start->modify('last day of this month')->setTime(23, 59, 59);
+                break;
+
+            case 'custom':
+                if ($dateFrom === null || $dateTo === null) {
+                    throw new Exception('Для кастомного периода необходимо указать даты начала и окончания');
+                }
+
+                $start = $this->createDateTime($dateFrom, false);
+                $end = $this->createDateTime($dateTo, true);
+
+                if ($end < $start) {
+                    throw new Exception('Дата окончания периода не может быть меньше даты начала');
+                }
+                break;
+
+            default:
+                throw new Exception(sprintf('Неподдерживаемый тип периода: %s', $periodType));
+        }
+
+        return [
+            'start' => $start->format('Y-m-d H:i:s'),
+            'end' => $end->format('Y-m-d H:i:s'),
+            'label' => sprintf('%s - %s', $start->format('Y-m-d'), $end->format('Y-m-d')),
+        ];
+    }
+
+    /**
+     * Приводит произвольные границы дат к формату, пригодному для SQL запросов
+     *
+     * @param string|null $dateFrom Дата начала периода
+     * @param string|null $dateTo Дата окончания периода
+     * @return array{start: string|null, end: string|null} Нормализованные границы периода
+     *
+     * @throws Exception При некорректных датах
+     */
+    private function resolveDateBounds(?string $dateFrom, ?string $dateTo): array
+    {
+        $startDate = null;
+        $endDate = null;
+
+        if ($dateFrom !== null) {
+            $startDate = $this->createDateTime($dateFrom, false);
+        }
+
+        if ($dateTo !== null) {
+            $endDate = $this->createDateTime($dateTo, true);
+        }
+
+        if ($startDate !== null && $endDate !== null && $endDate < $startDate) {
+            throw new Exception('Дата окончания периода не может быть меньше даты начала');
+        }
+
+        return [
+            'start' => $startDate?->format('Y-m-d H:i:s'),
+            'end' => $endDate?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * Создает объект даты/времени с учетом необходимости установки начала или конца дня
+     *
+     * @param string $input Входная дата или дата-время
+     * @param bool $endOfDay Флаг установки времени в конец дня
+     * @return DateTimeImmutable Нормализованная дата
+     *
+     * @throws Exception При ошибке парсинга даты
+     */
+    private function createDateTime(string $input, bool $endOfDay): DateTimeImmutable
+    {
+        try {
+            $dateTime = new DateTimeImmutable($input);
+        } catch (Exception $e) {
+            throw new Exception(sprintf('Некорректная дата "%s": %s', $input, $e->getMessage()), (int)$e->getCode(), $e);
+        }
+
+        if (!preg_match('/\d{2}:\d{2}/', $input)) {
+            $dateTime = $dateTime->setTime(0, 0, 0);
+        }
+
+        if ($endOfDay) {
+            $dateTime = $dateTime->setTime(23, 59, 59);
+        }
+
+        return $dateTime;
     }
 }
