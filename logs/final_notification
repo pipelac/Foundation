@@ -1,1 +1,0 @@
-2025-11-10T22:27:11+00:00 INFO HTTP запрос выполнен [POST sendMessage] код 200 {"method":"POST","uri":"sendMessage","status_code":200,"duration":0.513,"body_size":1963,"content_type":"application/json"}
