@@ -94,6 +94,9 @@ class DeduplicationService extends AbstractPipelineModule
             'similarity_threshold' => $similarityThreshold,
             'compare_last_n_days' => max(1, (int)($config['compare_last_n_days'] ?? 7)),
             'max_comparisons' => max(10, (int)($config['max_comparisons'] ?? 50)),
+            'max_preliminary_comparisons' => max(10, (int)($config['max_preliminary_comparisons'] ?? 50)),
+            'preliminary_similarity_threshold' => (float)($config['preliminary_similarity_threshold'] ?? 60.0),
+            'max_ai_comparisons' => max(1, (int)($config['max_ai_comparisons'] ?? 10)),
             'min_importance_threshold' => $minImportance,
             'similarity_weights' => $weights,
         ]);

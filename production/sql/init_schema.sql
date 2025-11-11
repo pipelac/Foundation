@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_deduplication` (
     `is_duplicate` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Является ли дубликатом (0/1)',
     `duplicate_of_item_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'ID оригинальной новости (FK)',
     `similarity_score` DECIMAL(5,2) NULL DEFAULT NULL COMMENT 'Оценка схожести (0.00-100.00)',
-    `similarity_method` ENUM('ai', 'hash', 'hybrid') NULL DEFAULT NULL COMMENT 'Метод определения схожести',
+    `similarity_method` ENUM('ai', 'hash', 'hybrid', 'preliminary') NULL DEFAULT NULL COMMENT 'Метод определения схожести',
     `can_be_published` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Можно ли публиковать (0/1)',
     
     -- Детали проверки
@@ -218,58 +218,62 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_publications` (
 COMMENT='Журнал публикаций новостей в Telegram';
 
 -- ----------------------------------------------------------------------------
--- ТАБЛИЦА: openrouter_metrics - Метрики вызовов AI
+-- ТАБЛИЦА: openrouter_metrics - Детальные метрики OpenRouter API
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `openrouter_metrics` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Первичный ключ',
-    `request_id` VARCHAR(100) NULL DEFAULT NULL COMMENT 'ID запроса от OpenRouter',
-    `module_name` VARCHAR(50) NOT NULL COMMENT 'Название модуля (summarization, deduplication, etc)',
-    `item_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'ID новости если применимо',
-    `feed_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'ID источника если применимо',
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Уникальный идентификатор записи',
     
-    -- Модель и параметры
-    `model` VARCHAR(150) NOT NULL COMMENT 'Идентификатор модели',
-    `prompt_tokens` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Количество токенов в промпте',
-    `completion_tokens` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Количество токенов в ответе',
-    `total_tokens` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Общее количество токенов',
-    `cached_tokens` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Количество токенов из кеша',
+    -- Идентификация запроса
+    `generation_id` VARCHAR(255) NULL COMMENT 'Уникальный ID генерации от OpenRouter',
+    `model` VARCHAR(255) NOT NULL COMMENT 'Название модели (например, deepseek/deepseek-chat)',
+    `provider_name` VARCHAR(255) NULL COMMENT 'Провайдер модели (DeepInfra, Anthropic, Google)',
+    `created_at` BIGINT NULL COMMENT 'Unix timestamp создания запроса от OpenRouter',
     
-    -- Стоимость
-    `cost_usd` DECIMAL(10,6) NULL DEFAULT NULL COMMENT 'Стоимость запроса в USD',
-    `cost_prompt_usd` DECIMAL(10,6) NULL DEFAULT NULL COMMENT 'Стоимость промпта в USD',
-    `cost_completion_usd` DECIMAL(10,6) NULL DEFAULT NULL COMMENT 'Стоимость completion в USD',
+    -- Временные метрики (миллисекунды)
+    `generation_time` INT NULL COMMENT 'Время генерации ответа в мс',
+    `latency` INT NULL COMMENT 'Общая задержка запроса в мс',
+    `moderation_latency` INT NULL COMMENT 'Время модерации контента в мс',
     
-    -- Производительность
-    `latency_ms` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Задержка ответа в миллисекундах',
-    `processing_time_ms` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Время обработки в миллисекундах',
+    -- Токены (наши, OpenRouter)
+    `tokens_prompt` INT NULL COMMENT 'Количество токенов в промпте (OpenRouter подсчет)',
+    `tokens_completion` INT NULL COMMENT 'Количество токенов в ответе (OpenRouter подсчет)',
     
-    -- Результат
-    `status` ENUM('success','error','timeout','rate_limit') NOT NULL DEFAULT 'success' COMMENT 'Статус выполнения',
-    `error_message` TEXT NULL DEFAULT NULL COMMENT 'Сообщение об ошибке',
-    `error_code` VARCHAR(50) NULL DEFAULT NULL COMMENT 'Код ошибки',
+    -- Токены (native провайдера)
+    `native_tokens_prompt` INT NULL COMMENT 'Токены промпта по подсчету провайдера',
+    `native_tokens_completion` INT NULL COMMENT 'Токены ответа по подсчету провайдера',
+    `native_tokens_cached` INT NULL COMMENT 'Закешированные токены (prompt caching)',
+    `native_tokens_reasoning` INT NULL COMMENT 'Токены рассуждений (для reasoning моделей)',
     
-    -- Cache
-    `cache_hit` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Использован ли кеш',
-    `cache_key` VARCHAR(64) NULL DEFAULT NULL COMMENT 'Ключ кеша MD5',
+    -- Стоимость (USD)
+    `usage_total` DECIMAL(10, 8) NULL COMMENT 'Общая стоимость запроса в USD',
+    `usage_cache` DECIMAL(10, 8) NULL COMMENT 'Стоимость использования кеша в USD',
+    `usage_data` DECIMAL(10, 8) NULL COMMENT 'Стоимость веб-поиска/data retrieval в USD',
+    `usage_file` DECIMAL(10, 8) NULL COMMENT 'Стоимость обработки файлов в USD',
     
-    -- Metadata
-    `request_metadata` JSON NULL DEFAULT NULL COMMENT 'Дополнительные данные запроса',
-    `response_metadata` JSON NULL DEFAULT NULL COMMENT 'Дополнительные данные ответа',
+    -- Статус завершения
+    `finish_reason` VARCHAR(50) NULL COMMENT 'Причина завершения (stop, length, content_filter)',
     
-    -- Timestamps
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания метрики',
+    -- Контекст использования
+    `pipeline_module` VARCHAR(100) NULL COMMENT 'Модуль pipeline (Summarization, Deduplication, Translation)',
+    `batch_id` INT NULL COMMENT 'ID batch обработки (если применимо)',
+    `task_context` TEXT NULL COMMENT 'Дополнительный контекст задачи (JSON)',
     
-    PRIMARY KEY (`id`),
-    KEY `idx_module_name` (`module_name`),
-    KEY `idx_model` (`model`),
-    KEY `idx_item_id` (`item_id`),
-    KEY `idx_feed_id` (`feed_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created_at` (`created_at`),
-    KEY `idx_cache_hit` (`cache_hit`),
-    KEY `idx_request_id` (`request_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-COMMENT='Метрики использования OpenRouter API';
+    -- Полный ответ для расширения
+    `full_response` JSON NULL COMMENT 'Полный JSON ответ от OpenRouter для будущего анализа',
+    
+    -- Timestamp записи
+    `recorded_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Время записи метрик в БД',
+    
+    -- Индексы для оптимизации запросов
+    INDEX `idx_model` (`model`),
+    INDEX `idx_provider` (`provider_name`),
+    INDEX `idx_generation_id` (`generation_id`),
+    INDEX `idx_pipeline_module` (`pipeline_module`),
+    INDEX `idx_created_at` (`created_at`),
+    INDEX `idx_recorded_at` (`recorded_at`),
+    INDEX `idx_batch_id` (`batch_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+COMMENT='Детальные метрики OpenRouter API';
 
 -- ============================================================================
 -- ИНИЦИАЛИЗАЦИЯ ДАННЫХ
