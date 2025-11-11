@@ -30,12 +30,12 @@ CREATE TABLE IF NOT EXISTS openrouter_metrics (
     native_tokens_reasoning INT NULL COMMENT 'Токены рассуждений (для reasoning моделей)',
     
     -- Стоимость (USD)
-    usage_total DECIMAL(10, 8) NULL COMMENT 'Общая стоимость запроса в USD (до скидок)',
-    usage_cache DECIMAL(10, 8) NULL COMMENT 'Скидка за кеширование промптов в USD (отрицательная)',
-    usage_data DECIMAL(10, 8) NULL COMMENT 'Компенсация OpenRouter за обучение на промптах в USD (отрицательная)',
+    usage_total DECIMAL(10, 8) NULL COMMENT 'Финальная стоимость запроса в USD (после всех скидок и компенсаций)',
+    usage_cache DECIMAL(10, 8) NULL COMMENT 'Скидка за кеширование промптов в USD (отрицательная, только для информации)',
+    usage_data DECIMAL(10, 8) NULL COMMENT 'Компенсация OpenRouter за обучение на промптах в USD (отрицательная, только для информации)',
     usage_web DECIMAL(10, 8) NULL COMMENT 'Стоимость веб-поиска в USD',
     usage_file DECIMAL(10, 8) NULL COMMENT 'Стоимость обработки файлов в USD',
-    final_cost DECIMAL(10, 8) NULL COMMENT 'Итоговая стоимость = usage_total + usage_cache + usage_data + usage_web + usage_file в USD',
+    final_cost DECIMAL(10, 8) NULL COMMENT 'Копия usage_total для удобства (финальная стоимость)',
     
     -- Статус завершения
     finish_reason VARCHAR(50) NULL COMMENT 'Причина завершения (stop, length, content_filter)',

@@ -893,11 +893,7 @@ class OpenRouter
             
             $metrics = $data['data'];
             
-            $usage = isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : 0.0;
-            $usageCache = isset($metrics['usage_cache']) ? (float)$metrics['usage_cache'] : 0.0;
-            $usageData = isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : 0.0;
-            $usageWeb = isset($metrics['usage_web']) ? (float)$metrics['usage_web'] : 0.0;
-            $usageFile = isset($metrics['usage_file']) ? (float)$metrics['usage_file'] : 0.0;
+            $usage = isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : null;
             
             return [
                 'generation_time' => $metrics['generation_time'] ?? null,
@@ -907,12 +903,12 @@ class OpenRouter
                 'native_tokens_completion' => $metrics['native_tokens_completion'] ?? null,
                 'native_tokens_cached' => $metrics['native_tokens_cached'] ?? null,
                 'native_tokens_reasoning' => $metrics['native_tokens_reasoning'] ?? null,
-                'usage_total' => $usage !== 0.0 ? $usage : null,
-                'usage_cache' => $usageCache !== 0.0 ? $usageCache : null,
-                'usage_data' => $usageData !== 0.0 ? $usageData : null,
-                'usage_web' => $usageWeb !== 0.0 ? $usageWeb : null,
-                'usage_file' => $usageFile !== 0.0 ? $usageFile : null,
-                'final_cost' => $this->calculateFinalCost($usage, $usageCache, $usageData, $usageWeb, $usageFile),
+                'usage_total' => $usage,
+                'usage_cache' => isset($metrics['usage_cache']) ? (float)$metrics['usage_cache'] : null,
+                'usage_data' => isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : null,
+                'usage_web' => isset($metrics['usage_web']) ? (float)$metrics['usage_web'] : null,
+                'usage_file' => isset($metrics['usage_file']) ? (float)$metrics['usage_file'] : null,
+                'final_cost' => $usage, // usage УЖЕ содержит финальную стоимость
             ];
             
         } catch (\Exception $e) {
@@ -968,13 +964,8 @@ class OpenRouter
             'usage_data' => isset($response['usage_data']) ? (float)$response['usage_data'] : null,
             'usage_web' => isset($response['usage_web']) ? (float)$response['usage_web'] : null,
             'usage_file' => isset($response['usage_file']) ? (float)$response['usage_file'] : null,
-            'final_cost' => $this->calculateFinalCost(
-                isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : 0.0,
-                isset($response['usage_cache']) ? (float)$response['usage_cache'] : 0.0,
-                isset($response['usage_data']) ? (float)$response['usage_data'] : 0.0,
-                isset($response['usage_web']) ? (float)$response['usage_web'] : 0.0,
-                isset($response['usage_file']) ? (float)$response['usage_file'] : 0.0
-            ),
+            // usage УЖЕ содержит финальную стоимость (после всех скидок и компенсаций)
+            'final_cost' => isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : null,
             
             // Статус завершения
             'finish_reason' => $choice['finish_reason'] ?? null,
@@ -996,45 +987,5 @@ class OpenRouter
         if ($this->logger !== null) {
             $this->logger->warning($message, $context);
         }
-    }
-    
-    /**
-     * Вычисляет итоговую стоимость запроса после компенсаций и скидок
-     * 
-     * Формула: final_cost = usage + usage_cache + usage_data + usage_web + usage_file
-     * 
-     * Все поля со скидками/компенсациями приходят УЖЕ отрицательными:
-     * - usage_cache: скидка за кеширование промптов (отрицательная)
-     * - usage_data: компенсация за разрешение обучаться на промптах (отрицательная)
-     * - usage_web: стоимость веб-поиска (может быть положительной)
-     * - usage_file: стоимость обработки файлов (может быть положительной)
-     * 
-     * Поэтому просто суммируем все значения.
-     *
-     * @param float $usage Общая стоимость запроса (usage_total)
-     * @param float $usageCache Скидка за кеш (отрицательная)
-     * @param float $usageData Компенсация за обучение (отрицательная)
-     * @param float $usageWeb Стоимость веб-поиска
-     * @param float $usageFile Стоимость обработки файлов
-     * @return float|null Итоговая стоимость или null если данных недостаточно
-     */
-    private function calculateFinalCost(
-        float $usage = 0.0,
-        float $usageCache = 0.0,
-        float $usageData = 0.0,
-        float $usageWeb = 0.0,
-        float $usageFile = 0.0
-    ): ?float {
-        // Если usage нулевой, возвращаем null (нет данных)
-        if ($usage === 0.0) {
-            return null;
-        }
-        
-        // Суммируем все компоненты стоимости
-        // Отрицательные значения (скидки) уже учтены в знаке
-        $finalCost = $usage + $usageCache + $usageData + $usageWeb + $usageFile;
-        
-        // Возвращаем итоговую стоимость (может быть отрицательной теоретически, но обычно положительная)
-        return $finalCost;
     }
 }
