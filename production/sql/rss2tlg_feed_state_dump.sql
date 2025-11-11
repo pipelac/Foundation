@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19  Distrib 10.11.13-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: rss2tlg
+-- Host: 127.0.0.1    Database: rss2tlg
 -- ------------------------------------------------------
 -- Server version	10.11.13-MariaDB-0ubuntu0.24.04.1
 
@@ -25,14 +25,13 @@ DROP TABLE IF EXISTS `rss2tlg_feed_state`;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `rss2tlg_feed_state` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Первичный ключ',
-  `feed_id` int(10) unsigned NOT NULL COMMENT 'Идентификатор источника (из конфигурации)',
+  `feed_id` int(10) unsigned NOT NULL COMMENT 'Идентификатор источника',
   `url` varchar(512) NOT NULL COMMENT 'URL RSS/Atom ленты',
   `etag` varchar(255) DEFAULT NULL COMMENT 'ETag из последнего успешного ответа',
   `last_modified` varchar(255) DEFAULT NULL COMMENT 'Last-Modified из последнего успешного ответа',
-  `last_status` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT 'HTTP статус код последнего запроса (0 = сетевая ошибка)',
-  `last_error` text DEFAULT NULL COMMENT 'Текст последней ошибки',
+  `last_status` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT 'HTTP статус код последнего запроса',
   `error_count` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT 'Счётчик последовательных ошибок',
-  `backoff_until` datetime DEFAULT NULL COMMENT 'Время до которого запросы заблокированы (exponential backoff)',
+  `backoff_until` datetime DEFAULT NULL COMMENT 'Время до которого запросы заблокированы',
   `fetched_at` datetime NOT NULL COMMENT 'Время последнего запроса',
   `updated_at` datetime NOT NULL COMMENT 'Время последнего обновления записи',
   `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Время создания записи',
@@ -41,7 +40,7 @@ CREATE TABLE `rss2tlg_feed_state` (
   UNIQUE KEY `idx_url` (`url`),
   KEY `idx_backoff_until` (`backoff_until`),
   KEY `idx_error_count` (`error_count`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Состояние RSS/Atom источников для модуля fetch';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Состояние RSS/Atom источников';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -50,12 +49,6 @@ CREATE TABLE `rss2tlg_feed_state` (
 
 LOCK TABLES `rss2tlg_feed_state` WRITE;
 /*!40000 ALTER TABLE `rss2tlg_feed_state` DISABLE KEYS */;
-INSERT INTO `rss2tlg_feed_state` VALUES
-(5,1,'https://ria.ru/export/rss2/index.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:55','2025-11-10 10:24:55','2025-11-09 13:36:49'),
-(6,2,'https://www.kommersant.ru/rss/news.xml',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:57','2025-11-10 10:24:57','2025-11-09 13:36:51'),
-(7,3,'https://www.interfax.ru/rss',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:58','2025-11-10 10:24:58','2025-11-09 13:36:52'),
-(8,4,'https://meduza.io/rss2/news',NULL,NULL,200,NULL,0,NULL,'2025-11-09 13:37:24','2025-11-09 13:37:24','2025-11-09 13:36:53'),
-(9,5,'https://techcrunch.com/feed/',NULL,NULL,200,NULL,0,NULL,'2025-11-10 10:24:58','2025-11-10 10:24:58','2025-11-10 10:24:58');
 /*!40000 ALTER TABLE `rss2tlg_feed_state` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -68,4 +61,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-10 10:25:07
+-- Dump completed on 2025-11-11 17:50:52

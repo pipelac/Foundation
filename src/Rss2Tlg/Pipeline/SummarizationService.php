@@ -53,6 +53,7 @@ class SummarizationService extends AbstractPipelineModule
         $this->logger = $logger;
         $this->config = $this->validateConfig($config);
         $this->metrics = $this->initializeMetrics();
+        $this->metricsDb = $db;
     }
 
     /**
