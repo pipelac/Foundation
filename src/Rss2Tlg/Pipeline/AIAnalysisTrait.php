@@ -320,7 +320,7 @@ trait AIAnalysisTrait
                     generation_time, latency, moderation_latency,
                     tokens_prompt, tokens_completion,
                     native_tokens_prompt, native_tokens_completion, native_tokens_cached, native_tokens_reasoning,
-                    usage_total, usage_cache, usage_data, usage_file,
+                    usage_total, usage_cache, usage_data, usage_web, usage_file, final_cost,
                     finish_reason,
                     pipeline_module, batch_id, task_context,
                     full_response
@@ -329,7 +329,7 @@ trait AIAnalysisTrait
                     :generation_time, :latency, :moderation_latency,
                     :tokens_prompt, :tokens_completion,
                     :native_tokens_prompt, :native_tokens_completion, :native_tokens_cached, :native_tokens_reasoning,
-                    :usage_total, :usage_cache, :usage_data, :usage_file,
+                    :usage_total, :usage_cache, :usage_data, :usage_web, :usage_file, :final_cost,
                     :finish_reason,
                     :pipeline_module, :batch_id, :task_context,
                     :full_response
@@ -357,7 +357,9 @@ trait AIAnalysisTrait
                 ':usage_total' => $detailedMetrics['usage_total'] ?? null,
                 ':usage_cache' => $detailedMetrics['usage_cache'] ?? null,
                 ':usage_data' => $detailedMetrics['usage_data'] ?? null,
+                ':usage_web' => $detailedMetrics['usage_web'] ?? null,
                 ':usage_file' => $detailedMetrics['usage_file'] ?? null,
+                ':final_cost' => $detailedMetrics['final_cost'] ?? null,
                 
                 ':finish_reason' => $detailedMetrics['finish_reason'] ?? null,
                 

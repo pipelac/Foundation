@@ -893,6 +893,8 @@ class OpenRouter
             
             $metrics = $data['data'];
             
+            $usage = isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : null;
+            
             return [
                 'generation_time' => $metrics['generation_time'] ?? null,
                 'latency' => $metrics['latency'] ?? null,
@@ -901,10 +903,12 @@ class OpenRouter
                 'native_tokens_completion' => $metrics['native_tokens_completion'] ?? null,
                 'native_tokens_cached' => $metrics['native_tokens_cached'] ?? null,
                 'native_tokens_reasoning' => $metrics['native_tokens_reasoning'] ?? null,
-                'usage_total' => isset($metrics['usage']) && is_numeric($metrics['usage']) ? (float)$metrics['usage'] : null,
+                'usage_total' => $usage,
                 'usage_cache' => isset($metrics['usage_cache']) ? (float)$metrics['usage_cache'] : null,
                 'usage_data' => isset($metrics['usage_data']) ? (float)$metrics['usage_data'] : null,
+                'usage_web' => isset($metrics['usage_web']) ? (float)$metrics['usage_web'] : null,
                 'usage_file' => isset($metrics['usage_file']) ? (float)$metrics['usage_file'] : null,
+                'final_cost' => $usage, // usage УЖЕ содержит финальную стоимость
             ];
             
         } catch (\Exception $e) {
@@ -958,7 +962,10 @@ class OpenRouter
             'usage_total' => isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : null,
             'usage_cache' => isset($response['usage_cache']) ? (float)$response['usage_cache'] : null,
             'usage_data' => isset($response['usage_data']) ? (float)$response['usage_data'] : null,
+            'usage_web' => isset($response['usage_web']) ? (float)$response['usage_web'] : null,
             'usage_file' => isset($response['usage_file']) ? (float)$response['usage_file'] : null,
+            // usage УЖЕ содержит финальную стоимость (после всех скидок и компенсаций)
+            'final_cost' => isset($response['usage']) && is_numeric($response['usage']) ? (float)$response['usage'] : null,
             
             // Статус завершения
             'finish_reason' => $choice['finish_reason'] ?? null,
