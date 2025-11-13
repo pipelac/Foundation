@@ -5,28 +5,36 @@
             "feed_url": "https://ria.ru/export/rss2/index.xml?page_type=google_newsstand",
             "website_url": "https://ria.ru",
             "enabled": true,
-            "extraction_delay": 0
+            "extraction_delay": 0,
+            "extract_content_from_link": false,
+            "use_htmlweb_proxy": false
         },
         {
             "name": "Коммерсантъ",
             "feed_url": "https://www.kommersant.ru/rss/news.xml",
             "website_url": "https://www.kommersant.ru",
             "enabled": true,
-            "extraction_delay": 1
+            "extraction_delay": 1,
+            "extract_content_from_link": false,
+            "use_htmlweb_proxy": false
         },
         {
             "name": "Интерфакс",
             "feed_url": "https://www.interfax.ru/rss",
             "website_url": "https://www.interfax.ru",
             "enabled": true,
-            "extraction_delay": 1
+            "extraction_delay": 1,
+            "extract_content_from_link": false,
+            "use_htmlweb_proxy": false
         },
         {
             "name": "TechCrunch",
             "feed_url": "https://techcrunch.com/feed/",
             "website_url": "https://techcrunch.com",
             "enabled": true,
-            "extraction_delay": 0
+            "extraction_delay": 2,
+            "extract_content_from_link": true,
+            "use_htmlweb_proxy": true
         }
     ]
 }
