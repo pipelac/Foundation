@@ -5,18 +5,22 @@ declare(strict_types=1);
 namespace App\Rss2Tlg\Pipeline;
 
 use App\Component\OpenRouter;
+use App\Component\OpenRouterResponseAnalysis;
 use DateTimeImmutable;
 use Exception;
 
 /**
- * Трейт для AI анализа с fallback механизмом
+ * Трейт для AI анализа с fallback механизмом и аналитикой
  * 
- * Предоставляет универсальный функционал для работы с AI моделями:
+ * Предоставляет высокоуровневый функционал для работы с AI моделями в pipeline:
  * - Fallback между моделями
- * - Retry механизм
- * - Кеширование промптов (Claude)
- * - Сбор метрик использования
+ * - Retry механизм с экспоненциальной задержкой
  * - Детальное хранение метрик OpenRouter в БД
+ * - Аналитика по периодам, моделям, кешированию
+ * - Экспорт отчетов в JSON/CSV
+ * 
+ * Базовые утилиты (парсинг JSON, подготовка сообщений/опций) делегированы к
+ * OpenRouterResponseAnalysis для переиспользования в других проектах.
  */
 trait AIAnalysisTrait
 {
@@ -131,13 +135,11 @@ trait AIAnalysisTrait
 
         $content = $response['content'];
         
-        // Извлекаем JSON из ответа (может быть обернут в markdown блоки или иметь префикс)
-        $jsonContent = $this->extractJSON($content);
-        
-        $analysisData = json_decode($jsonContent, true);
+        // Извлекаем и парсим JSON из ответа (используем базовый класс)
+        $analysisData = OpenRouterResponseAnalysis::parseJSONResponse($content);
 
-        if (!$analysisData) {
-            throw new Exception('Не удалось распарсить JSON ответ от AI: ' . json_last_error_msg());
+        if ($analysisData === null) {
+            throw new Exception('Не удалось распарсить JSON ответ от AI');
         }
 
         // Извлекаем метрики
@@ -168,6 +170,8 @@ trait AIAnalysisTrait
 
     /**
      * Подготавливает messages для AI запроса
+     * 
+     * Делегирует к OpenRouterResponseAnalysis::prepareMessages()
      *
      * @param string $systemPrompt
      * @param string $userPrompt
@@ -176,37 +180,13 @@ trait AIAnalysisTrait
      */
     protected function prepareMessages(string $systemPrompt, string $userPrompt, string $model): array
     {
-        $messages = [];
-
-        // Для Claude используем кеширование промптов
-        if (str_contains($model, 'claude')) {
-            $messages[] = [
-                'role' => 'system',
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'text' => $systemPrompt,
-                        'cache_control' => ['type' => 'ephemeral'],
-                    ],
-                ],
-            ];
-        } else {
-            $messages[] = [
-                'role' => 'system',
-                'content' => $systemPrompt,
-            ];
-        }
-
-        $messages[] = [
-            'role' => 'user',
-            'content' => $userPrompt,
-        ];
-
-        return $messages;
+        return OpenRouterResponseAnalysis::prepareMessages($systemPrompt, $userPrompt, $model);
     }
 
     /**
      * Подготавливает опции для AI запроса
+     * 
+     * Делегирует к OpenRouterResponseAnalysis::prepareOptions()
      *
      * @param array<string, mixed>|string $modelConfig
      * @param array<string, mixed>|null $extraOptions
@@ -214,62 +194,27 @@ trait AIAnalysisTrait
      */
     protected function prepareOptions($modelConfig, ?array $extraOptions = null): array
     {
-        $options = ['response_format' => ['type' => 'json_object']];
-        
-        if (is_array($modelConfig)) {
-            // Копируем параметры из конфигурации модели
-            $allowedParams = ['max_tokens', 'temperature', 'top_p', 'frequency_penalty', 'presence_penalty'];
-            foreach ($allowedParams as $param) {
-                if (isset($modelConfig[$param])) {
-                    $options[$param] = $modelConfig[$param];
-                }
-            }
-        } else {
-            // Дефолтные значения для обратной совместимости
-            $options['max_tokens'] = 1500;
-            $options['temperature'] = 0.2;
-        }
-
-        // Объединяем с дополнительными опциями
-        if ($extraOptions) {
-            $options = array_merge($options, $extraOptions);
-        }
-
-        return $options;
+        return OpenRouterResponseAnalysis::prepareOptions($modelConfig, $extraOptions);
     }
 
     /**
      * Извлекает JSON из ответа AI (удаляет markdown блоки и префиксы)
+     * 
+     * Делегирует к OpenRouterResponseAnalysis::extractJSON()
      *
      * @param string $content Ответ от AI
      * @return string Очищенный JSON
+     * @deprecated Используйте напрямую OpenRouterResponseAnalysis::parseJSONResponse() для парсинга с обработкой ошибок
      */
     protected function extractJSON(string $content): string
     {
-        // Убираем лишние пробелы в начале и конце
-        $content = trim($content);
-        
-        // Паттерн 1: JSON внутри markdown блоков ```json...``` или ```...```
-        if (preg_match('/```(?:json)?\s*\n?(.*?)\n?```/s', $content, $matches)) {
-            return trim($matches[1]);
-        }
-        
-        // Паттерн 2: JSON начинается с { и заканчивается }
-        if (preg_match('/(\{.*\})/s', $content, $matches)) {
-            return $matches[1];
-        }
-        
-        // Паттерн 3: JSON начинается с [ и заканчивается ]
-        if (preg_match('/(\[.*\])/s', $content, $matches)) {
-            return $matches[1];
-        }
-        
-        // Возвращаем как есть, если не нашли паттернов
-        return $content;
+        return OpenRouterResponseAnalysis::extractJSON($content);
     }
 
     /**
      * Валидирует конфигурацию AI модулей
+     * 
+     * Делегирует к OpenRouterResponseAnalysis::validateAIConfig()
      *
      * @param array<string, mixed> $config
      * @return array<string, mixed>
@@ -277,19 +222,7 @@ trait AIAnalysisTrait
      */
     protected function validateAIConfig(array $config): array
     {
-        if (empty($config['models']) || !is_array($config['models'])) {
-            throw new Exception('Не указаны AI модели');
-        }
-
-        if (empty($config['prompt_file']) || !file_exists($config['prompt_file'])) {
-            throw new Exception('Не указан или не найден файл промпта');
-        }
-
-        return [
-            'models' => $config['models'],
-            'fallback_strategy' => $config['fallback_strategy'] ?? 'sequential',
-            'prompt_file' => $config['prompt_file'],
-        ];
+        return OpenRouterResponseAnalysis::validateAIConfig($config);
     }
 
     /**
