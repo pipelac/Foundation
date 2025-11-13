@@ -1,8 +1,13 @@
 -- ============================================================================
 -- ПОЛНАЯ СХЕМА БД ДЛЯ RSS2TLG PRODUCTION
 -- ============================================================================
--- Версия: 1.0
--- Дата: 2025-11-11
+-- Версия: 2.0
+-- Дата: 2025-11-13
+-- Обновления:
+--   - Добавлено поле last_error в rss2tlg_feed_state
+--   - Добавлены английские поля для кросс-языковой дедупликации в rss2tlg_summarization
+--   - Добавлены поля двухэтапной дедупликации в rss2tlg_deduplication
+--   - Добавлены поля usage_web и final_cost в openrouter_metrics
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -32,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_feed_state` (
     `etag` VARCHAR(255) NULL DEFAULT NULL COMMENT 'ETag из последнего успешного ответа',
     `last_modified` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Last-Modified из последнего успешного ответа',
     `last_status` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'HTTP статус код последнего запроса',
+    `last_error` TEXT NULL DEFAULT NULL COMMENT 'Текст последней ошибки',
     `error_count` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Счётчик последовательных ошибок',
     `backoff_until` DATETIME NULL DEFAULT NULL COMMENT 'Время до которого запросы заблокированы',
     `fetched_at` DATETIME NOT NULL COMMENT 'Время последнего запроса',
@@ -97,19 +103,24 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_summarization` (
     
     -- Категоризация
     `category_primary` VARCHAR(100) NULL DEFAULT NULL COMMENT 'Основная категория',
+    `category_primary_en` VARCHAR(100) NULL DEFAULT NULL COMMENT 'Основная категория на английском',
     `category_secondary` JSON NULL DEFAULT NULL COMMENT 'Массив дополнительных категорий (до 2)',
+    `category_secondary_en` JSON NULL DEFAULT NULL COMMENT 'Массив дополнительных категорий на английском',
     
     -- Контент
     `headline` VARCHAR(500) NOT NULL DEFAULT '' COMMENT 'Заголовок новости',
     `summary` TEXT NULL DEFAULT NULL COMMENT 'Краткое содержание (суммаризация)',
     `keywords` JSON NULL DEFAULT NULL COMMENT 'Массив ключевых слов (до 5)',
+    `keywords_en` JSON NULL DEFAULT NULL COMMENT 'Массив ключевых слов на английском',
     
     -- Важность
     `importance_rating` TINYINT UNSIGNED NULL DEFAULT NULL COMMENT 'Рейтинг важности (1-20)',
     
     -- Данные для дедупликации
     `dedup_canonical_entities` JSON NULL DEFAULT NULL COMMENT 'Ключевые сущности для дедупликации',
+    `dedup_canonical_entities_en` JSON NULL DEFAULT NULL COMMENT 'Ключевые сущности на английском для дедупликации',
     `dedup_core_event` TEXT NULL DEFAULT NULL COMMENT 'Описание ключевого события',
+    `dedup_core_event_en` TEXT NULL DEFAULT NULL COMMENT 'Описание ключевого события на английском',
     `dedup_numeric_facts` JSON NULL DEFAULT NULL COMMENT 'Числовые факты и даты',
     
     -- Метрики обработки
@@ -137,6 +148,7 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_summarization` (
     KEY `idx_status` (`status`),
     KEY `idx_importance_rating` (`importance_rating`),
     KEY `idx_category_primary` (`category_primary`),
+    KEY `idx_category_primary_en` (`category_primary_en`),
     KEY `idx_article_language` (`article_language`),
     KEY `idx_processed_at` (`processed_at`),
     KEY `idx_feed_status` (`feed_id`, `status`)
@@ -159,7 +171,10 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_deduplication` (
     `is_duplicate` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Является ли дубликатом (0/1)',
     `duplicate_of_item_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'ID оригинальной новости (FK)',
     `similarity_score` DECIMAL(5,2) NULL DEFAULT NULL COMMENT 'Оценка схожести (0.00-100.00)',
+    `preliminary_similarity_score` DECIMAL(5,2) NULL DEFAULT NULL COMMENT 'Предварительная оценка схожести (0.00-100.00)',
     `similarity_method` ENUM('ai', 'hash', 'hybrid', 'preliminary') NULL DEFAULT NULL COMMENT 'Метод определения схожести',
+    `preliminary_method` VARCHAR(50) NULL DEFAULT 'hybrid_v1' COMMENT 'Метод предварительной оценки (hybrid_v1, jaccard, etc.)',
+    `ai_analysis_triggered` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Был ли вызван AI анализ (0=fast path, 1=AI used)',
     `can_be_published` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Можно ли публиковать (0/1)',
     
     -- Детали проверки
@@ -191,6 +206,8 @@ CREATE TABLE IF NOT EXISTS `rss2tlg_deduplication` (
     KEY `idx_can_be_published` (`can_be_published`),
     KEY `idx_duplicate_of` (`duplicate_of_item_id`),
     KEY `idx_similarity_score` (`similarity_score`),
+    KEY `idx_preliminary_score` (`preliminary_similarity_score`),
+    KEY `idx_ai_triggered` (`ai_analysis_triggered`),
     KEY `idx_checked_at` (`checked_at`),
     KEY `idx_feed_status` (`feed_id`, `status`),
     KEY `idx_publish_ready` (`can_be_published`, `is_duplicate`)
@@ -248,7 +265,9 @@ CREATE TABLE IF NOT EXISTS `openrouter_metrics` (
     `usage_total` DECIMAL(10, 8) NULL COMMENT 'Общая стоимость запроса в USD',
     `usage_cache` DECIMAL(10, 8) NULL COMMENT 'Стоимость использования кеша в USD',
     `usage_data` DECIMAL(10, 8) NULL COMMENT 'Стоимость веб-поиска/data retrieval в USD',
+    `usage_web` DECIMAL(10, 8) NULL COMMENT 'Стоимость веб-поиска в USD',
     `usage_file` DECIMAL(10, 8) NULL COMMENT 'Стоимость обработки файлов в USD',
+    `final_cost` DECIMAL(10, 8) NULL COMMENT 'Финальная стоимость после всех скидок (копия usage_total)',
     
     -- Статус завершения
     `finish_reason` VARCHAR(50) NULL COMMENT 'Причина завершения (stop, length, content_filter)',
