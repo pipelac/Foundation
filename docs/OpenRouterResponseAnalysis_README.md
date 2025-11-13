@@ -1,0 +1,318 @@
+# OpenRouterResponseAnalysis - Быстрый старт
+
+## Описание
+
+`OpenRouterResponseAnalysis` - минималистичный базовый класс для работы с ответами от AI API (OpenRouter и других).
+
+**Основные возможности:**
+- 🔍 Извлечение JSON из ответов AI (с обработкой markdown блоков)
+- 💬 Подготовка сообщений для запросов (с кешированием для Claude)
+- ⚙️ Подготовка опций для запросов
+- ✅ Валидация конфигурации AI модулей
+
+**Особенности:**
+- ⚡ Статические методы (не требует создания экземпляра)
+- 🪶 Без зависимостей от БД
+- 📝 Опциональное логирование
+- 🔄 Переиспользуемый в любых проектах
+
+---
+
+## Быстрый старт
+
+### 1. Подключение
+
+```php
+use App\Component\OpenRouterResponseAnalysis;
+```
+
+### 2. Извлечение JSON из ответа AI
+
+```php
+// Ответ от AI с markdown блоком
+$response = <<<'RESPONSE'
+Вот результат анализа:
+
+```json
+{
+    "status": "success",
+    "data": [1, 2, 3],
+    "confidence": 0.95
+}
+```
+
+Анализ завершен.
+RESPONSE;
+
+// Парсим JSON
+$data = OpenRouterResponseAnalysis::parseJSONResponse($response);
+
+// Используем данные
+echo "Status: {$data['status']}\n";
+echo "Confidence: {$data['confidence']}\n";
+print_r($data['data']);
+```
+
+### 3. Подготовка сообщений для Claude (с кешированием!)
+
+```php
+$messages = OpenRouterResponseAnalysis::prepareMessages(
+    systemPrompt: 'You are an expert news analyst',
+    userPrompt: 'Analyze this article...',
+    model: 'anthropic/claude-3.5-sonnet'
+);
+
+// Результат содержит cache_control для экономии токенов
+// Можно использовать напрямую с OpenRouter API
+```
+
+### 4. Подготовка опций из конфигурации
+
+```php
+$modelConfig = [
+    'model' => 'openai/gpt-4',
+    'max_tokens' => 2000,
+    'temperature' => 0.7
+];
+
+$options = OpenRouterResponseAnalysis::prepareOptions($modelConfig);
+
+// Результат готов для использования с OpenRouter API
+```
+
+---
+
+## Основные методы
+
+### extractJSON(string $content): string
+Извлекает чистый JSON из ответа AI.
+
+```php
+$json = OpenRouterResponseAnalysis::extractJSON($response);
+```
+
+### parseJSONResponse(string $content): ?array
+Извлекает и парсит JSON с обработкой ошибок.
+
+```php
+$data = OpenRouterResponseAnalysis::parseJSONResponse($response);
+if ($data !== null) {
+    // Используем данные
+}
+```
+
+### prepareMessages(string $systemPrompt, string $userPrompt, string $model): array
+Подготавливает сообщения для запроса (с кешированием для Claude).
+
+```php
+$messages = OpenRouterResponseAnalysis::prepareMessages(
+    'You are a helpful assistant',
+    'Hello!',
+    'anthropic/claude-3.5-sonnet'
+);
+```
+
+### prepareOptions($modelConfig, ?array $extraOptions = null): array
+Подготавливает опции для запроса.
+
+```php
+$options = OpenRouterResponseAnalysis::prepareOptions([
+    'max_tokens' => 2000,
+    'temperature' => 0.7
+]);
+```
+
+### validateAIConfig(array $config): array
+Валидирует конфигурацию AI модулей.
+
+```php
+$validatedConfig = OpenRouterResponseAnalysis::validateAIConfig([
+    'models' => ['openai/gpt-4', 'anthropic/claude-3.5-sonnet'],
+    'prompt_file' => '/path/to/prompt.txt'
+]);
+```
+
+---
+
+## Полный пример использования
+
+```php
+use App\Component\OpenRouter;
+use App\Component\OpenRouterResponseAnalysis;
+use App\Component\Logger;
+
+// 1. Настройка логирования (опционально)
+$logger = new Logger([
+    'directory' => __DIR__ . '/logs',
+    'file_name' => 'openrouter.log'
+]);
+OpenRouterResponseAnalysis::setLogger($logger);
+
+// 2. Инициализация OpenRouter
+$openRouter = new OpenRouter([
+    'api_key' => 'your-api-key',
+    'app_name' => 'MyApp'
+], $logger);
+
+// 3. Подготовка запроса
+$systemPrompt = 'You are a helpful assistant that responds in JSON';
+$userPrompt = 'Analyze this text and return sentiment';
+$model = 'anthropic/claude-3.5-sonnet';
+
+$messages = OpenRouterResponseAnalysis::prepareMessages(
+    $systemPrompt,
+    $userPrompt,
+    $model
+);
+
+$options = OpenRouterResponseAnalysis::prepareOptions([
+    'max_tokens' => 2000,
+    'temperature' => 0.3
+]);
+
+// 4. Отправка запроса
+$response = $openRouter->chatWithMessages($model, $messages, $options);
+
+// 5. Обработка ответа
+$data = OpenRouterResponseAnalysis::parseJSONResponse($response['content']);
+
+if ($data !== null) {
+    echo "Sentiment: {$data['sentiment']}\n";
+    echo "Confidence: {$data['confidence']}\n";
+} else {
+    echo "Failed to parse response\n";
+}
+```
+
+---
+
+## Поддерживаемые форматы ответов
+
+Класс автоматически обрабатывает различные форматы:
+
+### 1. JSON в markdown блоке
+```
+```json
+{"status": "ok"}
+```
+```
+
+### 2. JSON объект в тексте
+```
+Result: {"status": "ok", "value": 42} - done!
+```
+
+### 3. JSON массив в тексте
+```
+Items: [{"id": 1}, {"id": 2}]
+```
+
+### 4. Чистый JSON
+```json
+{"status": "ok"}
+```
+
+---
+
+## Дополнительные утилиты
+
+### detectJSONInText()
+Обнаруживает JSON в произвольном тексте.
+
+```php
+$text = "Here is data: {\"key\": \"value\"} - ready!";
+$json = OpenRouterResponseAnalysis::detectJSONInText($text);
+```
+
+### cleanMarkdown()
+Очищает markdown блоки из текста.
+
+```php
+$clean = OpenRouterResponseAnalysis::cleanMarkdown($markdownText);
+```
+
+### extractCodeBlock()
+Извлекает code block по языку.
+
+```php
+// Извлечь JSON блок
+$jsonBlock = OpenRouterResponseAnalysis::extractCodeBlock($text, 'json');
+
+// Извлечь любой блок
+$anyBlock = OpenRouterResponseAnalysis::extractCodeBlock($text);
+```
+
+---
+
+## Преимущества использования
+
+### 1. Автоматическое кеширование для Claude
+Метод `prepareMessages()` автоматически добавляет `cache_control` для моделей Claude, что экономит токены и деньги при повторных запросах с одинаковыми системными промптами.
+
+### 2. Обработка разных форматов
+Не нужно беспокоиться о том, в каком формате AI вернет JSON - класс обработает все популярные варианты.
+
+### 3. Безопасный парсинг
+Метод `parseJSONResponse()` возвращает `null` при ошибке, а не бросает исключение - удобно для обработки.
+
+### 4. Без состояния (stateless)
+Статические методы не хранят состояние - можно использовать в многопоточной среде.
+
+### 5. Минимальные зависимости
+Только Logger (опционально) - можно использовать в любом проекте.
+
+---
+
+## Отличия от AIAnalysisTrait
+
+| Функция | AIAnalysisTrait | OpenRouterResponseAnalysis |
+|---------|----------------|---------------------------|
+| Парсинг JSON | ✅ | ✅ |
+| Подготовка сообщений | ✅ | ✅ |
+| Подготовка опций | ✅ | ✅ |
+| Fallback между моделями | ✅ | ❌ |
+| Retry механизм | ✅ | ❌ |
+| Запись метрик в БД | ✅ | ❌ |
+| Аналитика | ✅ | ❌ |
+| Зависимость от БД | Да | Нет |
+| Использование | Trait для pipeline | Статические методы |
+
+**Вывод**: `OpenRouterResponseAnalysis` - это чистый базовый класс для парсинга и подготовки данных, а `AIAnalysisTrait` - это высокоуровневая обертка с БД и аналитикой для конкретного проекта.
+
+---
+
+## Примеры
+
+Смотрите файл `docs/examples/OpenRouterResponseAnalysis_examples.php` для **15 практических примеров** использования класса.
+
+---
+
+## Документация
+
+- **Детальный анализ**: `ANALYSIS_OpenRouterResponseAnalysis.md`
+- **Краткая сводка**: `SUMMARY_OpenRouterResponseAnalysis.md`
+- **Примеры**: `docs/examples/OpenRouterResponseAnalysis_examples.php`
+- **Этот файл**: `docs/OpenRouterResponseAnalysis_README.md`
+
+---
+
+## FAQ
+
+### Нужно ли создавать экземпляр класса?
+Нет, все методы статические.
+
+### Можно ли использовать без Logger?
+Да, логирование опционально.
+
+### Работает ли с другими AI API (не только OpenRouter)?
+Да, методы универсальны и работают с любыми API, возвращающими JSON.
+
+### Что делать, если JSON не парсится?
+`parseJSONResponse()` вернет `null` - проверяйте результат.
+
+### Как добавить поддержку нового формата ответа?
+Расширьте метод `extractJSON()` новым паттерном регулярного выражения.
+
+---
+
+**Готово к использованию! 🚀**
