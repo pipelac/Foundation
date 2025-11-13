@@ -11,6 +11,7 @@ use Exception;
 use fivefilters\Readability\Readability;
 use fivefilters\Readability\Configuration;
 use fivefilters\Readability\ParseException;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Класс для извлечения основного контента из веб-страниц на базе Readability
@@ -434,7 +435,7 @@ class WebtExtractor
     private function normalizeReadabilityResult(Readability $readability, string $url): array
     {
         $content = $readability->getContent() ?? '';
-        $textContent = $this->stripTags($content);
+        $textContent = $this->extractCleanText($content);
         $wordCount = $this->countWords($textContent);
         
         return [
@@ -747,10 +748,11 @@ class WebtExtractor
     }
 
     /**
-     * Удаляет HTML теги из текста
+     * Удаляет HTML теги из текста (устаревший метод, используйте extractCleanText)
      * 
      * @param string $html HTML контент
      * @return string Текст без тегов
+     * @deprecated Используйте extractCleanText() для лучшего качества извлечения текста
      */
     private function stripTags(string $html): string
     {
@@ -758,6 +760,73 @@ class WebtExtractor
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/\s+/u', ' ', $text);
         return trim($text ?? '');
+    }
+
+    /**
+     * Извлекает чистый текст из HTML с использованием Symfony DomCrawler
+     * 
+     * Этот метод правильно обрабатывает HTML структуру:
+     * - Извлекает текст из всех текстовых узлов
+     * - Сохраняет пробелы между элементами
+     * - Удаляет скрипты, стили и комментарии
+     * - Декодирует HTML entities
+     * - Нормализует пробелы и переносы строк
+     * 
+     * @param string $html HTML контент для очистки
+     * @return string Чистый текст без HTML тегов
+     */
+    public function extractCleanText(string $html): string
+    {
+        try {
+            if (trim($html) === '') {
+                return '';
+            }
+
+            // Добавляем пробелы после блочных элементов для правильного разделения
+            $blockElements = ['p', 'div', 'article', 'section', 'header', 'footer', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br'];
+            foreach ($blockElements as $tag) {
+                $html = preg_replace("/<\/{$tag}>/i", "</{$tag}> ", $html);
+            }
+
+            // Создаем Crawler из HTML
+            $crawler = new Crawler($html);
+            
+            // Удаляем нежелательные элементы
+            $crawler->filter('script, style, noscript, iframe, embed, object')->each(function (Crawler $node) {
+                foreach ($node as $domNode) {
+                    $domNode->parentNode?->removeChild($domNode);
+                }
+            });
+            
+            // Извлекаем текст
+            $text = $crawler->text('', true);
+            
+            // Декодируем HTML entities
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            
+            // Нормализуем пробелы: заменяем множественные пробелы одним
+            $text = preg_replace('/[ \t]+/u', ' ', $text);
+            
+            // Нормализуем переносы строк: заменяем множественные переносы максимум двумя
+            $text = preg_replace('/\n{3,}/u', "\n\n", $text);
+            
+            // Убираем пробелы в начале и конце каждой строки
+            $lines = explode("\n", $text);
+            $lines = array_map('trim', $lines);
+            $text = implode("\n", $lines);
+            
+            // Убираем пустые строки в начале и конце
+            return trim($text ?? '');
+            
+        } catch (Exception $e) {
+            $this->logWarning('Ошибка извлечения чистого текста через DomCrawler', [
+                'error' => $e->getMessage(),
+                'html_length' => strlen($html)
+            ]);
+            
+            // Fallback на простой stripTags при ошибке
+            return $this->stripTags($html);
+        }
     }
 
     /**
