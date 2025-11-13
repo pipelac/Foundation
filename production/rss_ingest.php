@@ -427,8 +427,19 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
             return $result;
         }
         
-        // Парсинг RSS
-        $items = parseRSS($rssContent, $feed, $logger);
+        // Инициализация WebtExtractor для очистки HTML и извлечения контента
+        $extractContent = (bool)($config['extract_content_from_link'] ?? false);
+        $extractorConfig = [
+            'user_agent' => $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'timeout' => $config['fetch_timeout'] ?? 30,
+            'extract_images' => true,
+            'extract_links' => false,
+            'extract_metadata' => true
+        ];
+        $extractor = new WebtExtractor($extractorConfig, $logger);
+        
+        // Парсинг RSS с очисткой HTML
+        $items = parseRSS($rssContent, $feed, $logger, $extractor);
         
         if (empty($items)) {
             $result['error'] = 'No items found in RSS';
@@ -444,21 +455,6 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
         }
         
         $result['items_total'] = count($items);
-        
-        // Инициализация WebtExtractor если нужно извлекать контент
-        $extractContent = (bool)($config['extract_content_from_link'] ?? false);
-        $extractor = null;
-        
-        if ($extractContent) {
-            $extractorConfig = [
-                'user_agent' => $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'timeout' => $config['fetch_timeout'] ?? 30,
-                'extract_images' => true,
-                'extract_links' => false,
-                'extract_metadata' => true
-            ];
-            $extractor = new WebtExtractor($extractorConfig, $logger);
-        }
         
         // Задержка извлечения (из конфига фида или глобального конфига)
         $extractionDelay = (int)($feed['extraction_delay'] ?? $config['content_extraction_delay'] ?? 5);
@@ -588,7 +584,7 @@ function fetchRSS(string $url, Logger $logger, array $config): ?string
 /**
  * Парсинг RSS контента
  */
-function parseRSS(string $content, array $feed, Logger $logger): array
+function parseRSS(string $content, array $feed, Logger $logger, ?WebtExtractor $extractor = null): array
 {
     // Подавление XML ошибок
     libxml_use_internal_errors(true);
@@ -612,13 +608,13 @@ function parseRSS(string $content, array $feed, Logger $logger): array
     // RSS 2.0
     if (isset($xml->channel->item)) {
         foreach ($xml->channel->item as $xmlItem) {
-            $items[] = parseRSSItem($xmlItem);
+            $items[] = parseRSSItem($xmlItem, $extractor);
         }
     }
     // Atom
     elseif (isset($xml->entry)) {
         foreach ($xml->entry as $xmlItem) {
-            $items[] = parseAtomItem($xmlItem);
+            $items[] = parseAtomItem($xmlItem, $extractor);
         }
     }
     
@@ -628,7 +624,7 @@ function parseRSS(string $content, array $feed, Logger $logger): array
 /**
  * Парсинг RSS item
  */
-function parseRSSItem(\SimpleXMLElement $item): array
+function parseRSSItem(\SimpleXMLElement $item, ?WebtExtractor $extractor = null): array
 {
     $namespaces = $item->getNamespaces(true);
     
@@ -638,6 +634,16 @@ function parseRSSItem(\SimpleXMLElement $item): array
         $contentNs = $item->children($namespaces['content']);
         if (isset($contentNs->encoded)) {
             $content = (string)$contentNs->encoded;
+        }
+    }
+    
+    // Очистка HTML из content если есть экстрактор
+    if ($content !== null && $extractor !== null && trim($content) !== '') {
+        try {
+            $content = $extractor->extractCleanText($content);
+        } catch (\Exception $e) {
+            // При ошибке оставляем оригинальный контент
+            // Логирование уже происходит внутри WebtExtractor
         }
     }
     
@@ -693,7 +699,7 @@ function parseRSSItem(\SimpleXMLElement $item): array
 /**
  * Парсинг Atom entry
  */
-function parseAtomItem(\SimpleXMLElement $entry): array
+function parseAtomItem(\SimpleXMLElement $entry, ?WebtExtractor $extractor = null): array
 {
     $namespaces = $entry->getNamespaces(true);
     
@@ -713,6 +719,16 @@ function parseAtomItem(\SimpleXMLElement $entry): array
     $content = null;
     if (isset($entry->content)) {
         $content = (string)$entry->content;
+    }
+    
+    // Очистка HTML из content если есть экстрактор
+    if ($content !== null && $extractor !== null && trim($content) !== '') {
+        try {
+            $content = $extractor->extractCleanText($content);
+        } catch (\Exception $e) {
+            // При ошибке оставляем оригинальный контент
+            // Логирование уже происходит внутри WebtExtractor
+        }
     }
     
     // Categories
