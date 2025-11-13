@@ -25,6 +25,17 @@ class Logger
     private const ALLOWED_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
     
     /**
+     * Числовые значения уровней логирования для сравнения
+     */
+    private const LEVEL_PRIORITIES = [
+        'DEBUG' => 0,
+        'INFO' => 1,
+        'WARNING' => 2,
+        'ERROR' => 3,
+        'CRITICAL' => 4,
+    ];
+    
+    /**
      * Статический кеш конфигураций по ключу директории
      * @var array<string, array<string, mixed>>
      */
@@ -52,6 +63,7 @@ class Logger
     private int $currentBufferSize = 0;
     private bool $enabled = true;
     private string $cacheKey;
+    private string $minLogLevel;
     
     /**
      * Email адрес(а) администратора для уведомлений
@@ -106,6 +118,7 @@ class Logger
             'date_format' => $this->dateFormat,
             'log_buffer_size_bytes' => $this->logBufferSizeBytes,
             'enabled' => $this->enabled,
+            'min_log_level' => $this->minLogLevel,
             'admin_emails' => $this->adminEmails,
             'email_config' => $this->emailConfig,
             'email_on_levels' => $this->emailOnLevels,
@@ -135,6 +148,9 @@ class Logger
         
         $this->enabled = (bool)($config['enabled'] ?? true);
         
+        $logLevel = (string)($config['log_level'] ?? $config['min_level'] ?? 'DEBUG');
+        $this->minLogLevel = $this->normalizeLogLevel($logLevel);
+        
         $this->initializeEmailConfiguration($config);
         
         $this->validateConfiguration();
@@ -155,9 +171,31 @@ class Logger
         $this->dateFormat = $cachedConfig['date_format'];
         $this->logBufferSizeBytes = $cachedConfig['log_buffer_size_bytes'];
         $this->enabled = $cachedConfig['enabled'];
+        $this->minLogLevel = $cachedConfig['min_log_level'] ?? 'DEBUG';
         $this->adminEmails = $cachedConfig['admin_emails'] ?? [];
         $this->emailConfig = $cachedConfig['email_config'] ?? null;
         $this->emailOnLevels = $cachedConfig['email_on_levels'] ?? ['CRITICAL'];
+    }
+    
+    /**
+     * Нормализует и валидирует уровень логирования
+     * 
+     * @param string $level Уровень логирования
+     * @return string Нормализованный уровень
+     * @throws LoggerValidationException Если уровень недопустим
+     */
+    private function normalizeLogLevel(string $level): string
+    {
+        $normalized = strtoupper(trim($level));
+        
+        if (!in_array($normalized, self::ALLOWED_LEVELS, true)) {
+            throw new LoggerValidationException(
+                'Недопустимый уровень логирования: ' . $level . 
+                '. Допустимые значения: ' . implode(', ', self::ALLOWED_LEVELS)
+            );
+        }
+        
+        return $normalized;
     }
     
     /**
@@ -398,6 +436,10 @@ class Logger
             throw new LoggerException('Недопустимый уровень логирования: ' . $level);
         }
         
+        if (!$this->shouldLog($normalizedLevel)) {
+            return;
+        }
+        
         $record = $this->formatRecord($normalizedLevel, $message, $context) . PHP_EOL;
         $this->writeLog($record);
         
@@ -414,6 +456,20 @@ class Logger
     public function flush(): void
     {
         $this->flushBuffer();
+    }
+    
+    /**
+     * Проверяет, нужно ли логировать сообщение данного уровня
+     * 
+     * @param string $level Нормализованный уровень логирования
+     * @return bool Возвращает true если сообщение должно быть залогировано
+     */
+    private function shouldLog(string $level): bool
+    {
+        $currentPriority = self::LEVEL_PRIORITIES[$level] ?? 0;
+        $minPriority = self::LEVEL_PRIORITIES[$this->minLogLevel] ?? 0;
+        
+        return $currentPriority >= $minPriority;
     }
 
     /**
