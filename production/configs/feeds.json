@@ -5,28 +5,28 @@
             "feed_url": "https://ria.ru/export/rss2/index.xml",
             "website_url": "https://ria.ru",
             "enabled": true,
-            "extraction_delay": 5
+            "extraction_delay": 3
         },
         {
             "name": "Коммерсантъ",
             "feed_url": "https://www.kommersant.ru/rss/news.xml",
             "website_url": "https://www.kommersant.ru",
             "enabled": true,
-            "extraction_delay": 5
+            "extraction_delay": 3
         },
         {
             "name": "Интерфакс",
             "feed_url": "https://www.interfax.ru/rss",
             "website_url": "https://www.interfax.ru",
             "enabled": true,
-            "extraction_delay": 5
+            "extraction_delay": 3
         },
         {
             "name": "TechCrunch",
             "feed_url": "https://techcrunch.com/feed/",
             "website_url": "https://techcrunch.com",
             "enabled": true,
-            "extraction_delay": 7
+            "extraction_delay": 2
         }
     ]
 }
