@@ -224,18 +224,13 @@ function initDatabase(array $config, Logger $logger): MySQL
 
 /**
  * Синхронизация feeds из конфига в БД
+ * 
+ * Конфиг feeds.json является источником истины.
+ * Таблица rss2tlg_feeds - актуальный слепок конфигурации.
+ * Синхронизация происходит при каждом запуске скрипта.
  */
 function syncFeedsFromConfig(MySQL $db, Logger $logger): void
 {
-    // Проверка наличия активных лент в БД
-    $activeFeedsCount = $db->queryOne("SELECT COUNT(*) as cnt FROM rss2tlg_feeds WHERE enabled = 1");
-    
-    if ($activeFeedsCount && $activeFeedsCount['cnt'] > 0) {
-        $logger->info(LOG_PREFIX . ' Active feeds already exist in DB', ['count' => $activeFeedsCount['cnt']]);
-        echo "✅ Активных лент в БД: {$activeFeedsCount['cnt']}\n\n";
-        return;
-    }
-    
     // Загрузка feeds.json
     $feedsConfigPath = __DIR__ . '/configs/feeds.json';
     if (!file_exists($feedsConfigPath)) {
@@ -256,8 +251,12 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
         'feeds_count' => count($feedsConfig['feeds'])
     ]);
     
-    $syncedCount = 0;
+    $insertedCount = 0;
+    $updatedCount = 0;
     $skippedCount = 0;
+    
+    // Собираем feed_url из конфига для последующей проверки
+    $configFeedUrls = [];
     
     foreach ($feedsConfig['feeds'] as $feed) {
         if (!isset($feed['name']) || !isset($feed['feed_url'])) {
@@ -266,9 +265,11 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
             continue;
         }
         
+        $configFeedUrls[] = $feed['feed_url'];
+        
         // Проверка, существует ли уже такой feed_url
         $existing = $db->queryOne(
-            "SELECT id, enabled FROM rss2tlg_feeds WHERE feed_url = ? LIMIT 1",
+            "SELECT id, name, website_url, enabled FROM rss2tlg_feeds WHERE feed_url = ? LIMIT 1",
             [$feed['feed_url']]
         );
         
@@ -276,24 +277,40 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
         $enabled = isset($feed['enabled']) ? (int)(bool)$feed['enabled'] : 1;
         
         if ($existing) {
-            // Обновление существующей записи
-            $db->execute(
-                "UPDATE rss2tlg_feeds SET name = ?, website_url = ?, enabled = ?, updated_at = NOW() WHERE id = ?",
-                [
-                    $feed['name'],
-                    $feed['website_url'] ?? null,
-                    $enabled,
-                    $existing['id']
-                ]
+            // Проверка, нужно ли обновление (изменились ли данные)
+            $needsUpdate = (
+                $existing['name'] !== $feed['name'] ||
+                $existing['website_url'] !== ($feed['website_url'] ?? null) ||
+                (int)$existing['enabled'] !== $enabled
             );
             
-            $logger->info(LOG_PREFIX . ' Feed updated', [
-                'id' => $existing['id'],
-                'name' => $feed['name'],
-                'enabled' => $enabled
-            ]);
-            
-            echo "   ✏️  Обновлен: {$feed['name']} (enabled: {$enabled})\n";
+            if ($needsUpdate) {
+                // Обновление существующей записи
+                $db->execute(
+                    "UPDATE rss2tlg_feeds SET name = ?, website_url = ?, enabled = ?, updated_at = NOW() WHERE id = ?",
+                    [
+                        $feed['name'],
+                        $feed['website_url'] ?? null,
+                        $enabled,
+                        $existing['id']
+                    ]
+                );
+                
+                $updatedCount++;
+                
+                $logger->info(LOG_PREFIX . ' Feed updated', [
+                    'id' => $existing['id'],
+                    'name' => $feed['name'],
+                    'enabled' => $enabled,
+                    'changes' => [
+                        'name' => $existing['name'] !== $feed['name'],
+                        'website_url' => $existing['website_url'] !== ($feed['website_url'] ?? null),
+                        'enabled' => (int)$existing['enabled'] !== $enabled
+                    ]
+                ]);
+                
+                echo "   ✏️  Обновлен: {$feed['name']} (enabled: {$enabled})\n";
+            }
         } else {
             // Вставка новой записи
             $db->execute(
@@ -307,6 +324,7 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
             );
             
             $insertId = $db->getLastInsertId();
+            $insertedCount++;
             
             $logger->info(LOG_PREFIX . ' Feed inserted', [
                 'id' => $insertId,
@@ -316,15 +334,44 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
             
             echo "   ✅ Добавлен: {$feed['name']} (enabled: {$enabled})\n";
         }
-        
-        $syncedCount++;
     }
     
-    echo "✅ Синхронизация завершена: обработано {$syncedCount}, пропущено {$skippedCount}\n\n";
+    // Отключение лент, которых нет в конфиге
+    if (!empty($configFeedUrls)) {
+        $placeholders = str_repeat('?,', count($configFeedUrls) - 1) . '?';
+        $orphanedFeeds = $db->query(
+            "SELECT id, name, feed_url FROM rss2tlg_feeds WHERE feed_url NOT IN ({$placeholders}) AND enabled = 1",
+            $configFeedUrls
+        );
+        
+        if (!empty($orphanedFeeds)) {
+            foreach ($orphanedFeeds as $orphaned) {
+                $db->execute("UPDATE rss2tlg_feeds SET enabled = 0, updated_at = NOW() WHERE id = ?", [$orphaned['id']]);
+                
+                $logger->info(LOG_PREFIX . ' Feed disabled (not in config)', [
+                    'id' => $orphaned['id'],
+                    'name' => $orphaned['name'],
+                    'feed_url' => $orphaned['feed_url']
+                ]);
+                
+                echo "   ⚠️  Отключен (не в конфиге): {$orphaned['name']}\n";
+            }
+        }
+    }
+    
+    $totalProcessed = $insertedCount + $updatedCount + $skippedCount;
+    
+    if ($insertedCount > 0 || $updatedCount > 0) {
+        echo "✅ Синхронизация завершена: добавлено {$insertedCount}, обновлено {$updatedCount}, пропущено {$skippedCount}\n\n";
+    } else {
+        echo "✅ Ленты синхронизированы: изменений не требуется\n\n";
+    }
     
     $logger->info(LOG_PREFIX . ' Feeds synchronization completed', [
-        'synced' => $syncedCount,
-        'skipped' => $skippedCount
+        'inserted' => $insertedCount,
+        'updated' => $updatedCount,
+        'skipped' => $skippedCount,
+        'total_processed' => $totalProcessed
     ]);
 }
 
