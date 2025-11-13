@@ -3,5 +3,10 @@
     "log_level": "info",
     "cron_interval_minutes": 2,
     "fetch_timeout": 30,
-    "max_retries": 3
+    "max_retries": 3,
+    "test_mode": false,
+    "test_mode_items_limit": 5,
+    "extract_content_from_link": true,
+    "content_extraction_delay": 5,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 }

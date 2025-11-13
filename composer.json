@@ -15,7 +15,9 @@
         "guzzlehttp/guzzle": "^7.8",
         "simplepie/simplepie": "^1.8",
         "fivefilters/readability.php": "^3.1",
-        "symfony/process": "^7.3"
+        "symfony/process": "^7.3",
+        "symfony/dom-crawler": "^7.3",
+        "symfony/css-selector": "^7.3"
     },
     "autoload": {
         "classmap": [

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use App\Component\Logger;
 use App\Component\MySQL;
+use App\Component\WebtExtractor;
 use App\Config\ConfigLoader;
 
 // ============================================================================
@@ -47,6 +48,13 @@ function main(): void
         $logger = initLogger($config);
         $db = initDatabase($config, $logger);
         
+        // TEST MODE проверка
+        $testMode = (bool)($config['test_mode'] ?? false);
+        if ($testMode) {
+            echo "⚠️  РЕЖИМ ТЕСТИРОВАНИЯ АКТИВЕН\n";
+            echo "   Лимит элементов: " . ($config['test_mode_items_limit'] ?? 5) . "\n\n";
+        }
+        
         $logger->info(LOG_PREFIX . ' Script started', [
             'version' => SCRIPT_VERSION,
             'pid' => getmypid()
@@ -75,6 +83,7 @@ function main(): void
             'items_total' => 0,
             'items_new' => 0,
             'items_duplicates' => 0,
+            'items_extracted' => 0,
             'errors' => []
         ];
         
@@ -87,18 +96,22 @@ function main(): void
             $stats['feeds_processed']++;
             
             try {
-                $result = processFeed($feed, $db, $logger);
+                $result = processFeed($feed, $db, $logger, $config);
                 
                 if ($result['success']) {
                     $stats['feeds_success']++;
                     $stats['items_total'] += $result['items_total'];
                     $stats['items_new'] += $result['items_new'];
                     $stats['items_duplicates'] += $result['items_duplicates'];
+                    $stats['items_extracted'] += $result['items_extracted'];
                     
                     echo "✅ Успешно обработан\n";
                     echo "   📥 Получено: {$result['items_total']}\n";
                     echo "   ✨ Новых: {$result['items_new']}\n";
                     echo "   🔁 Дубликатов: {$result['items_duplicates']}\n";
+                    if ($result['items_extracted'] > 0) {
+                        echo "   🔍 Контента извлечено: {$result['items_extracted']}\n";
+                    }
                 } else {
                     $stats['feeds_failed']++;
                     $stats['errors'][] = [
@@ -141,6 +154,9 @@ function main(): void
         echo "📰 Всего элементов получено: {$stats['items_total']}\n";
         echo "   ✨ Новых: {$stats['items_new']}\n";
         echo "   🔁 Дубликатов: {$stats['items_duplicates']}\n";
+        if ($stats['items_extracted'] > 0) {
+            echo "   🔍 Контента извлечено: {$stats['items_extracted']}\n";
+        }
         echo "\n";
         echo "⏱️  Время выполнения: {$executionTime} сек\n";
         echo "🕐 Завершено: " . date('Y-m-d H:i:s') . "\n\n";
@@ -391,19 +407,20 @@ function getActiveFeeds(MySQL $db, Logger $logger): array
 /**
  * Обработка одного RSS источника
  */
-function processFeed(array $feed, MySQL $db, Logger $logger): array
+function processFeed(array $feed, MySQL $db, Logger $logger, array $config): array
 {
     $result = [
         'success' => false,
         'items_total' => 0,
         'items_new' => 0,
         'items_duplicates' => 0,
+        'items_extracted' => 0,
         'error' => null
     ];
     
     try {
         // Скачивание RSS
-        $rssContent = fetchRSS($feed['feed_url'], $logger);
+        $rssContent = fetchRSS($feed['feed_url'], $logger, $config);
         
         if (!$rssContent) {
             $result['error'] = 'Failed to fetch RSS content';
@@ -418,14 +435,76 @@ function processFeed(array $feed, MySQL $db, Logger $logger): array
             return $result;
         }
         
+        // TEST MODE: ограничение количества элементов
+        $testMode = (bool)($config['test_mode'] ?? false);
+        if ($testMode) {
+            $itemsLimit = (int)($config['test_mode_items_limit'] ?? 5);
+            $items = array_slice($items, 0, $itemsLimit);
+            echo "   🧪 TEST MODE: Обработка первых {$itemsLimit} элементов\n";
+        }
+        
         $result['items_total'] = count($items);
         
+        // Инициализация WebtExtractor если нужно извлекать контент
+        $extractContent = (bool)($config['extract_content_from_link'] ?? false);
+        $extractor = null;
+        
+        if ($extractContent) {
+            $extractorConfig = [
+                'user_agent' => $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'timeout' => $config['fetch_timeout'] ?? 30,
+                'extract_images' => true,
+                'extract_links' => false,
+                'extract_metadata' => true
+            ];
+            $extractor = new WebtExtractor($extractorConfig, $logger);
+        }
+        
+        // Задержка извлечения (из конфига фида или глобального конфига)
+        $extractionDelay = (int)($feed['extraction_delay'] ?? $config['content_extraction_delay'] ?? 5);
+        
         // Сохранение элементов
-        foreach ($items as $item) {
+        foreach ($items as $index => $item) {
             $saved = saveItem($item, $feed['id'], $db, $logger);
             
             if ($saved) {
                 $result['items_new']++;
+                
+                // Извлечение контента из link если content пустой
+                if ($extractContent && $extractor && empty($item['content']) && !empty($item['link'])) {
+                    echo "   🔍 Извлечение контента: " . substr($item['title'], 0, 50) . "...\n";
+                    
+                    try {
+                        $extracted = $extractor->extract($item['link']);
+                        
+                        if (!empty($extracted['text_content'])) {
+                            // Обновление записи с извлеченным контентом
+                            updateExtractedContent(
+                                $feed['id'],
+                                $item['guid'],
+                                $extracted,
+                                $db,
+                                $logger
+                            );
+                            $result['items_extracted']++;
+                            echo "   ✅ Контент извлечен: " . strlen($extracted['text_content']) . " символов\n";
+                        }
+                        
+                    } catch (\Exception $e) {
+                        $logger->warning(LOG_PREFIX . ' Content extraction failed', [
+                            'feed_id' => $feed['id'],
+                            'link' => $item['link'],
+                            'error' => $e->getMessage()
+                        ]);
+                        echo "   ⚠️  Ошибка извлечения: {$e->getMessage()}\n";
+                    }
+                    
+                    // Задержка между запросами
+                    if ($index < count($items) - 1 && $extractionDelay > 0) {
+                        echo "   ⏳ Пауза {$extractionDelay} сек...\n";
+                        sleep($extractionDelay);
+                    }
+                }
             } else {
                 $result['items_duplicates']++;
             }
@@ -441,7 +520,8 @@ function processFeed(array $feed, MySQL $db, Logger $logger): array
             'feed_name' => $feed['name'],
             'items_total' => $result['items_total'],
             'items_new' => $result['items_new'],
-            'items_duplicates' => $result['items_duplicates']
+            'items_duplicates' => $result['items_duplicates'],
+            'items_extracted' => $result['items_extracted']
         ]);
         
     } catch (\Exception $e) {
@@ -463,20 +543,29 @@ function processFeed(array $feed, MySQL $db, Logger $logger): array
 /**
  * Скачивание RSS контента
  */
-function fetchRSS(string $url, Logger $logger): ?string
+function fetchRSS(string $url, Logger $logger, array $config): ?string
 {
+    $userAgent = $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+    $timeout = (int)($config['fetch_timeout'] ?? 30);
+    
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 30,
+        CURLOPT_TIMEOUT => $timeout,
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_USERAGENT => 'Mozilla/5.0 (RSS2TLG Bot/1.0)',
+        CURLOPT_USERAGENT => $userAgent,
         CURLOPT_ENCODING => 'gzip, deflate',
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/rss+xml, application/xml, text/xml, */*',
+            'Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control: no-cache',
+            'DNT: 1'
+        ],
     ]);
     
     $content = curl_exec($ch);
@@ -714,6 +803,65 @@ function saveItem(array $item, int $feedId, MySQL $db, Logger $logger): bool
             'error' => $e->getMessage()
         ]);
         return false;
+    }
+}
+
+/**
+ * Обновление извлеченного контента
+ */
+function updateExtractedContent(int $feedId, string $guid, array $extracted, MySQL $db, Logger $logger): void
+{
+    try {
+        // Подготовка данных
+        $extractedContent = $extracted['text_content'] ?? '';
+        $extractedImages = !empty($extracted['images']) ? json_encode($extracted['images'], JSON_UNESCAPED_UNICODE) : null;
+        $extractedMetadata = !empty($extracted['metadata']) ? json_encode($extracted['metadata'], JSON_UNESCAPED_UNICODE) : null;
+        
+        // Обновление записи
+        $sql = "UPDATE rss2tlg_items 
+                SET extracted_content = ?,
+                    extracted_images = ?,
+                    extracted_metadata = ?,
+                    extraction_status = 'success',
+                    extraction_error = NULL,
+                    extracted_at = NOW()
+                WHERE feed_id = ? AND guid = ?";
+        
+        $params = [
+            $extractedContent,
+            $extractedImages,
+            $extractedMetadata,
+            $feedId,
+            $guid
+        ];
+        
+        $db->execute($sql, $params);
+        
+        $logger->info(LOG_PREFIX . ' Content extracted and updated', [
+            'feed_id' => $feedId,
+            'guid' => $guid,
+            'content_length' => strlen($extractedContent),
+            'images_count' => count($extracted['images'] ?? [])
+        ]);
+        
+    } catch (\Exception $e) {
+        // Обновление статуса ошибки
+        try {
+            $sql = "UPDATE rss2tlg_items 
+                    SET extraction_status = 'failed',
+                        extraction_error = ?
+                    WHERE feed_id = ? AND guid = ?";
+            
+            $db->execute($sql, [$e->getMessage(), $feedId, $guid]);
+        } catch (\Exception $updateError) {
+            // Игнорируем ошибку обновления статуса
+        }
+        
+        $logger->error(LOG_PREFIX . ' Failed to update extracted content', [
+            'feed_id' => $feedId,
+            'guid' => $guid,
+            'error' => $e->getMessage()
+        ]);
     }
 }
 
