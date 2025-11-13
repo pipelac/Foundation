@@ -79,13 +79,46 @@ EXIT;
 
 ### 4. Импорт схем БД
 
-```bash
-# Базовые таблицы (rss2tlg_items, rss2tlg_feed_state, rss2tlg_publications)
-mysql -u rss2tlg_user -p rss2tlg < src/Rss2Tlg/sql/rss2tlg_schema_clean.sql
+#### Linux/macOS:
 
-# AI Pipeline таблицы
-mysql -u rss2tlg_user -p rss2tlg < src/Rss2Tlg/sql/ai_pipeline_schema.sql
+```bash
+# Полная схема production (рекомендуется)
+mysql -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
 ```
+
+#### Windows:
+
+**⚠️ ВАЖНО:** На Windows MySQL-клиент по умолчанию использует кодировку cp1251/latin1, что приводит к проблемам с UTF-8 файлами.
+
+**Способ 1 (Рекомендуется):** Указать кодировку в команде
+
+```cmd
+mysql --default-character-set=utf8mb4 -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+**Способ 2:** Добавить в my.ini конфиг MySQL
+
+```ini
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4
+```
+
+После этого можно использовать обычную команду:
+
+```cmd
+mysql -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+**Способ 3:** Импорт через phpMyAdmin/Workbench
+
+1. Открыть файл `production/sql/init_schema.sql` в phpMyAdmin
+2. Убедиться, что выбрана кодировка **utf8mb4**
+3. Нажать "Выполнить"
+
+---
 
 **Проверка:**
 
@@ -94,15 +127,13 @@ mysql -u rss2tlg_user -p rss2tlg -e "SHOW TABLES;"
 ```
 
 Должны быть созданы:
-- rss2tlg_items
-- rss2tlg_feed_state
-- rss2tlg_publications
-- rss2tlg_summarization
-- rss2tlg_deduplication
-- rss2tlg_translation
-- rss2tlg_illustration
-- v_rss2tlg_full_pipeline (VIEW)
-- v_rss2tlg_ready_to_publish (VIEW)
+- ✅ rss2tlg_feeds (источники RSS)
+- ✅ rss2tlg_feed_state (состояние источников)
+- ✅ rss2tlg_items (новости из RSS)
+- ✅ rss2tlg_summarization (AI суммаризация)
+- ✅ rss2tlg_deduplication (дедупликация)
+- ✅ rss2tlg_publications (публикации в Telegram)
+- ✅ openrouter_metrics (детальные метрики OpenRouter API)
 
 ### 5. Создание директорий
 
@@ -382,10 +413,48 @@ FLUSH PRIVILEGES;
 # Проверить таблицы
 mysql -u rss2tlg_user -p rss2tlg -e "SHOW TABLES;"
 
-# Переимпортировать схемы
-mysql -u rss2tlg_user -p rss2tlg < src/Rss2Tlg/sql/rss2tlg_schema_clean.sql
-mysql -u rss2tlg_user -p rss2tlg < src/Rss2Tlg/sql/ai_pipeline_schema.sql
+# Переимпортировать схему
+mysql --default-character-set=utf8mb4 -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
 ```
+
+### Проблема: "Кракозябры" в комментариях к таблицам (Windows)
+
+**Причина:** MySQL-клиент на Windows по умолчанию использует кодировку cp1251/latin1 вместо UTF-8.
+
+**Решение 1 - Указать кодировку в команде:**
+
+```cmd
+mysql --default-character-set=utf8mb4 -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+**Решение 2 - Настроить my.ini:**
+
+1. Найти файл конфигурации MySQL (обычно `C:\ProgramData\MySQL\MySQL Server X.X\my.ini`)
+2. Добавить секции:
+
+```ini
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4
+
+[mysqld]
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+```
+
+3. Перезапустить MySQL сервер
+4. Переимпортировать схему
+
+**Решение 3 - Пересоздать БД с правильной кодировкой:**
+
+```sql
+DROP DATABASE IF EXISTS rss2tlg;
+CREATE DATABASE rss2tlg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Затем импортировать с флагом `--default-character-set=utf8mb4`
 
 ### Проблема: "OpenRouter API error"
 

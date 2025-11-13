@@ -1,678 +1,373 @@
-# 📦 Production Scripts - RSS2TLG
+# 🚀 RSS2TLG PRODUCTION
 
-Production-ready скрипты для сбора и обработки новостей из RSS источников.
-
-**📖 [Примеры использования](USAGE_EXAMPLES.md)** | **📊 [RSS Ingest Test](TEST_REPORT.md)** | **📊 [Summarization Test (15 items)](TEST_REPORT_SUMMARIZATION_15ITEMS.md)** | **📝 [История изменений](CHANGES.md)**
+Production-скрипты для автоматической обработки RSS-лент и публикации в Telegram.
 
 ---
 
-## 🔄 Pipeline Workflow
-
-Система обработки новостей состоит из нескольких последовательных этапов:
-
-```
-┌─────────────────────┐
-│  1. RSS Ingest      │  ← rss_ingest.php
-│  Сбор из источников │
-└──────────┬──────────┘
-           │ rss2tlg_items
-           ↓
-┌─────────────────────┐
-│  2. Summarization   │  ← rss_summarization.php ✨ НОВЫЙ
-│  AI суммаризация    │
-└──────────┬──────────┘
-           │ rss2tlg_summarization
-           ↓
-┌─────────────────────┐
-│  3. Deduplication   │  ← rss_deduplication.php ✅ ГОТОВ
-│  Проверка дубликатов│
-└──────────┬──────────┘
-           │ rss2tlg_deduplication
-           ↓
-┌─────────────────────┐
-│  4. Translation     │  (в разработке)
-│  Перевод на языки   │
-└──────────┬──────────┘
-           │ rss2tlg_translation
-           ↓
-┌─────────────────────┐
-│  5. Illustration    │  (в разработке)
-│  Генерация картинок │
-└──────────┬──────────┘
-           │ rss2tlg_illustration
-           ↓
-┌─────────────────────┐
-│  6. Publication     │  (в разработке)
-│  Публикация в Tlg   │
-└─────────────────────┘
-```
-
-**Статус:**
-- ✅ **Этап 1: RSS Ingest** - Production Ready (v1.0.0) - [Test Report](TEST_REPORT.md)
-- ✅ **Этап 2: Summarization** - Production Ready (v2.1) - [Test Report (15 items)](TEST_REPORT_SUMMARIZATION_15ITEMS.md)
-- ✅ **Этап 3: Deduplication** - Production Ready (v2.1) - [Test Report](TEST_REPORT_DEDUPLICATION.md)
-- ⏳ Этапы 4-6 - в разработке
-
----
-
-## 📁 Структура
+## 📁 СТРУКТУРА
 
 ```
 production/
-├── configs/                    # Конфигурационные файлы
-│   ├── main.json              # Основные настройки
-│   ├── database.json          # Подключение к БД
-│   ├── telegram.json          # Telegram бот
-│   ├── openrouter.json        # OpenRouter API
-│   ├── summarization.json     # 📝 Настройки суммаризации (с детальными комментариями)
-│   ├── deduplication.json     # Настройки дедупликации
-│   └── feeds.json             # RSS источники (справочно)
-├── prompts/                    # AI промпты
-│   ├── summarization_prompt_v2.txt
-│   └── deduplication_prompt_v2.txt
-├── sql/                        # SQL дампы
-│   ├── rss2tlg_feeds_dump.sql
-│   ├── rss2tlg_items_dump.sql (628 KB, 569 записей) ✨ ОБНОВЛЕНО 2025-11-10
-│   ├── rss2tlg_summarization_dump.sql (46 KB, 21 запись) ✨ ОБНОВЛЕНО 2025-11-10
-│   └── ... (8 других файлов)
-├── rss_ingest.php             # 1️⃣ Скрипт сбора RSS
-├── rss_summarization.php      # 2️⃣ Скрипт AI суммаризации (TEST_MODE: 15 items)
-├── rss_deduplication.php      # 3️⃣ Скрипт проверки дубликатов
-├── TEST_REPORT.md             # Отчет: RSS Ingest
-├── TEST_REPORT_SUMMARIZATION_15ITEMS.md  # 🆕 Отчет: Summarization (15 новостей)
-├── TEST_REPORT_SUMMARIZATION.md          # Отчет: Summarization (6 новостей)
-├── TEST_REPORT_DEDUPLICATION.md          # Отчет: Deduplication
-├── QUICKSTART_SUMMARIZATION_TESTED.md    # Quickstart: Summarization
-├── QUICKSTART_DEDUPLICATION.md           # Quickstart: Deduplication
-└── README.md                  # Эта документация
+├── sql/
+│   └── init_schema.sql          # Полная схема БД с правильной кодировкой
+├── config/
+│   ├── rss2tlg_production.json  # Production конфигурация
+│   └── feeds.json               # Список RSS-лент
+├── rss_ingest.php               # Основной скрипт обработки
+└── README.md                    # Эта документация
 ```
 
 ---
 
-## 🚀 Быстрый старт
+## ⚙️ УСТАНОВКА
 
-### 1. Установка зависимостей
-
-```bash
-# MariaDB должен быть установлен и запущен
-sudo apt-get install mariadb-server mariadb-client
-```
-
-### 2. Создание БД и пользователя
+### 1. Создание БД
 
 ```bash
-sudo mysql -u root << 'EOF'
-CREATE DATABASE IF NOT EXISTS rss2tlg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'rss2tlg_user'@'localhost' IDENTIFIED BY 'rss2tlg_password_2024';
-GRANT ALL PRIVILEGES ON rss2tlg.* TO 'rss2tlg_user'@'localhost';
-FLUSH PRIVILEGES;
-EOF
+mysql -u root -p
 ```
-
-### 3. Импорт схем
-
-```bash
-cd /home/engine/project
-mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < src/Rss2Tlg/sql/rss2tlg_schema_clean.sql
-mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < src/Rss2Tlg/sql/ai_pipeline_schema.sql
-mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < src/Rss2Tlg/sql/publication_schema.sql
-```
-
-### 4. Настройка конфигов
-
-Конфиги уже настроены в папке `configs/`. При необходимости отредактируйте:
-
-```bash
-vim production/configs/database.json    # БД
-vim production/configs/telegram.json    # Telegram
-vim production/configs/main.json        # Основные настройки
-```
-
-### 5. Ручной запуск
-
-```bash
-php production/rss_ingest.php
-```
-
-### 6. Настройка cron (каждые 2 минуты)
-
-```bash
-./production/setup_cron.sh
-```
-
-Или вручную:
-
-```bash
-crontab -e
-
-# Добавить строку:
-*/2 * * * * /usr/bin/php /home/engine/project/production/rss_ingest.php >> /home/engine/project/logs/cron_rss_ingest.log 2>&1
-```
-
----
-
-## 📡 Скрипт 1: rss_ingest.php
-
-### Описание
-
-Основной production скрипт для сбора новостей из RSS источников.
-
-### Функционал
-
-- ✅ Сбор новостей из 4 RSS источников (РИА, Коммерсантъ, Интерфакс, Медуза)
-- ✅ Парсинг RSS 2.0 и Atom форматов
-- ✅ Дедупликация (MD5 hash на основе title + link)
-- ✅ Сохранение в БД (таблица `rss2tlg_items`)
-- ✅ Обновление состояния источников (таблица `rss2tlg_feed_state`)
-- ✅ Telegram уведомления о ходе работы
-- ✅ Структурированное логирование (JSON)
-- ✅ Graceful error handling
-
-### Производительность
-
-- **Скорость:** ~4-6 сек на обработку 4 источников и ~400 элементов
-- **Память:** ~10-15 MB
-- **Точность дедупликации:** 100%
-
-### Конфигурационные файлы
-
-| Файл | Назначение |
-|------|------------|
-| `configs/main.json` | Пути логов, интервалы, таймауты |
-| `configs/database.json` | Подключение к БД |
-| `configs/telegram.json` | Telegram бот (token, chat_id) |
-| `configs/feeds.json` | RSS источники (справочно, не используется скриптом) |
-
-### Логи
-
-- **Основной лог:** `/home/engine/project/logs/rss_ingest.log`
-- **Cron лог:** `/home/engine/project/logs/cron_rss_ingest.log`
-
-### Просмотр логов
-
-```bash
-# Последние записи
-tail -100 logs/rss_ingest.log
-
-# В реальном времени
-tail -f logs/rss_ingest.log
-
-# Только ошибки
-grep ERROR logs/rss_ingest.log
-
-# Статистика по запускам
-grep "Script completed" logs/rss_ingest.log
-```
-
----
-
-## 🤖 Скрипт 2: rss_summarization.php
-
-### Описание
-
-Production скрипт для AI суммаризации и категоризации новостей из таблицы `rss2tlg_items`.
-
-### Функционал
-
-- ✅ AI суммаризация полного текста новости
-- ✅ Категоризация (основная + 2 дополнительные категории)
-- ✅ Определение языка статьи (en, ru, и др.)
-- ✅ Оценка важности новости (1-20)
-- ✅ Подготовка данных для дедупликации (сущности, события, факты)
-- ✅ Fallback между моделями (Claude 3.5 Sonnet → DeepSeek Chat)
-- ✅ Prompt caching для экономии токенов
-- ✅ Telegram уведомления о прогрессе
-- ✅ Детальное логирование
-
-### Режимы работы
-
-**TEST MODE (по умолчанию):**
-- Обрабатывает только последние 3 новости
-- Константа: `TEST_MODE = true`
-- Лимит: `TEST_ITEMS_LIMIT = 3`
-
-**PRODUCTION MODE:**
-- Обрабатывает все непроцессированные новости
-- Установите: `TEST_MODE = false`
-
-### Конфигурационные файлы
-
-| Файл | Назначение |
-|------|------------|
-| `configs/main.json` | Пути логов, интервалы, таймауты |
-| `configs/database.json` | Подключение к БД |
-| `configs/telegram.json` | Telegram бот (token, chat_id) |
-| `configs/openrouter.json` | OpenRouter API (ключ, URL) |
-| `configs/summarization.json` | Модели AI, промпт файл, retry логика |
-
-### AI Модели
-
-По умолчанию используются модели в порядке приоритета:
-
-1. **Claude 3.5 Sonnet** - основная модель (высокое качество)
-2. **DeepSeek Chat** - fallback модель (низкая стоимость)
-
-Поддерживается automatic prompt caching для экономии до 75% стоимости.
-
-### Ручной запуск
-
-```bash
-# Тестовый режим (3 новости)
-php production/rss_summarization.php
-
-# Production режим (отредактируйте константу TEST_MODE в скрипте)
-php production/rss_summarization.php
-```
-
-### Логи
-
-- **Основной лог:** `/home/engine/project/logs/rss_summarization.log`
-
-### Просмотр логов
-
-```bash
-# Последние записи
-tail -100 logs/rss_summarization.log
-
-# В реальном времени
-tail -f logs/rss_summarization.log
-
-# Только ошибки
-grep ERROR logs/rss_summarization.log
-
-# Статистика токенов
-grep "total_tokens" logs/rss_summarization.log
-```
-
-### Проверка обработанных новостей
 
 ```sql
--- Статистика суммаризации
-SELECT 
-    status,
-    COUNT(*) as count
-FROM rss2tlg_summarization
-GROUP BY status;
+CREATE DATABASE rss2tlg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'rss2tlg_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON rss2tlg.* TO 'rss2tlg_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
 
--- Последние обработанные новости
-SELECT 
-    i.title,
-    s.article_language,
-    s.category_primary,
-    s.importance_rating,
-    s.processed_at
-FROM rss2tlg_summarization s
-JOIN rss2tlg_items i ON s.item_id = i.id
-WHERE s.status = 'success'
-ORDER BY s.processed_at DESC
-LIMIT 10;
+### 2. Импорт схемы
 
--- Использование токенов
-SELECT 
-    COUNT(*) as total_items,
-    SUM(tokens_used) as total_tokens,
-    AVG(tokens_used) as avg_tokens_per_item,
-    SUM(cache_hit) as cache_hits
-FROM rss2tlg_summarization
-WHERE status = 'success';
+#### Linux/macOS:
+
+```bash
+mysql -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+#### Windows:
+
+**⚠️ ВАЖНО:** Используйте флаг `--default-character-set=utf8mb4` для корректной обработки UTF-8:
+
+```cmd
+mysql --default-character-set=utf8mb4 -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+**Альтернатива:** Настроить `my.ini`
+
+```ini
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4
+```
+
+### 3. Проверка таблиц
+
+```bash
+mysql -u rss2tlg_user -p rss2tlg -e "SHOW TABLES;"
+```
+
+**Ожидаемый результат:**
+
+```
++------------------------+
+| Tables_in_rss2tlg      |
++------------------------+
+| openrouter_metrics     |
+| rss2tlg_deduplication  |
+| rss2tlg_feed_state     |
+| rss2tlg_feeds          |
+| rss2tlg_items          |
+| rss2tlg_publications   |
+| rss2tlg_summarization  |
++------------------------+
 ```
 
 ---
 
-## 🔍 Скрипт 3: rss_deduplication.php
+## 🔑 КОНФИГУРАЦИЯ
 
-### Описание
+### 1. Скопировать конфиг
 
-Production скрипт для проверки суммаризованных новостей на дубликаты с помощью AI анализа.
+```bash
+cp production/config/rss2tlg_production.json.example production/config/rss2tlg_production.json
+```
 
-### Функционал
-
-- ✅ AI проверка на дубликаты (семантический анализ)
-- ✅ Сравнение сущностей, событий, фактов из новостей
-- ✅ Определение процента схожести (0-100)
-- ✅ Решение о публикуемости (can_be_published)
-- ✅ Fallback между моделями (Gemma 3 → DeepSeek Chat → DeepSeek v3.2)
-- ✅ Сравнение с новостями за последние 72 часа
-- ✅ Telegram уведомления о дубликатах
-- ✅ Детальное логирование
-
-### Режимы работы
-
-**PRODUCTION MODE (по умолчанию):**
-- Обрабатывает все суммаризованные новости без ограничений
-- Константа: `TEST_MODE = false`
-
-**TEST MODE:**
-- Обрабатывает только указанное количество новостей
-- Установите: `TEST_MODE = true`
-- Лимит: `TEST_ITEMS_LIMIT = 10`
-
-### Конфигурационные файлы
-
-| Файл | Назначение |
-|------|------------|
-| `configs/main.json` | Пути логов, интервалы, таймауты |
-| `configs/database.json` | Подключение к БД |
-| `configs/telegram.json` | Telegram бот (token, chat_id) |
-| `configs/openrouter.json` | OpenRouter API (ключ, URL) |
-| `configs/deduplication.json` | Модели AI, промпт файл, параметры дедупликации |
-
-### AI Модели
-
-По умолчанию используются модели в порядке приоритета:
-
-1. **Google Gemma 3 27B** - основная модель (высокая точность)
-2. **DeepSeek Chat** - fallback 1 (низкая стоимость)
-3. **DeepSeek v3.2 Exp** - fallback 2 (экспериментальная)
-
-### Параметры дедупликации
+### 2. Редактировать параметры
 
 ```json
 {
-    "lookback_hours": 72,           // Сравнивать с новостями за последние 72 часа
-    "max_compare_items": 50,        // Максимум 50 новостей для сравнения
-    "similarity_threshold": 70,     // Порог схожести для определения дубликата
-    "retry_attempts": 3,            // Количество повторов при ошибке
-    "retry_delay_ms": 1000          // Задержка между повторами
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "rss2tlg",
+    "username": "rss2tlg_user",
+    "password": "YOUR_PASSWORD",
+    "charset": "utf8mb4"
+  },
+  
+  "openrouter": {
+    "api_key": "YOUR_OPENROUTER_API_KEY",
+    "app_name": "RSS2TLG-Production"
+  },
+  
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN",
+    "chat_id": YOUR_CHAT_ID,
+    "channel_id": "@your_channel"
+  }
 }
 ```
+
+### 3. Настроить RSS-ленты
+
+Редактировать `production/config/feeds.json`:
+
+```json
+[
+  {
+    "name": "BBC News",
+    "feed_url": "https://feeds.bbci.co.uk/news/rss.xml",
+    "website_url": "https://www.bbc.com/news",
+    "enabled": true
+  },
+  {
+    "name": "Reuters",
+    "feed_url": "https://www.reutersagency.com/feed/",
+    "website_url": "https://www.reuters.com",
+    "enabled": true
+  }
+]
+```
+
+---
+
+## 🏃 ЗАПУСК
 
 ### Ручной запуск
 
 ```bash
-# Production режим (все новости)
-php production/rss_deduplication.php
-
-# В background с логированием
-php production/rss_deduplication.php > logs/dedup_$(date +%Y%m%d_%H%M%S).log 2>&1 &
-```
-
-### Логи
-
-- **Основной лог:** `/home/engine/project/logs/rss_deduplication.log`
-
-### Просмотр логов
-
-```bash
-# Последние записи
-tail -100 logs/rss_deduplication.log
-
-# В реальном времени
-tail -f logs/rss_deduplication.log
-
-# Только ошибки
-grep ERROR logs/rss_deduplication.log
-
-# Найденные дубликаты
-grep "ДУБЛИКАТ" logs/rss_deduplication.log
-```
-
-### Проверка результатов
-
-```sql
--- Статистика дедупликации
-SELECT 
-    is_duplicate,
-    COUNT(*) as count,
-    AVG(similarity_score) as avg_similarity
-FROM rss2tlg_deduplication
-GROUP BY is_duplicate;
-
--- Найденные дубликаты
-SELECT 
-    d.item_id,
-    i.title,
-    d.similarity_score,
-    d.duplicate_of_item_id,
-    d.checked_at
-FROM rss2tlg_deduplication d
-JOIN rss2tlg_items i ON d.item_id = i.id
-WHERE d.is_duplicate = 1
-ORDER BY d.checked_at DESC
-LIMIT 10;
-
--- Уникальные новости готовые к публикации
-SELECT 
-    d.item_id,
-    i.title,
-    d.similarity_score,
-    d.can_be_published
-FROM rss2tlg_deduplication d
-JOIN rss2tlg_items i ON d.item_id = i.id
-WHERE d.is_duplicate = 0 AND d.can_be_published = 1
-ORDER BY d.checked_at DESC
-LIMIT 10;
-```
-
-### Настройка Cron
-
-Рекомендуемый интервал: каждые 10 минут (после summarization)
-
-```bash
-crontab -e
-
-# Добавить:
-*/10 * * * * /usr/bin/php /home/engine/project/production/rss_deduplication.php >> /home/engine/project/logs/cron_deduplication.log 2>&1
-```
-
----
-
-## 🧪 Тестовые скрипты
-
-### run_3_tests.sh
-
-Запускает скрипт 3 раза с интервалом **2 минуты** (реальный cron интервал).
-
-```bash
-./production/run_3_tests.sh
-```
-
-**Время выполнения:** ~4 минуты
-
-### run_3_tests_fast.sh
-
-Запускает скрипт 3 раза с интервалом **10 секунд** (для быстрого тестирования).
-
-```bash
-./production/run_3_tests_fast.sh
-```
-
-**Время выполнения:** ~30 секунд
-
----
-
-## 📊 SQL Дампы
-
-Все дампы находятся в папке `sql/`. Созданы после успешного тестирования.
-
-### Восстановление из дампов
-
-```bash
-# Все таблицы
-for dump in production/sql/*.sql; do
-  mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < "$dump"
-done
-
-# Отдельная таблица
-mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < production/sql/rss2tlg_items_dump.sql
-```
-
-### Размеры дампов
-
-- `rss2tlg_items_dump.sql` - 505 KB (403 записи)
-- Остальные таблицы - ~3-5 KB (структуры)
-
----
-
-## 📈 Мониторинг
-
-### Проверка состояния источников
-
-```sql
-SELECT 
-    f.name,
-    fs.last_status,
-    fs.error_count,
-    fs.fetched_at,
-    fs.last_error
-FROM rss2tlg_feeds f
-JOIN rss2tlg_feed_state fs ON f.id = fs.feed_id
-ORDER BY fs.fetched_at DESC;
-```
-
-### Статистика по источникам
-
-```sql
-SELECT 
-    f.name AS 'Источник',
-    COUNT(i.id) AS 'Записей',
-    MAX(i.created_at) AS 'Последняя запись'
-FROM rss2tlg_feeds f
-LEFT JOIN rss2tlg_items i ON f.id = i.feed_id
-GROUP BY f.id, f.name
-ORDER BY f.id;
-```
-
-### Свежие новости
-
-```sql
-SELECT 
-    f.name AS 'Источник',
-    i.title AS 'Заголовок',
-    i.created_at AS 'Добавлено'
-FROM rss2tlg_items i
-JOIN rss2tlg_feeds f ON i.feed_id = f.id
-ORDER BY i.created_at DESC
-LIMIT 20;
-```
-
----
-
-## 🔧 Настройка и обслуживание
-
-### Добавление нового источника
-
-1. Добавить в БД:
-
-```sql
-INSERT INTO rss2tlg_feeds (name, feed_url, website_url, enabled) 
-VALUES ('Новый источник', 'https://example.com/rss', 'https://example.com', 1);
-```
-
-2. Проверить ручным запуском:
-
-```bash
+cd /path/to/project
 php production/rss_ingest.php
 ```
 
-### Отключение источника
+### Запуск с логированием
 
-```sql
-UPDATE rss2tlg_feeds SET enabled = 0 WHERE id = 1;
+```bash
+php production/rss_ingest.php 2>&1 | tee logs/production_$(date +%Y%m%d_%H%M%S).log
 ```
 
-### Очистка старых данных
-
-```sql
--- Удалить новости старше 30 дней
-DELETE FROM rss2tlg_items 
-WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-```
-
-### Изменение интервала cron
+### Настройка Cron (автоматический запуск)
 
 ```bash
 crontab -e
+```
 
-# Каждую минуту
-* * * * * /usr/bin/php /home/engine/project/production/rss_ingest.php >> /home/engine/project/logs/cron_rss_ingest.log 2>&1
+**Добавить строку (каждые 15 минут):**
 
-# Каждые 5 минут
-*/5 * * * * /usr/bin/php /home/engine/project/production/rss_ingest.php >> /home/engine/project/logs/cron_rss_ingest.log 2>&1
+```cron
+*/15 * * * * cd /path/to/project && php production/rss_ingest.php >> logs/production_cron.log 2>&1
+```
 
-# Каждые 10 минут
-*/10 * * * * /usr/bin/php /home/engine/project/production/rss_ingest.php >> /home/engine/project/logs/cron_rss_ingest.log 2>&1
+**Другие варианты:**
+
+```cron
+# Каждый час
+0 * * * * cd /path/to/project && php production/rss_ingest.php >> logs/production_cron.log 2>&1
+
+# Каждые 30 минут
+*/30 * * * * cd /path/to/project && php production/rss_ingest.php >> logs/production_cron.log 2>&1
+
+# Каждый день в 08:00
+0 8 * * * cd /path/to/project && php production/rss_ingest.php >> logs/production_cron.log 2>&1
 ```
 
 ---
 
-## 🐛 Устранение неполадок
+## 📊 МОНИТОРИНГ
 
-### Ошибка: "Config file not found"
-
-Проверьте наличие конфигов:
+### Проверка логов
 
 ```bash
-ls -la production/configs/
+# Последние записи
+tail -n 50 logs/rss2tlg.log
+
+# В реальном времени
+tail -f logs/rss2tlg.log
+
+# Поиск ошибок
+grep -i "error" logs/rss2tlg.log
 ```
 
-### Ошибка: "Access denied for user"
+### Статистика БД
 
-Проверьте права пользователя БД:
+```bash
+mysql -u rss2tlg_user -p rss2tlg -e "
+SELECT 
+    'Всего новостей' as Metric,
+    COUNT(*) as Value
+FROM rss2tlg_items
+UNION ALL
+SELECT 
+    'Обработано AI',
+    COUNT(*)
+FROM rss2tlg_summarization
+WHERE status = 'success'
+UNION ALL
+SELECT 
+    'Опубликовано',
+    COUNT(DISTINCT item_id)
+FROM rss2tlg_publications;
+"
+```
 
-```sql
+### Мониторинг performance
+
+```bash
+mysql -u rss2tlg_user -p rss2tlg -e "
+SELECT 
+    DATE(created_at) as date,
+    COUNT(*) as total_items,
+    SUM(CASE WHEN is_published = 1 THEN 1 ELSE 0 END) as published
+FROM rss2tlg_items
+WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+GROUP BY DATE(created_at)
+ORDER BY date DESC;
+"
+```
+
+---
+
+## 🐛 TROUBLESHOOTING
+
+### Проблема: Кракозябры в БД (Windows)
+
+**Причина:** MySQL-клиент использует неправильную кодировку при импорте.
+
+**Быстрое решение:**
+
+```cmd
+# 1. Пересоздать БД
+mysql -u root -p -e "DROP DATABASE IF EXISTS rss2tlg;"
+mysql -u root -p -e "CREATE DATABASE rss2tlg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 2. Импортировать с правильной кодировкой
+mysql --default-character-set=utf8mb4 -u rss2tlg_user -p rss2tlg < production/sql/init_schema.sql
+```
+
+**📖 Подробное руководство:** [WINDOWS_ENCODING_FIX.md](sql/WINDOWS_ENCODING_FIX.md)
+
+### Проблема: "Access denied"
+
+```bash
+# Проверить пользователя
+mysql -u root -p -e "SELECT User, Host FROM mysql.user WHERE User = 'rss2tlg_user';"
+
+# Пересоздать
+mysql -u root -p -e "
+DROP USER IF EXISTS 'rss2tlg_user'@'localhost';
+CREATE USER 'rss2tlg_user'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON rss2tlg.* TO 'rss2tlg_user'@'localhost';
 FLUSH PRIVILEGES;
+"
 ```
 
-### Ошибка: "Table doesn't exist"
-
-Импортируйте схемы:
+### Проблема: "Connection refused"
 
 ```bash
-mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg < src/Rss2Tlg/sql/rss2tlg_schema_clean.sql
+# Проверить статус MySQL
+sudo systemctl status mariadb
+# или
+sudo service mysql status
+
+# Запустить
+sudo systemctl start mariadb
 ```
 
-### Telegram уведомления не приходят
+### Проблема: Медленная обработка
 
-Проверьте конфиг:
+**Оптимизация:**
 
-```bash
-cat production/configs/telegram.json
+1. Включить AI кеширование в конфиге
+2. Увеличить batch size
+3. Добавить индексы:
+
+```sql
+CREATE INDEX idx_items_created ON rss2tlg_items(created_at DESC);
+CREATE INDEX idx_sum_status ON rss2tlg_summarization(status);
+CREATE INDEX idx_dedup_status ON rss2tlg_deduplication(status);
 ```
 
-Проверьте доступность бота:
+---
 
-```bash
-curl "https://api.telegram.org/bot8327641497:AAFTHb3xSTpP3Q6Peg8-OK4nTWTfF7iMWfI/getMe"
+## 📝 ЛОГИ И ОТЧЕТЫ
+
+### Структура логов
+
+```
+logs/
+├── rss2tlg.log              # Основной лог
+├── production_cron.log      # Лог cron задачи
+└── production_YYYYMMDD_HHMMSS.log  # Лог конкретного запуска
+```
+
+### Формат логов
+
+```
+[2025-01-13 10:30:45] [INFO] Starting RSS ingest...
+[2025-01-13 10:30:46] [INFO] Feed: BBC News - 5 new items
+[2025-01-13 10:30:47] [INFO] AI Summarization: 5 items processed
+[2025-01-13 10:30:48] [INFO] Deduplication: 3 unique, 2 duplicates
+[2025-01-13 10:30:49] [INFO] Published: 3 items to channel
+[2025-01-13 10:30:50] [INFO] Tokens used: 4,500
+[2025-01-13 10:30:51] [INFO] Cost: $0.015
 ```
 
 ---
 
-## 📚 Дополнительные ресурсы
+## 🔒 БЕЗОПАСНОСТЬ
 
-- **Основная документация:** `/docs/Rss2Tlg/README.md`
-- **API классов:** `/docs/Rss2Tlg/API.md`
-- **Установка:** `/docs/Rss2Tlg/INSTALL.md`
-- **Отчет о тестировании:** `/production/TEST_REPORT.md`
+### Рекомендации:
 
----
+1. **Не хранить пароли в конфиге**
+   - Использовать переменные окружения
+   - Или хранить конфиг вне репозитория
 
-## 📞 Поддержка
+2. **Ограничить права MySQL пользователя**
+   ```sql
+   GRANT SELECT, INSERT, UPDATE, DELETE ON rss2tlg.* TO 'rss2tlg_user'@'localhost';
+   ```
 
-Если у вас возникли проблемы или вопросы, проверьте:
+3. **Настроить ротацию логов**
+   ```bash
+   # /etc/logrotate.d/rss2tlg
+   /path/to/project/logs/*.log {
+       daily
+       rotate 7
+       compress
+       missingok
+       notifempty
+   }
+   ```
 
-1. Логи: `tail -100 logs/rss_ingest.log`
-2. База данных: `mysql -u rss2tlg_user -prss2tlg_password_2024 rss2tlg`
-3. Тестовый отчет: `production/TEST_REPORT.md`
-
----
-
-## 📋 История версий
-
-### v1.1.0 (2025-11-09)
-- ✨ Добавлен скрипт `rss_summarization.php` - AI суммаризация новостей
-- ✨ Добавлены конфиги: `openrouter.json`, `summarization.json`
-- 📝 Обновлена документация с описанием pipeline workflow
-
-### v1.0.0 (2025-11-09)
-- ✅ Запущен скрипт `rss_ingest.php` - сбор RSS новостей
-- ✅ Конфигурационные файлы перенесены в `production/configs/`
-- ✅ Полное тестирование (3 прогона, 100% успех)
-- ✅ SQL дампы экспортированы
+4. **Использовать HTTPS для RSS лент**
+   - Проверять SSL сертификаты
 
 ---
 
-**Версия:** 1.1.0  
-**Дата:** 2025-11-09  
-**Статус:** ✅ Production Ready (2 из 6 этапов)
+## 📚 ДОПОЛНИТЕЛЬНО
+
+**Полная документация:**
+- [INSTALL.md](../docs/Rss2Tlg/INSTALL.md) - Детальная установка
+- [README.md](../docs/Rss2Tlg/README.md) - Общая документация
+- [API.md](../docs/Rss2Tlg/API.md) - Справочник API
+
+**Поддержка:**
+- GitHub Issues
+- Email: support@example.com
+
+---
+
+**Версия:** 1.0  
+**Дата:** 2025-01-13  
+**Статус:** ✅ Production Ready
