@@ -1,0 +1,176 @@
+{
+  "_comment": "=== Конфигурация Logger.class.php ===",
+  "_comment_description": "Полная документация всех параметров класса Logger с допустимыми диапазонами и значениями по умолчанию",
+  
+  "_section_required": "=== ОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ ===",
+  
+  "directory": "/var/www/logs/production",
+  "_directory_comment": "Абсолютный путь к директории для логов. Будет создана автоматически если не существует. ОБЯЗАТЕЛЬНЫЙ параметр. Права на запись: 0775.",
+  
+  "file_name": "app.log",
+  "_file_name_comment": "Имя файла лога. ОБЯЗАТЕЛЬНЫЙ параметр. При ротации создаются файлы с суффиксами: app.log, app.log.1, app.log.2 и т.д.",
+  
+  "_section_optional": "=== ОПЦИОНАЛЬНЫЕ ПАРАМЕТРЫ ===",
+  
+  "enabled": true,
+  "_enabled_comment": "Включить/выключить логирование. По умолчанию: true. Можно управлять через методы enable()/disable().",
+  "_enabled_values": "true | false",
+  
+  "_section_log_level": "=== УРОВЕНЬ ЛОГИРОВАНИЯ ===",
+  
+  "log_level": "DEBUG",
+  "_log_level_comment": "Минимальный уровень логирования. Сообщения ниже этого уровня не записываются. Альтернативное название параметра: 'min_level'.",
+  "_log_level_values": "DEBUG (0) | INFO (1) | WARNING (2) | ERROR (3) | CRITICAL (4)",
+  "_log_level_priority": "Приоритеты: DEBUG=0, INFO=1, WARNING=2, ERROR=3, CRITICAL=4. Чем выше число, тем критичнее уровень.",
+  "_log_level_default": "DEBUG",
+  
+  "_section_rotation": "=== РОТАЦИЯ ФАЙЛОВ ===",
+  
+  "max_files": 5,
+  "_max_files_comment": "Максимальное количество файлов логов, которые хранятся. При достижении лимита старый файл удаляется.",
+  "_max_files_range": "минимум: 1, рекомендуется: 3-10, по умолчанию: 5",
+  "_max_files_example": "Если max_files=5, будут храниться: app.log, app.log.1, app.log.2, app.log.3, app.log.4",
+  
+  "max_file_size": 10,
+  "_max_file_size_comment": "Максимальный размер одного файла лога в МЕГАБАЙТАХ. При превышении запускается ротация.",
+  "_max_file_size_range": "минимум: 1 МБ, рекомендуется: 5-50 МБ, по умолчанию: 1 МБ",
+  "_max_file_size_note": "Значение указывается в МБ, но внутренне хранится в байтах (умножается на 1024*1024).",
+  
+  "_section_format": "=== ФОРМАТ ЛОГОВ ===",
+  
+  "pattern": "{timestamp} [{level}] {message} {context}",
+  "_pattern_comment": "Шаблон форматирования записей лога. Используются плейсхолдеры: {timestamp}, {level}, {message}, {context}.",
+  "_pattern_default": "{timestamp} {level} {message} {context}",
+  "_pattern_placeholders": {
+    "{timestamp}": "Временная метка в формате date_format",
+    "{level}": "Уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    "{message}": "Текст сообщения",
+    "{context}": "Дополнительные данные в JSON формате (если переданы)"
+  },
+  "_pattern_examples": [
+    "[{timestamp}] {level}: {message} | {context}",
+    "{timestamp} | {level} | {message} {context}",
+    "{level} - {timestamp} - {message} ({context})"
+  ],
+  
+  "date_format": "Y-m-d H:i:s.u",
+  "_date_format_comment": "Формат временной метки в логах. Использует стандартные PHP форматы даты.",
+  "_date_format_default": "DateTimeImmutable::ATOM (2024-01-15T10:30:45+00:00)",
+  "_date_format_examples": [
+    "Y-m-d H:i:s (2024-01-15 10:30:45)",
+    "Y-m-d H:i:s.u (2024-01-15 10:30:45.123456)",
+    "c (ISO 8601: 2024-01-15T10:30:45+03:00)",
+    "U (Unix timestamp: 1705310445)"
+  ],
+  
+  "_section_buffer": "=== БУФЕРИЗАЦИЯ ===",
+  
+  "log_buffer_size": 64,
+  "_log_buffer_size_comment": "Размер буфера для накопления логов перед записью в файл в КИЛОБАЙТАХ. 0 = без буферизации (запись сразу).",
+  "_log_buffer_size_range": "минимум: 0 (без буфера), рекомендуется: 8-128 КБ, по умолчанию: 0 КБ",
+  "_log_buffer_size_note": "Значение указывается в КБ, но внутренне хранится в байтах (умножается на 1024).",
+  "_log_buffer_size_benefits": "Буферизация снижает количество операций записи на диск, улучшает производительность при высоком потоке логов.",
+  "_log_buffer_size_flush": "Буфер сбрасывается автоматически при заполнении или в деструкторе. Можно вызвать flush() вручную.",
+  
+  "_section_email": "=== EMAIL УВЕДОМЛЕНИЯ ===",
+  
+  "admin_email": ["admin@example.com", "devops@example.com"],
+  "_admin_email_comment": "Email адрес(а) администратора для получения уведомлений. Может быть строкой или массивом адресов. Опционально.",
+  "_admin_email_validation": "Все адреса валидируются через filter_var() с FILTER_VALIDATE_EMAIL.",
+  "_admin_email_format": "Строка: 'admin@example.com' | Массив: ['admin@example.com', 'devops@example.com']",
+  
+  "email_config": {
+    "host": "smtp.example.com",
+    "port": 587,
+    "username": "notifications@example.com",
+    "password": "smtp_password",
+    "encryption": "tls",
+    "from_email": "noreply@example.com",
+    "from_name": "Logger System"
+  },
+  "_email_config_comment": "Конфигурация для Email класса. Требуется если указан admin_email. Передается напрямую в конструктор Email класса.",
+  "_email_config_required": "Обязательна если установлен admin_email. Должна содержать все параметры для SMTP подключения.",
+  
+  "email_on_levels": ["ERROR", "CRITICAL"],
+  "_email_on_levels_comment": "Уровни логирования, при которых отправлять email уведомления администратору. Массив уровней.",
+  "_email_on_levels_default": ["CRITICAL"],
+  "_email_on_levels_values": "Любые уровни из: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+  "_email_on_levels_note": "Email отправляется только если заданы admin_email и email_config. При ошибке отправки используется error_log().",
+  
+  "_section_caching": "=== КЕШИРОВАНИЕ ===",
+  
+  "_caching_config": "Кеширование конфигурации в статической переменной по ключу директории. Автоматически.",
+  "_caching_metadata": "Кеширование метаданных файлов (размер, существование) на 1 секунду для оптимизации.",
+  "_caching_methods": "clearAllCaches() - очистить все кеши | clearCacheForDirectory(string $dir) - очистить для директории",
+  "_caching_ttl": "METADATA_CACHE_TTL = 1.0 секунда (константа класса)",
+  
+  "_section_methods": "=== ПУБЛИЧНЫЕ МЕТОДЫ ===",
+  
+  "_methods_logging": [
+    "debug(string $message, array $context = []): void",
+    "info(string $message, array $context = []): void",
+    "warning(string $message, array $context = []): void",
+    "error(string $message, array $context = []): void",
+    "critical(string $message, array $context = []): void",
+    "log(string $level, string $message, array $context = []): void"
+  ],
+  
+  "_methods_control": [
+    "enable(): void - включить логирование",
+    "disable(): void - выключить логирование",
+    "isEnabled(): bool - проверить статус",
+    "flush(): void - принудительно сбросить буфер в файл"
+  ],
+  
+  "_methods_static": [
+    "clearAllCaches(): void - очистить все статические кеши",
+    "clearCacheForDirectory(string $directory): void - очистить кеш для директории"
+  ],
+  
+  "_section_exceptions": "=== ИСКЛЮЧЕНИЯ ===",
+  
+  "_exceptions_types": [
+    "LoggerValidationException - при ошибках валидации конфигурации или параметров",
+    "LoggerException - при ошибках записи в файл или ротации"
+  ],
+  
+  "_section_performance": "=== ПРОИЗВОДИТЕЛЬНОСТЬ ===",
+  
+  "_performance_features": [
+    "Статическое кеширование конфигурации для множественных инстансов одной директории",
+    "Кеширование метаданных файлов (размер, существование) с TTL 1 секунда",
+    "Буферизация записей для снижения I/O операций",
+    "Оптимизированная ротация с минимальными файловыми операциями",
+    "FILE_APPEND | LOCK_EX для атомарной записи"
+  ],
+  
+  "_section_example_minimal": "=== МИНИМАЛЬНЫЙ КОНФИГ ===",
+  "_example_minimal": {
+    "directory": "/var/www/logs",
+    "file_name": "app.log"
+  },
+  
+  "_section_example_full": "=== ПОЛНЫЙ КОНФИГ (ВСЕ ПАРАМЕТРЫ) ===",
+  "_example_full": {
+    "directory": "/var/www/logs/production",
+    "file_name": "app.log",
+    "enabled": true,
+    "log_level": "INFO",
+    "max_files": 7,
+    "max_file_size": 50,
+    "pattern": "[{timestamp}] {level}: {message} {context}",
+    "date_format": "Y-m-d H:i:s",
+    "log_buffer_size": 128,
+    "admin_email": ["admin@example.com"],
+    "email_config": {
+      "host": "smtp.example.com",
+      "port": 587,
+      "username": "logger@example.com",
+      "password": "password",
+      "encryption": "tls",
+      "from_email": "noreply@example.com",
+      "from_name": "Logger System"
+    },
+    "email_on_levels": ["ERROR", "CRITICAL"]
+  }
+}
