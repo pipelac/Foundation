@@ -1,12 +1,45 @@
 {
-    "log_directory": "/home/engine/project/logs",
-    "log_level": "info",
-    "cron_interval_minutes": 2,
-    "fetch_timeout": 30,
-    "max_retries": 3,
-    "test_mode": false,
-    "test_mode_items_limit": 5,
-    "extract_content_from_link": true,
-    "content_extraction_delay": 5,
-    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    "Logger": {
+        "log_directory": "/home/engine/project/logs",
+        "log_level": "info"
+    },
+    "RSSIngest": {
+        "fetch_timeout": 30,
+        "max_retries": 3,
+        "test_mode": false,
+        "test_mode_items_limit": 10,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    },
+    "WebtExtractor": {
+        "timeout": 30,
+        "extract_images": true,
+        "extract_links": false,
+        "extract_metadata": true
+    },
+    "ProxyPool": {
+        "enabled": false,
+        "proxies": [],
+        "rotation_strategy": "round_robin",
+        "health_check_url": "http://httpbin.org/ip",
+        "health_check_timeout": 15,
+        "health_check_interval": 300,
+        "auto_health_check": false,
+        "max_retries": 3,
+        "http_config": {
+            "timeout": 30,
+            "connect_timeout": 15,
+            "verify": false
+        }
+    },
+    "htmlWebProxyList": {
+        "api_key": "cc88eb78ddda7046805cec8a2650970b",
+        "country": "",
+        "country_not": "",
+        "perpage": 10,
+        "work": 1,
+        "type": "HTTP",
+        "p": 1,
+        "short": 2,
+        "timeout": 10
+    }
 }

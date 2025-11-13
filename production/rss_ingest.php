@@ -17,6 +17,8 @@ require_once __DIR__ . '/../autoload.php';
 use App\Component\Logger;
 use App\Component\MySQL;
 use App\Component\WebtExtractor;
+use App\Component\htmlWebProxyList;
+use App\Component\ProxyPool;
 use App\Config\ConfigLoader;
 
 // ============================================================================
@@ -49,10 +51,11 @@ function main(): void
         $db = initDatabase($config, $logger);
         
         // TEST MODE проверка
-        $testMode = (bool)($config['test_mode'] ?? false);
+        $rssConfig = $config['RSSIngest'] ?? [];
+        $testMode = (bool)($rssConfig['test_mode'] ?? false);
         if ($testMode) {
             echo "⚠️  РЕЖИМ ТЕСТИРОВАНИЯ АКТИВЕН\n";
-            echo "   Лимит элементов: " . ($config['test_mode_items_limit'] ?? 5) . "\n\n";
+            echo "   Лимит элементов: " . ($rssConfig['test_mode_items_limit'] ?? 5) . "\n\n";
         }
         
         $logger->info(LOG_PREFIX . ' Script started', [
@@ -211,10 +214,12 @@ function loadConfiguration(): array
  */
 function initLogger(array $config): Logger
 {
+    $loggerConfig = $config['Logger'] ?? [];
+    
     $logConfig = [
-        'directory' => $config['log_directory'] ?? __DIR__ . '/../logs',
+        'directory' => $loggerConfig['log_directory'] ?? __DIR__ . '/../logs',
         'file_name' => 'rss_ingest.log',
-        'min_level' => $config['log_level'] ?? 'info'
+        'min_level' => $loggerConfig['log_level'] ?? 'info'
     ];
     
     return new Logger($logConfig);
@@ -236,6 +241,48 @@ function initDatabase(array $config, Logger $logger): MySQL
     }
     
     return new MySQL($dbConfig, $logger);
+}
+
+/**
+ * Инициализация ProxyPool с загрузкой прокси из htmlweb.ru
+ */
+function initProxyPool(array $config, Logger $logger): ?ProxyPool
+{
+    try {
+        $proxyPoolConfig = $config['ProxyPool'] ?? [];
+        $htmlWebConfig = $config['htmlWebProxyList'] ?? [];
+        
+        // Получаем список прокси из htmlweb.ru
+        $htmlWebProxyList = new htmlWebProxyList(
+            $htmlWebConfig['api_key'] ?? '',
+            $htmlWebConfig,
+            $logger
+        );
+        
+        $proxies = $htmlWebProxyList->getProxies();
+        
+        if (empty($proxies)) {
+            $logger->warning(LOG_PREFIX . ' No proxies received from htmlweb.ru');
+            return null;
+        }
+        
+        $logger->info(LOG_PREFIX . ' Loaded proxies from htmlweb.ru', [
+            'count' => count($proxies)
+        ]);
+        
+        // Создаем ProxyPool с полученными прокси
+        $proxyPoolConfig['proxies'] = $proxies;
+        
+        $proxyPool = new ProxyPool($proxyPoolConfig, $logger);
+        
+        return $proxyPool;
+        
+    } catch (\Exception $e) {
+        $logger->error(LOG_PREFIX . ' Failed to initialize ProxyPool', [
+            'error' => $e->getMessage()
+        ]);
+        return null;
+    }
 }
 
 /**
@@ -392,16 +439,48 @@ function syncFeedsFromConfig(MySQL $db, Logger $logger): void
 }
 
 /**
- * Получение списка активных источников
+ * Получение списка активных источников с настройками из feeds.json
  */
 function getActiveFeeds(MySQL $db, Logger $logger): array
 {
+    // Загрузка feeds.json для получения дополнительных настроек
+    $feedsConfigPath = __DIR__ . '/configs/feeds.json';
+    $feedsConfig = [];
+    $feedsMap = [];
+    
+    if (file_exists($feedsConfigPath)) {
+        $feedsConfigData = json_decode(file_get_contents($feedsConfigPath), true);
+        if (isset($feedsConfigData['feeds']) && is_array($feedsConfigData['feeds'])) {
+            foreach ($feedsConfigData['feeds'] as $feed) {
+                if (isset($feed['feed_url'])) {
+                    $feedsMap[$feed['feed_url']] = $feed;
+                }
+            }
+        }
+    }
+    
     $sql = "SELECT id, name, feed_url, website_url 
             FROM rss2tlg_feeds 
             WHERE enabled = 1 
             ORDER BY id";
     
-    return $db->query($sql);
+    $feeds = $db->query($sql);
+    
+    // Обогащаем данные настройками из feeds.json
+    foreach ($feeds as &$feed) {
+        if (isset($feedsMap[$feed['feed_url']])) {
+            $feedConfig = $feedsMap[$feed['feed_url']];
+            $feed['extraction_delay'] = $feedConfig['extraction_delay'] ?? 0;
+            $feed['extract_content_from_link'] = $feedConfig['extract_content_from_link'] ?? false;
+            $feed['use_htmlweb_proxy'] = $feedConfig['use_htmlweb_proxy'] ?? false;
+        } else {
+            $feed['extraction_delay'] = 0;
+            $feed['extract_content_from_link'] = false;
+            $feed['use_htmlweb_proxy'] = false;
+        }
+    }
+    
+    return $feeds;
 }
 
 /**
@@ -419,6 +498,8 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
     ];
     
     try {
+        $rssConfig = $config['RSSIngest'] ?? [];
+        
         // Скачивание RSS
         $rssContent = fetchRSS($feed['feed_url'], $logger, $config);
         
@@ -427,15 +508,39 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
             return $result;
         }
         
+        // Инициализация ProxyPool если нужен прокси для этого фида
+        $proxyPool = null;
+        if (!empty($feed['use_htmlweb_proxy'])) {
+            $proxyPool = initProxyPool($config, $logger);
+            
+            if ($proxyPool) {
+                echo "   🔒 Прокси активирован для {$feed['name']}\n";
+                $stats = $proxyPool->getStatistics();
+                echo "   📊 Доступно прокси: {$stats['alive_proxies']}/{$stats['total_proxies']}\n";
+            }
+        }
+        
         // Инициализация WebtExtractor для очистки HTML и извлечения контента
-        $extractContent = (bool)($config['extract_content_from_link'] ?? false);
+        $extractContent = (bool)($feed['extract_content_from_link'] ?? false);
+        $webtConfig = $config['WebtExtractor'] ?? [];
         $extractorConfig = [
-            'user_agent' => $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'timeout' => $config['fetch_timeout'] ?? 30,
-            'extract_images' => true,
-            'extract_links' => false,
-            'extract_metadata' => true
+            'user_agent' => $rssConfig['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'timeout' => $webtConfig['timeout'] ?? 30,
+            'extract_images' => $webtConfig['extract_images'] ?? true,
+            'extract_links' => $webtConfig['extract_links'] ?? false,
+            'extract_metadata' => $webtConfig['extract_metadata'] ?? true,
+            'verify_ssl' => false
         ];
+        
+        // Добавляем прокси в конфигурацию экстрактора если он есть
+        if ($proxyPool) {
+            $proxy = $proxyPool->getNextProxy();
+            if ($proxy) {
+                $extractorConfig['proxy'] = $proxy;
+                echo "   🌐 Используется прокси: {$proxy}\n";
+            }
+        }
+        
         $extractor = new WebtExtractor($extractorConfig, $logger);
         
         // Парсинг RSS с очисткой HTML
@@ -447,17 +552,17 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
         }
         
         // TEST MODE: ограничение количества элементов
-        $testMode = (bool)($config['test_mode'] ?? false);
+        $testMode = (bool)($rssConfig['test_mode'] ?? false);
         if ($testMode) {
-            $itemsLimit = (int)($config['test_mode_items_limit'] ?? 5);
+            $itemsLimit = (int)($rssConfig['test_mode_items_limit'] ?? 5);
             $items = array_slice($items, 0, $itemsLimit);
             echo "   🧪 TEST MODE: Обработка первых {$itemsLimit} элементов\n";
         }
         
         $result['items_total'] = count($items);
         
-        // Задержка извлечения (из конфига фида или глобального конфига)
-        $extractionDelay = (int)($feed['extraction_delay'] ?? $config['content_extraction_delay'] ?? 5);
+        // Задержка извлечения из конфига фида
+        $extractionDelay = (int)($feed['extraction_delay'] ?? 0);
         
         // Сохранение элементов
         foreach ($items as $index => $item) {
@@ -541,8 +646,9 @@ function processFeed(array $feed, MySQL $db, Logger $logger, array $config): arr
  */
 function fetchRSS(string $url, Logger $logger, array $config): ?string
 {
-    $userAgent = $config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-    $timeout = (int)($config['fetch_timeout'] ?? 30);
+    $rssConfig = $config['RSSIngest'] ?? [];
+    $userAgent = $rssConfig['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+    $timeout = (int)($rssConfig['fetch_timeout'] ?? 30);
     
     $ch = curl_init();
     curl_setopt_array($ch, [
