@@ -37,6 +37,7 @@ composer install
 {
     "directory": "/var/log/myapp",
     "file_name": "app.log",
+    "log_level": "INFO",
     "max_files": 5,
     "max_file_size": 10,
     "pattern": "{timestamp} {level} {message} {context}",
@@ -65,6 +66,7 @@ composer install
 |----------|-----|--------------|--------------|----------|
 | `directory` | string | Да | - | Путь к директории для хранения логов |
 | `file_name` | string | Нет | "app.log" | Имя файла лога |
+| `log_level` / `min_level` | string | Нет | "DEBUG" | Минимальный уровень логирования (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
 | `max_files` | int | Нет | 5 | Максимальное количество файлов ротации |
 | `max_file_size` | int | Нет | 1 | Максимальный размер файла в МБ |
 | `pattern` | string | Нет | "{timestamp} {level} {message} {context}" | Шаблон формата записи |
@@ -156,6 +158,34 @@ for ($i = 0; $i < 1000; $i++) {
 $logger->flush();
 
 // Или буфер автоматически сбросится при уничтожении объекта
+```
+
+### Фильтрация по уровню логирования
+
+```php
+// Установить минимальный уровень INFO - DEBUG не будет логироваться
+$logger = new Logger([
+    'directory' => '/var/log',
+    'log_level' => 'INFO', // или 'min_level' => 'INFO'
+]);
+
+$logger->debug('Это сообщение НЕ попадет в лог'); // DEBUG < INFO
+$logger->info('Это сообщение попадет в лог');      // INFO >= INFO
+$logger->warning('Это сообщение попадет в лог');   // WARNING > INFO
+$logger->error('Это сообщение попадет в лог');     // ERROR > INFO
+$logger->critical('Это сообщение попадет в лог');  // CRITICAL > INFO
+
+// Для production рекомендуется использовать INFO или WARNING
+$productionLogger = new Logger([
+    'directory' => '/var/log/production',
+    'log_level' => 'INFO',  // Отключить DEBUG логи
+]);
+
+// Для development можно использовать DEBUG
+$devLogger = new Logger([
+    'directory' => './logs',
+    'log_level' => 'DEBUG',  // Логировать все
+]);
 ```
 
 ### Управление логированием
@@ -354,6 +384,7 @@ try {
 $logger = new Logger([
     'directory' => '/var/log/production',
     'file_name' => 'app.log',
+    'log_level' => 'INFO',       // Отключить DEBUG логи в production
     'max_files' => 30,           // 30 дней истории
     'max_file_size' => 100,      // 100 МБ на файл
     'log_buffer_size' => 256,    // Буфер 256 КБ
@@ -371,6 +402,7 @@ $logger = new Logger([
 $logger = new Logger([
     'directory' => './logs',
     'file_name' => 'debug.log',
+    'log_level' => 'DEBUG',      // Логировать все уровни включая DEBUG
     'max_files' => 3,
     'max_file_size' => 10,
     'log_buffer_size' => 0,      // Без буферизации для немедленной записи
@@ -454,6 +486,18 @@ try {
    - `ERROR` - ошибки, требующие исправления
    - `CRITICAL` - срочные проблемы, требующие немедленного внимания
 
+4.1. **Фильтруйте логи по уровню**:
+   ```php
+   // Production - только INFO и выше
+   'log_level' => 'INFO',
+   
+   // Development - все логи включая DEBUG
+   'log_level' => 'DEBUG',
+   
+   // Критические системы - только ошибки
+   'log_level' => 'ERROR',
+   ```
+
 5. **Настройте email уведомления** для критических ошибок:
    ```php
    'admin_email' => 'admin@company.com',
@@ -481,9 +525,10 @@ try {
 ### Рекомендации
 
 - Для высоконагруженных систем используйте `log_buffer_size` >= 128 КБ
-- Избегайте слишком частой записи DEBUG логов в production
+- **Устанавливайте `log_level` = 'INFO' в production** для фильтрации DEBUG логов
 - Используйте ротацию файлов для предотвращения роста размера файлов
 - Рассмотрите использование асинхронного логирования для критичных к производительности участков
+- В development используйте `log_level` = 'DEBUG' для полной отладки
 
 ## Примеры в коде
 
