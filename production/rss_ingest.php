@@ -16,7 +16,6 @@ require_once __DIR__ . '/../autoload.php';
 
 use App\Component\Logger;
 use App\Component\MySQL;
-use App\Component\Telegram;
 use App\Config\ConfigLoader;
 
 // ============================================================================
@@ -47,15 +46,14 @@ function main(): void
         $config = loadConfiguration();
         $logger = initLogger($config);
         $db = initDatabase($config, $logger);
-        $telegram = initTelegram($config, $logger);
         
         $logger->info(LOG_PREFIX . ' Script started', [
             'version' => SCRIPT_VERSION,
             'pid' => getmypid()
         ]);
         
-        // Отправка уведомления в Telegram
-        sendTelegramNotification($telegram, $logger, "🚀 <b>RSS Ingest запущен</b>\n⏱ Время: {$scriptStart}");
+        // Автоинициализация БД из feeds.json если активных лент нет
+        syncFeedsFromConfig($db, $logger);
         
         // Получение списка активных источников
         $feeds = getActiveFeeds($db, $logger);
@@ -63,7 +61,6 @@ function main(): void
         if (empty($feeds)) {
             $logger->warning(LOG_PREFIX . ' No active feeds found');
             echo "⚠️  Нет активных источников\n";
-            sendTelegramNotification($telegram, $logger, "⚠️ <b>Нет активных источников</b>");
             return;
         }
         
@@ -153,20 +150,6 @@ function main(): void
             'execution_time' => $executionTime
         ]);
         
-        // Telegram уведомление
-        $telegramMessage = "✅ <b>RSS Ingest завершен</b>\n\n";
-        $telegramMessage .= "📊 <b>Статистика:</b>\n";
-        $telegramMessage .= "• Источников: {$stats['feeds_processed']}\n";
-        $telegramMessage .= "• Успешно: {$stats['feeds_success']}\n";
-        $telegramMessage .= "• Ошибок: {$stats['feeds_failed']}\n\n";
-        $telegramMessage .= "📰 <b>Элементы:</b>\n";
-        $telegramMessage .= "• Всего: {$stats['items_total']}\n";
-        $telegramMessage .= "• Новых: {$stats['items_new']}\n";
-        $telegramMessage .= "• Дубли: {$stats['items_duplicates']}\n\n";
-        $telegramMessage .= "⏱ Время: {$executionTime}с";
-        
-        sendTelegramNotification($telegram, $logger, $telegramMessage);
-        
     } catch (\Exception $e) {
         $error = "Fatal error: {$e->getMessage()}";
         echo "\n❌ КРИТИЧЕСКАЯ ОШИБКА: {$error}\n\n";
@@ -176,10 +159,6 @@ function main(): void
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-        }
-        
-        if (isset($telegram)) {
-            sendTelegramNotification($telegram, null, "❌ <b>RSS Ingest ОШИБКА</b>\n\n{$error}");
         }
         
         exit(1);
@@ -244,37 +223,109 @@ function initDatabase(array $config, Logger $logger): MySQL
 }
 
 /**
- * Инициализация Telegram бота
+ * Синхронизация feeds из конфига в БД
  */
-function initTelegram(array $config, Logger $logger): Telegram
+function syncFeedsFromConfig(MySQL $db, Logger $logger): void
 {
-    $configPath = __DIR__ . '/configs/telegram.json';
-    if (!file_exists($configPath)) {
-        throw new \RuntimeException("Telegram config not found: {$configPath}");
+    // Проверка наличия активных лент в БД
+    $activeFeedsCount = $db->queryOne("SELECT COUNT(*) as cnt FROM rss2tlg_feeds WHERE enabled = 1");
+    
+    if ($activeFeedsCount && $activeFeedsCount['cnt'] > 0) {
+        $logger->info(LOG_PREFIX . ' Active feeds already exist in DB', ['count' => $activeFeedsCount['cnt']]);
+        echo "✅ Активных лент в БД: {$activeFeedsCount['cnt']}\n\n";
+        return;
     }
     
-    $telegramConfig = json_decode(file_get_contents($configPath), true);
-    if (!$telegramConfig) {
-        throw new \RuntimeException("Failed to parse telegram config");
+    // Загрузка feeds.json
+    $feedsConfigPath = __DIR__ . '/configs/feeds.json';
+    if (!file_exists($feedsConfigPath)) {
+        $logger->warning(LOG_PREFIX . ' feeds.json not found', ['path' => $feedsConfigPath]);
+        echo "⚠️  Файл feeds.json не найден: {$feedsConfigPath}\n\n";
+        return;
     }
     
-    return new Telegram($telegramConfig, $logger);
-}
-
-/**
- * Отправка уведомления в Telegram
- */
-function sendTelegramNotification(Telegram $telegram, ?Logger $logger, string $message): void
-{
-    try {
-        $telegram->sendText('366442475', $message, ['parse_mode' => 'HTML']);
-    } catch (\Exception $e) {
-        if ($logger) {
-            $logger->warning(LOG_PREFIX . ' Failed to send Telegram notification', [
-                'error' => $e->getMessage()
-            ]);
+    $feedsConfig = json_decode(file_get_contents($feedsConfigPath), true);
+    if (!$feedsConfig || !isset($feedsConfig['feeds']) || !is_array($feedsConfig['feeds'])) {
+        $logger->warning(LOG_PREFIX . ' Invalid feeds.json format');
+        echo "⚠️  Некорректный формат feeds.json\n\n";
+        return;
+    }
+    
+    echo "🔄 Синхронизация лент из feeds.json...\n";
+    $logger->info(LOG_PREFIX . ' Starting feeds synchronization from config', [
+        'feeds_count' => count($feedsConfig['feeds'])
+    ]);
+    
+    $syncedCount = 0;
+    $skippedCount = 0;
+    
+    foreach ($feedsConfig['feeds'] as $feed) {
+        if (!isset($feed['name']) || !isset($feed['feed_url'])) {
+            $logger->warning(LOG_PREFIX . ' Invalid feed config', ['feed' => $feed]);
+            $skippedCount++;
+            continue;
         }
+        
+        // Проверка, существует ли уже такой feed_url
+        $existing = $db->queryOne(
+            "SELECT id, enabled FROM rss2tlg_feeds WHERE feed_url = ? LIMIT 1",
+            [$feed['feed_url']]
+        );
+        
+        // Преобразование boolean в TINYINT
+        $enabled = isset($feed['enabled']) ? (int)(bool)$feed['enabled'] : 1;
+        
+        if ($existing) {
+            // Обновление существующей записи
+            $db->execute(
+                "UPDATE rss2tlg_feeds SET name = ?, website_url = ?, enabled = ?, updated_at = NOW() WHERE id = ?",
+                [
+                    $feed['name'],
+                    $feed['website_url'] ?? null,
+                    $enabled,
+                    $existing['id']
+                ]
+            );
+            
+            $logger->info(LOG_PREFIX . ' Feed updated', [
+                'id' => $existing['id'],
+                'name' => $feed['name'],
+                'enabled' => $enabled
+            ]);
+            
+            echo "   ✏️  Обновлен: {$feed['name']} (enabled: {$enabled})\n";
+        } else {
+            // Вставка новой записи
+            $db->execute(
+                "INSERT INTO rss2tlg_feeds (name, feed_url, website_url, enabled) VALUES (?, ?, ?, ?)",
+                [
+                    $feed['name'],
+                    $feed['feed_url'],
+                    $feed['website_url'] ?? null,
+                    $enabled
+                ]
+            );
+            
+            $insertId = $db->getLastInsertId();
+            
+            $logger->info(LOG_PREFIX . ' Feed inserted', [
+                'id' => $insertId,
+                'name' => $feed['name'],
+                'enabled' => $enabled
+            ]);
+            
+            echo "   ✅ Добавлен: {$feed['name']} (enabled: {$enabled})\n";
+        }
+        
+        $syncedCount++;
     }
+    
+    echo "✅ Синхронизация завершена: обработано {$syncedCount}, пропущено {$skippedCount}\n\n";
+    
+    $logger->info(LOG_PREFIX . ' Feeds synchronization completed', [
+        'synced' => $syncedCount,
+        'skipped' => $skippedCount
+    ]);
 }
 
 /**

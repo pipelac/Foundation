@@ -10,7 +10,7 @@
             "name": "Коммерсантъ",
             "feed_url": "https://www.kommersant.ru/rss/news.xml",
             "website_url": "https://www.kommersant.ru",
-            "enabled": true
+            "enabled": false
         },
         {
             "name": "Интерфакс",
@@ -22,7 +22,7 @@
             "name": "TechCrunch",
             "feed_url": "https://techcrunch.com/feed/",
             "website_url": "https://techcrunch.com",
-            "enabled": true
+            "enabled": false
         }
     ]
 }
